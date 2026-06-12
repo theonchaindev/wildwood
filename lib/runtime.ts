@@ -1,7 +1,7 @@
 // Mutable per-frame state shared between the 3D scene and the HUD without
 // going through React re-renders.
 
-export const live = { x: 0, z: 0, moving: false };
+export const live = { x: 0, z: 0, rot: 0, moving: false };
 
 export const moveTarget = { x: 0, z: 0, active: false, setAt: 0 };
 

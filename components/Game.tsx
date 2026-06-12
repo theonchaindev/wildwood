@@ -12,7 +12,7 @@ import { useGame } from "@/lib/store";
 import { clock, daylight, live, moveTarget, zombies, teleport, isBloodMoonNight, DAY_LENGTH_S } from "@/lib/runtime";
 import { TREES, ROCKS } from "@/lib/world";
 import { ambience } from "@/lib/ambience";
-import { startPresence } from "@/lib/cloud";
+import { startMultiplayer, ghosts } from "@/lib/multiplayer";
 
 const SKY_DAY = new THREE.Color("#7fae5e");
 const SKY_NIGHT = new THREE.Color("#0d1422");
@@ -101,7 +101,7 @@ export default function Game() {
 
   useEffect(() => {
     if (started || spectator) ambience.start();
-    if (started) startPresence();
+    if (started) startMultiplayer();
   }, [started, spectator]);
   useEffect(() => {
     // dev/test hooks for scripted playtesting
@@ -113,6 +113,7 @@ export default function Game() {
     (window as any).__zombies = zombies;
     (window as any).__teleport = teleport;
     (window as any).__rocks = ROCKS;
+    (window as any).__ghosts = ghosts;
   }, []);
   return (
     <div className="game-root">

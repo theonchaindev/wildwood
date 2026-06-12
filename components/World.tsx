@@ -16,6 +16,7 @@ import Rocks from "./Rocks";
 import Zombies from "./Zombies";
 import Animals from "./Animals";
 import Dog from "./Dog";
+import GhostPlayers from "./GhostPlayers";
 
 function Ground() {
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
@@ -386,6 +387,7 @@ export default function World() {
       <Zombies />
       <Animals />
       <Dog />
+      <GhostPlayers />
       <HomePortal />
 
       {/* signposts for the points of interest */}

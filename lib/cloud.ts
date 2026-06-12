@@ -190,26 +190,6 @@ export async function chooseName(name: string) {
   return data.name;
 }
 
-let presenceTimer: ReturnType<typeof setInterval> | null = null;
-
-/** Heartbeat so the online counter is a true count of playing browsers. */
-export function startPresence() {
-  if (presenceTimer || typeof window === "undefined") return;
-  let id = localStorage.getItem("ww-client-id");
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem("ww-client-id", id);
-  }
-  const ping = () =>
-    fetch("/api/presence", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, name: useGame.getState().name }),
-    }).catch(() => {});
-  ping();
-  presenceTimer = setInterval(ping, 25_000);
-}
-
 export async function fetchLeaderboard() {
   return api<{ players: { name: string; level: number; acorns: number }[]; online: number }>(
     "/api/leaderboard"

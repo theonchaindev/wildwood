@@ -1244,6 +1244,10 @@ body {
   white-space: nowrap;
 }
 
+.player-label.ghost {
+  background: rgba(38, 66, 92, 0.72);
+}
+
 /* chop progress (world space) */
 .chop-bar {
   display: flex;

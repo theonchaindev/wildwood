@@ -20,6 +20,7 @@ import {
   fetchOffers, postOffer, acceptPlayerOffer, cancelPlayerOffer, fetchVisit,
   cashOut, fetchLeaderboard, ACORNS_PER_SOL, PlayerOffer,
 } from "@/lib/cloud";
+import { ghosts } from "@/lib/multiplayer";
 
 const ITEM_ICONS: Record<string, string> = {
   Wood: "🪵",
@@ -152,6 +153,15 @@ function Minimap() {
           const [zx, zz] = toPx(z.x, z.z);
           ctx.beginPath();
           ctx.arc(zx, zz, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // other live players
+        ctx.fillStyle = "#6ec1e8";
+        for (const gp of ghosts) {
+          const [gx2, gz2] = toPx(gp.cx, gp.cz);
+          ctx.beginPath();
+          ctx.arc(gx2, gz2, 2.6, 0, Math.PI * 2);
           ctx.fill();
         }
 

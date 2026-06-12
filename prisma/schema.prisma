@@ -25,11 +25,18 @@ model User {
   payouts       Payout[]
 }
 
-// one row per active browser session (guests included) for the online count
+// one row per active browser session (guests included) — powers the online
+// count AND real-time player positions in the shared forest
 model Presence {
   id       String   @id
   name     String   @default("")
   lastSeen DateTime @default(now())
+  x        Float    @default(0)
+  z        Float    @default(0)
+  rot      Float    @default(0)
+  location String   @default("forest")
+  level    Int      @default(1)
+  look     String   @default("{}") // appearance/shirt/hat JSON for rendering
 }
 
 model Payout {

@@ -406,6 +406,7 @@ export default function Player() {
 
     live.x = g.position.x;
     live.z = g.position.z;
+    live.rot = g.rotation.y;
     live.moving = moving;
 
     // --- camera follow ---
