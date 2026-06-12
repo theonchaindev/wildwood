@@ -52,11 +52,11 @@ export const BRIDGE_Z = 0;
 export type ShopId = "trader" | "armoury" | "tailor" | "medbay" | "exchange";
 
 export const BUILDINGS: { id: ShopId; label: string; pos: [number, number, number] }[] = [
-  { id: "trader", label: "🛖 Oakhollow Stores", pos: [-5, 0, 4] },
-  { id: "armoury", label: "⚔️ Thornwall Arms", pos: [-9, 0, -5] },
-  { id: "tailor", label: "🧵 The Mossy Needle", pos: [3, 0, 9] },
-  { id: "medbay", label: "🏥 Toadstool Apothecary", pos: [9, 0, 3] },
-  { id: "exchange", label: "⚖️ The Barter Burrow", pos: [-2, 0, -9] },
+  { id: "trader", label: "🛖 The Den", pos: [-5, 0, 4] },
+  { id: "armoury", label: "⚔️ The Forge", pos: [-9, 0, -5] },
+  { id: "tailor", label: "🧵 Threads", pos: [3, 0, 9] },
+  { id: "medbay", label: "🏥 The Remedy", pos: [9, 0, 3] },
+  { id: "exchange", label: "⚖️ The Vault", pos: [-2, 0, -9] },
 ];
 
 // gaps in the glade fence: east (path), south (meadow), north (grove),
@@ -341,16 +341,16 @@ export type HomeTier = {
 };
 
 export const HOME_TIERS: HomeTier[] = [
-  { name: "Homestead",          price: 250,  tiles: 6,  halfW: 12, halfD: 9,  chestCap: 200,  pens: 1, orchard: 0, hives: 0, well: false, pond: false, windmill: false, tagline: "A patch of land to call your own" },
-  { name: "Extended Homestead", price: 300,  tiles: 12, halfW: 15, halfD: 11, chestCap: 300,  pens: 2, orchard: 0, hives: 0, well: false, pond: false, windmill: false, tagline: "Twice the field, a second pen" },
-  { name: "Grand Homestead",    price: 600,  tiles: 18, halfW: 18, halfD: 13, chestCap: 400,  pens: 3, orchard: 0, hives: 0, well: true,  pond: false, windmill: false, tagline: "Your own well — water without the trek" },
-  { name: "Smallholding",       price: 900,  tiles: 24, halfW: 20, halfD: 15, chestCap: 550,  pens: 4, orchard: 2, hives: 0, well: true,  pond: false, windmill: false, tagline: "An orchard takes root behind the house" },
-  { name: "Farmstead",          price: 1300, tiles: 30, halfW: 22, halfD: 17, chestCap: 700,  pens: 4, orchard: 2, hives: 1, well: true,  pond: false, windmill: false, tagline: "The bees move in" },
-  { name: "Greenacre Farm",     price: 1800, tiles: 34, halfW: 24, halfD: 18, chestCap: 900,  pens: 5, orchard: 4, hives: 1, well: true,  pond: false, windmill: false, tagline: "Green as far as the fence runs" },
-  { name: "Riverside Estate",   price: 2400, tiles: 38, halfW: 26, halfD: 20, chestCap: 1100, pens: 5, orchard: 4, hives: 1, well: true,  pond: true,  windmill: false, tagline: "A private pond, stocked with fish" },
-  { name: "Forest Estate",      price: 3200, tiles: 42, halfW: 27, halfD: 21, chestCap: 1400, pens: 6, orchard: 5, hives: 2, well: true,  pond: true,  windmill: false, tagline: "The forest itself works for you" },
-  { name: "Greatwood Estate",   price: 4200, tiles: 45, halfW: 28, halfD: 23, chestCap: 1700, pens: 7, orchard: 6, hives: 2, well: true,  pond: true,  windmill: false, tagline: "An estate worthy of a Warden" },
-  { name: "Wildwood Domain",    price: 5500, tiles: 48, halfW: 30, halfD: 24, chestCap: 2000, pens: 8, orchard: 6, hives: 2, well: true,  pond: true,  windmill: true,  tagline: "The windmill turns — the whole wood is yours" },
+  { name: "Haven",              price: 250,  tiles: 6,  halfW: 12, halfD: 9,  chestCap: 200,  pens: 1, orchard: 0, hives: 0, well: false, pond: false, windmill: false, tagline: "A patch of land to call your own" },
+  { name: "Expanded Haven",     price: 300,  tiles: 12, halfW: 15, halfD: 11, chestCap: 300,  pens: 2, orchard: 0, hives: 0, well: false, pond: false, windmill: false, tagline: "Twice the field, a second pen" },
+  { name: "Grand Haven",        price: 600,  tiles: 18, halfW: 18, halfD: 13, chestCap: 400,  pens: 3, orchard: 0, hives: 0, well: true,  pond: false, windmill: false, tagline: "Your own well — water without the trek" },
+  { name: "The Acres",          price: 900,  tiles: 24, halfW: 20, halfD: 15, chestCap: 550,  pens: 4, orchard: 2, hives: 0, well: true,  pond: false, windmill: false, tagline: "An orchard takes root behind the house" },
+  { name: "The Farmlands",      price: 1300, tiles: 30, halfW: 22, halfD: 17, chestCap: 700,  pens: 4, orchard: 2, hives: 1, well: true,  pond: false, windmill: false, tagline: "The bees move in" },
+  { name: "The Grounds",        price: 1800, tiles: 34, halfW: 24, halfD: 18, chestCap: 900,  pens: 5, orchard: 4, hives: 1, well: true,  pond: false, windmill: false, tagline: "Green as far as the fence runs" },
+  { name: "Lakeside Grounds",   price: 2400, tiles: 38, halfW: 26, halfD: 20, chestCap: 1100, pens: 5, orchard: 4, hives: 1, well: true,  pond: true,  windmill: false, tagline: "A private pond, stocked with fish" },
+  { name: "The Estate",         price: 3200, tiles: 42, halfW: 27, halfD: 21, chestCap: 1400, pens: 6, orchard: 5, hives: 2, well: true,  pond: true,  windmill: false, tagline: "The forest itself works for you" },
+  { name: "The Great Estate",   price: 4200, tiles: 45, halfW: 28, halfD: 23, chestCap: 1700, pens: 7, orchard: 6, hives: 2, well: true,  pond: true,  windmill: false, tagline: "An estate worthy of a Warden" },
+  { name: "The Domain",         price: 5500, tiles: 48, halfW: 30, halfD: 24, chestCap: 2000, pens: 8, orchard: 6, hives: 2, well: true,  pond: true,  windmill: true,  tagline: "The windmill turns — the whole wood is yours" },
 ];
 
 export function homeTierDef(tier: number): HomeTier {
@@ -652,10 +652,10 @@ export function resolveMovement(
 // ---- zones (for the location readout) ----
 
 export function zoneAt(x: number, z: number): string {
-  if (Math.abs(x - RIVER_X) < RIVER_WIDTH / 2 + 3) return "The Silverwash";
-  if (x > RIVER_X + RIVER_WIDTH / 2) return "Duskmere Bank";
-  if (Math.hypot(x, z) < GLADE_RADIUS + 2) return "Emberfern Glade";
-  if (z < -20 && x < 18) return "Toadstool Hollow";
-  if (z > 20) return "Sunpetal Meadow";
-  return "The Tanglewood";
+  if (Math.abs(x - RIVER_X) < RIVER_WIDTH / 2 + 3) return "The Rush";
+  if (x > RIVER_X + RIVER_WIDTH / 2) return "The Outlands";
+  if (Math.hypot(x, z) < GLADE_RADIUS + 2) return "The Hollow";
+  if (z < -20 && x < 18) return "Sporewood";
+  if (z > 20) return "The Bloom";
+  return "Darkwood";
 }

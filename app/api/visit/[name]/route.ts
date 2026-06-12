@@ -26,7 +26,7 @@ export async function GET(_req: Request, { params }: { params: { name: string } 
   }
   const save = JSON.parse(user.save);
   if (!save.homeTier || save.homeTier < 1) {
-    return NextResponse.json({ error: `${user.name} doesn't own a homestead yet` }, { status: 404 });
+    return NextResponse.json({ error: `${user.name} doesn't own a Haven yet` }, { status: 404 });
   }
   // only the public parts of their homestead
   return NextResponse.json({

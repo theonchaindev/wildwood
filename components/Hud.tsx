@@ -323,7 +323,7 @@ function TraderShop() {
       <ShopRow
         icon="🐈"
         name="House Cat"
-        blurb="Lives on your homestead. Pet her once a day for a little present"
+        blurb="Lives on your Haven. Pet her once a day for a little present"
         right={s.cat ? <span className="shop-owned">Adopted</span> : <BuyBtn cost={CAT_COST} onClick={s.buyCat} />}
       />
       <div className="shop-section">Seeds — plant on your own plot</div>
@@ -508,7 +508,7 @@ function PlayerOffers() {
     return (
       <div className="shop-note">
         🌐 Log in with an online account to trade with other players and visit
-        their homesteads.
+        their Havens.
       </div>
     );
   }
@@ -781,7 +781,7 @@ function ExchangeShop() {
           />
         );
       })}
-      <div className="shop-note">Other foragers post offers here daily — usually better than Oakhollow prices.</div>
+      <div className="shop-note">Other foragers post offers here daily — usually better than Den prices.</div>
     </>
   );
 }
@@ -927,7 +927,7 @@ function HomeOfferModal() {
     <div className="modal-backdrop" onClick={() => s.setHomeOffer(null)}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <span className="modal-title">{buying ? "🪧 Your own Homestead" : `📐 ${tier.name}`}</span>
+          <span className="modal-title">{buying ? "🪧 Your own Haven" : `📐 ${tier.name}`}</span>
           <span className="modal-acorns">🌰 {s.acorns}</span>
         </div>
         <div className="plot-pitch">
@@ -988,7 +988,7 @@ function HouseModal() {
           <span className="modal-acorns">🌰 {s.acorns} · 🪵 {s.inventory.Wood ?? 0} · 🪨 {s.inventory.Stone ?? 0}</span>
         </div>
         <div className="plot-pitch">
-          Home on the {tier?.name ?? "Homestead"} · house {lv} of {HOUSE_LEVELS.length}
+          Home on the {tier?.name ?? "Haven"} · house {lv} of {HOUSE_LEVELS.length}
         </div>
 
         <div className="shop-section">The five houses of the wood</div>
@@ -1228,7 +1228,7 @@ function LeaderboardModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Jump straight to someone's homestead from any name in the UI. */
+/** Jump straight to someone's Haven from any name in the UI. */
 async function visitByName(name: string) {
   const s = useGame.getState();
   if (name === s.name) {
@@ -1282,7 +1282,7 @@ function LeaderboardDock() {
             <div
               key={p.name}
               className={`lb-line click ${p.name === myName ? "me" : ""}`}
-              title="Visit their homestead"
+              title="Visit their Haven"
               onClick={() => visitByName(p.name)}
             >
               <span className="lb-rank">{medal(i)}</span>
@@ -1298,7 +1298,7 @@ function LeaderboardDock() {
             <div
               key={p.name}
               className={`lb-line click ${p.name === myName ? "me" : ""}`}
-              title="Visit their homestead"
+              title="Visit their Haven"
               onClick={() => visitByName(p.name)}
             >
               <span className="lb-rank">{medal(i)}</span>
@@ -1673,15 +1673,15 @@ function HelpModal() {
         </div>
         <div className="help-grid">
           <span>🚶</span><span><b>WASD / arrows</b> or click the ground to move · <b>Shift</b> sprints</span>
-          <span>🪓</span><span><b>Click a tree</b> to chop it — slow by hand, buy an axe at Oakhollow Stores</span>
+          <span>🪓</span><span><b>Click a tree</b> to chop it — slow by hand, buy an axe at The Den</span>
           <span>🍄</span><span>Walk over mushrooms &amp; flowers to collect them</span>
           <span>🎣</span><span>Buy a rod, stand by the river, press <b>F</b> — and <b>F</b> again on the bite!</span>
           <span>💧</span><span>Click the river up close to collect water</span>
-          <span>🧟</span><span>Zombies rise at night (see the timer) — click one to attack. Buy weapons &amp; armour at Thornwall Arms</span>
-          <span>☣️</span><span>Scratches can infect you — antidotes at the Toadstool Apothecary; click meds in the hotbar to use</span>
+          <span>🧟</span><span>Zombies rise at night (see the timer) — click one to attack. Buy weapons &amp; armour at The Forge</span>
+          <span>☣️</span><span>Scratches can infect you — antidotes at The Remedy; click meds in the hotbar to use</span>
           <span>⚖️</span><span>The Exchange posts daily offers from other foragers at premium prices</span>
-          <span>🧵</span><span>The Mossy Needle sells shirts &amp; hats to customise your look</span>
-          <span>🪧</span><span><b>Buy your homestead</b> at the gate near camp — your own private land with farm tiles, a chest, a furnace and a cabin. Extend it at the 📐 sign inside</span>
+          <span>🧵</span><span>Threads sells shirts &amp; hats to customise your look</span>
+          <span>🪧</span><span><b>Buy your Haven</b> at the gate near camp — your own private land with farm tiles, a chest, a furnace and a cabin. Extend it at the 📐 sign inside</span>
           <span>🥕</span><span>Buy seeds, click a tilled tile to plant, click again to harvest when ready</span>
           <span>🐔</span><span>Hunt chickens &amp; boars for meat — <b>cook it first</b>; raw chicken can infect you!</span>
           <span>🎒</span><span>Your pack holds {PACK_CAP} items — store extras in your chest</span>
@@ -1833,7 +1833,7 @@ export default function Hud() {
               : s.nearInteract.kind === "furnace"
               ? "🔥 Furnace"
               : s.nearInteract.kind === "portal"
-              ? s.homeTier > 0 ? "🏡 Enter your Homestead" : "🪧 Land for Sale"
+              ? s.homeTier > 0 ? "🏡 Enter your Haven" : "🪧 Land for Sale"
               : s.nearInteract.kind === "homegate"
               ? "🌲 Back to the Forest"
               : s.nearInteract.kind === "pen"

@@ -150,7 +150,7 @@ export default function Player() {
           fishing.biteAt = 0;
         } else if (s.nearWater) {
           if (!s.rod) {
-            s.addToast("You need a Fishing Rod — sold at Oakhollow Stores 🎣");
+            s.addToast("You need a Fishing Rod — sold at The Den 🎣");
           } else {
             s.setFishingState("waiting");
             // bites come sooner with the Angling skill, and sooner still in the rain

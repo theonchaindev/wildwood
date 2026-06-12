@@ -473,18 +473,18 @@ export function dayOffers(day: number): Offer[] {
 }
 
 const QUESTS: Quest[] = [
-  { id: "leave-glade", title: "Leave Emberfern Glade", desc: "Head out through a gap in the fence into the wild.", goal: 1, progress: 0, done: false, xp: 40, acorns: 10 },
-  { id: "forage-mushrooms", title: "Mushroom Forager", desc: "Collect 5 wild mushrooms from Toadstool Hollow, north of the glade.", goal: 5, progress: 0, done: false, xp: 80, acorns: 25 },
+  { id: "leave-glade", title: "Leave the Hollow", desc: "Head out through a gap in the fence into the wild.", goal: 1, progress: 0, done: false, xp: 40, acorns: 10 },
+  { id: "forage-mushrooms", title: "Mushroom Forager", desc: "Collect 5 wild mushrooms from Sporewood, north of the Hollow.", goal: 5, progress: 0, done: false, xp: 80, acorns: 25 },
   { id: "timber", title: "Timber!", desc: "Chop down 2 trees with your bare hands. Click a tree to start chopping.", goal: 2, progress: 0, done: false, xp: 80, acorns: 20 },
-  { id: "pick-flowers", title: "Sunpetal Florist", desc: "Pick 3 flowers from Sunpetal Meadow in the south.", goal: 3, progress: 0, done: false, xp: 60, acorns: 20 },
-  { id: "buy-axe", title: "Tooled Up", desc: "Sell your goods at Oakhollow Stores and buy an axe.", goal: 1, progress: 0, done: false, xp: 100, acorns: 0 },
+  { id: "pick-flowers", title: "Bloom Florist", desc: "Pick 3 flowers from the Bloom in the south.", goal: 3, progress: 0, done: false, xp: 60, acorns: 20 },
+  { id: "buy-axe", title: "Tooled Up", desc: "Sell your goods at The Den and buy an axe.", goal: 1, progress: 0, done: false, xp: 100, acorns: 0 },
   { id: "go-fish", title: "Gone Fishing", desc: "Buy a fishing rod, stand by the river and press F. Catch 2 fish.", goal: 2, progress: 0, done: false, xp: 90, acorns: 25 },
   { id: "cross-bridge", title: "Cross the Old Bridge", desc: "Cross the river east of camp — only the bridge will get you over.", goal: 1, progress: 0, done: false, xp: 50, acorns: 15 },
   { id: "return-camp", title: "Back to Camp", desc: "Return to the campfire and warm up.", goal: 1, progress: 0, done: false, xp: 70, acorns: 30 },
   { id: "night-watch", title: "Night Watch", desc: "Zombies rise after dark. Put 3 of them back in the ground — click one to attack.", goal: 3, progress: 0, done: false, xp: 150, acorns: 50 },
-  { id: "buy-plot", title: "Land Owner", desc: "Buy your own homestead at the 🏡 gate near camp — your private land, away from the forest.", goal: 1, progress: 0, done: false, xp: 120, acorns: 0 },
-  { id: "harvest", title: "Green Thumb", desc: "Buy seeds at Oakhollow Stores, plant them on your homestead, and harvest 3 crops.", goal: 3, progress: 0, done: false, xp: 100, acorns: 30 },
-  { id: "cook", title: "Home Cooking", desc: "Hunt an animal and cook its meat in your homestead furnace (each cook burns 1 Wood).", goal: 1, progress: 0, done: false, xp: 100, acorns: 25 },
+  { id: "buy-plot", title: "Land Owner", desc: "Buy your own Haven at the 🏡 gate near camp — your private land, away from the forest.", goal: 1, progress: 0, done: false, xp: 120, acorns: 0 },
+  { id: "harvest", title: "Green Thumb", desc: "Buy seeds at The Den, plant them on your Haven, and harvest 3 crops.", goal: 3, progress: 0, done: false, xp: 100, acorns: 30 },
+  { id: "cook", title: "Home Cooking", desc: "Hunt an animal and cook its meat in your Haven furnace (each cook burns 1 Wood).", goal: 1, progress: 0, done: false, xp: 100, acorns: 25 },
 ];
 
 let toastId = 0;
@@ -768,7 +768,7 @@ export const useGame = create<GameState>()(
       dailyClaimed: [],
 
       quests: QUESTS,
-      zone: "Emberfern Glade",
+      zone: "The Hollow",
       banner: null,
       toasts: [],
       nearInteract: null,
@@ -1158,8 +1158,8 @@ export const useGame = create<GameState>()(
         if (!spend(s, tier.price)) return;
         set({ acorns: s.acorns - tier.price, homeTier: 1, homeOffer: null });
         sfx.buy();
-        s.setBanner("🏡 The Homestead is yours!");
-        s.addToast("Walk through the gate to visit your land");
+        s.setBanner("🏡 The Haven is yours!");
+        s.addToast("Walk through the gate to visit your Haven");
         get().bumpStat("deeds");
         get().questEvent("buy-plot");
       },
@@ -1534,7 +1534,7 @@ export const useGame = create<GameState>()(
         const lv = visiting ? s.visitData!.houseLevel ?? 1 : s.houseLevel;
         set({
           location: visiting ? "visit" : "home",
-          zone: visiting ? `🏡 ${s.visitData!.name}'s land` : "🏡 Homestead",
+          zone: visiting ? `🏡 ${s.visitData!.name}'s land` : "🏡 Your Haven",
           openPanel: null,
           decorMode: null,
         });
@@ -1573,7 +1573,7 @@ export const useGame = create<GameState>()(
           set({
             savedForestPos: { x: live.x, z: live.z },
             location: "home",
-            zone: "🏡 Homestead",
+            zone: "🏡 Your Haven",
             chopTargetId: null,
             attackTargetId: null,
             animalTargetId: null,
@@ -1583,7 +1583,7 @@ export const useGame = create<GameState>()(
           teleport.z = homeGateZ(s.homeTier) - 2;
         } else {
           const p = s.savedForestPos ?? { x: HOME_PORTAL_POS[0], z: HOME_PORTAL_POS[2] + 2 };
-          set({ location: "forest", zone: "Emberfern Glade" });
+          set({ location: "forest", zone: "The Hollow" });
           teleport.x = p.x;
           teleport.z = p.z;
         }
@@ -1596,7 +1596,7 @@ export const useGame = create<GameState>()(
         if (s.farm[key]) return;
         const seedLabel = Object.keys(SEEDS).find((label) => (s.inventory[label] ?? 0) > 0);
         if (!seedLabel) {
-          s.addToast("No seeds! Buy some at Oakhollow Stores 🌱");
+          s.addToast("No seeds! Buy some at The Den 🌱");
           sfx.error();
           return;
         }
@@ -1691,7 +1691,7 @@ export const useGame = create<GameState>()(
         // only zombie scratches can infect — animal attacks never do
         if (canInfect && dmg > 1 && !s.infected && Math.random() < 0.22) {
           set({ infected: true });
-          s.addToast("☣️ You've been infected! Get an Antidote at the Toadstool Apothecary");
+          s.addToast("☣️ You've been infected! Get an Antidote at The Remedy");
           sfx.error();
         }
         if (hp <= 0) {

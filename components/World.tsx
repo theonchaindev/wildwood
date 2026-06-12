@@ -392,10 +392,10 @@ export default function World() {
 
       {/* signposts for the points of interest */}
       <group position={[-6, 0, -26]}>
-        <WorldLabel text="🍄 Toadstool Hollow" y={1.4} />
+        <WorldLabel text="🍄 Sporewood" y={1.4} />
       </group>
       <group position={[-2, 0, 28]}>
-        <WorldLabel text="🌼 Sunpetal Meadow" y={1.4} />
+        <WorldLabel text="🌼 The Bloom" y={1.4} />
       </group>
 
       <Collectibles />
@@ -412,7 +412,7 @@ function HomePortal() {
       if (s.homeTier > 0) s.travel("home");
       else s.setHomeOffer("buy");
     } else {
-      s.addToast("Walk closer to the homestead gate");
+      s.addToast("Walk closer to your Haven gate");
       moveTarget.x = HOME_PORTAL_POS[0];
       moveTarget.z = HOME_PORTAL_POS[2] + 2;
       moveTarget.active = true;
@@ -442,7 +442,7 @@ function HomePortal() {
         <meshBasicMaterial color="#9bd06a" transparent opacity={0.25} side={2} />
       </mesh>
       <WorldLabel
-        text={homeTier > 0 ? "🏡 My Homestead" : `🪧 Land for Sale — ${HOME_TIERS[0].price} 🌰`}
+        text={homeTier > 0 ? "🏡 My Haven" : `🪧 Land for Sale — ${HOME_TIERS[0].price} 🌰`}
         y={3.3}
       />
     </group>

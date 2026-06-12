@@ -1668,3 +1668,9 @@ body {
   cursor: pointer;
   opacity: 0.85;
 }
+
+/* clickable HUD elements that aren't <button>s */
+.hotbar .slot,
+.acorn-pill.click {
+  pointer-events: auto;
+}
