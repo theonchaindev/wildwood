@@ -1494,7 +1494,7 @@ function TripOverlay() {
     <>
       <div className={`trip-overlay ${tripKind}`} />
       <div className="trip-pill">
-        {tripKind === "shroom" ? "🍄 The forest is breathing…" : "🌿 Cruising…"} {left}s
+        {tripKind === "shroom" ? "🍄 EVERYTHING IS SPINNING" : "🌿 So sleepy… so smooth…"} {left}s
       </div>
     </>
   );

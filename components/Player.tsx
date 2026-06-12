@@ -483,7 +483,8 @@ export default function Player() {
     if (state.mounted && (chopping || mining || attacking || state.fishingState !== "idle")) {
       useGame.setState({ mounted: false });
     }
-    const speed = tired ? 3.2 : state.mounted ? 11 : sprinting ? 9.5 : 6.5;
+    const weedHigh = state.tripKind === "weed" && Date.now() < state.tripUntil;
+    const speed = (tired ? 3.2 : state.mounted ? 11 : sprinting ? 9.5 : 6.5) * (weedHigh ? 0.82 : 1);
 
     if (moving) {
       const nx = g.position.x + dir.x * speed * dt;
@@ -536,6 +537,31 @@ export default function Player() {
     // --- camera follow (pulled in close indoors so the room fills the screen) ---
     const desired = g.position.clone().add(atInterior ? INTERIOR_CAM_OFFSET : CAM_OFFSET);
     camera.position.lerp(desired, Math.min(1, dt * 4));
+
+    // altered states bend the camera itself: shrooms spin the world right
+    // round, weed sways it like a hammock. Raycasts stay accurate because
+    // it's the camera moving, not the pixels.
+    const tripping = state.tripKind && Date.now() < state.tripUntil ? state.tripKind : null;
+    const cam = camera as THREE.PerspectiveCamera;
+    if (tripping === "shroom") {
+      const t = performance.now() / 1000;
+      const roll = t * 0.45 + Math.sin(t * 0.7) * 0.25;
+      camera.up.set(Math.sin(roll), Math.cos(roll), 0);
+      cam.fov = 38 + Math.sin(t * 0.9) * 8;
+      cam.updateProjectionMatrix();
+    } else if (tripping === "weed") {
+      const t = performance.now() / 1000;
+      const roll = Math.sin(t * 0.45) * 0.07;
+      camera.up.set(Math.sin(roll), Math.cos(roll), 0);
+      if (cam.fov !== 40) {
+        cam.fov = 40; // a lazy, heavy-lidded zoom
+        cam.updateProjectionMatrix();
+      }
+    } else if (camera.up.x !== 0 || cam.fov !== 38) {
+      camera.up.set(0, 1, 0);
+      cam.fov = 38;
+      cam.updateProjectionMatrix();
+    }
     camera.lookAt(g.position.x, g.position.y + 0.8, g.position.z);
 
     // --- throttled game logic (5x / second) ---
