@@ -1518,7 +1518,8 @@ function InventoryModal() {
           {entries.map(([label, n]) => {
             const food = FOODS[label];
             const med = MEDS[label];
-            const usable = !!food || !!med;
+            const herb = label === "Magic Shroom" || label === "Weed";
+            const usable = !!food || !!med || herb;
             const verb = med ? "use" : label === "Water" ? "drink" : "eat";
             return (
               <div
@@ -1531,7 +1532,9 @@ function InventoryModal() {
                 <span className="inv-count">{n}</span>
                 <span className="inv-label">{label}</span>
                 <span className="inv-sub">
-                  {med
+                  {herb
+                    ? "click to take a trip 🌈"
+                    : med
                     ? "click to use"
                     : food
                     ? `${verb}: +${food.hp}❤ +${food.energy}⚡ +${food.hunger}🍗${food.infect ? " ☣️" : ""}`
@@ -1981,8 +1984,9 @@ export default function Hud() {
             </div>
           )}
           {Object.entries(s.inventory).slice(0, 9).map(([label, n]) => {
-            const usable = !!MEDS[label] || !!FOODS[label];
-            const verb = MEDS[label] ? "use" : "eat";
+            const herb = label === "Magic Shroom" || label === "Weed";
+            const usable = !!MEDS[label] || !!FOODS[label] || herb;
+            const verb = herb ? "take" : MEDS[label] ? "use" : "eat";
             return (
               <div
                 key={label}
