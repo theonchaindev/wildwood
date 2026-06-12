@@ -23,6 +23,13 @@ model User {
   payouts       Payout[]
 }
 
+// one row per active browser session (guests included) for the online count
+model Presence {
+  id       String   @id
+  name     String   @default("")
+  lastSeen DateTime @default(now())
+}
+
 model Payout {
   id        String   @id @default(cuid())
   user      User     @relation(fields: [userId], references: [id])

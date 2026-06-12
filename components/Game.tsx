@@ -12,6 +12,7 @@ import { useGame } from "@/lib/store";
 import { clock, daylight, live, moveTarget, zombies, teleport, isBloodMoonNight, DAY_LENGTH_S } from "@/lib/runtime";
 import { TREES, ROCKS } from "@/lib/world";
 import { ambience } from "@/lib/ambience";
+import { startPresence } from "@/lib/cloud";
 
 const SKY_DAY = new THREE.Color("#7fae5e");
 const SKY_NIGHT = new THREE.Color("#0d1422");
@@ -100,6 +101,7 @@ export default function Game() {
 
   useEffect(() => {
     if (started || spectator) ambience.start();
+    if (started) startPresence();
   }, [started, spectator]);
   useEffect(() => {
     // dev/test hooks for scripted playtesting

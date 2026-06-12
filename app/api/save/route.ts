@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/server/db";
+import { prisma, requireDb } from "@/lib/server/db";
 import { getSessionUser } from "@/lib/server/auth";
 
 export async function GET() {
+  const dbErr = requireDb();
+  if (dbErr) return dbErr;
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   const pendingAcorns = user.pendingAcorns;
@@ -17,6 +19,8 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
+  const dbErr = requireDb();
+  if (dbErr) return dbErr;
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   const body = await req.json().catch(() => null);

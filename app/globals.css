@@ -229,6 +229,15 @@ body {
 }
 
 /* character customizer */
+.cust-preview {
+  width: 100%;
+  height: 190px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #2c4220 0%, #1a2a12 100%);
+  border: 1px solid rgba(255, 253, 246, 0.18);
+}
+
 .intro-step-title {
   margin-top: 20px;
   font-size: 14px;

@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/server/db";
+import { prisma, requireDb } from "@/lib/server/db";
 import { getSessionUser } from "@/lib/server/auth";
 
 // POST = accept (buy) an open offer; DELETE = cancel your own offer
 export async function POST(_req: Request, { params }: { params: { id: string } }) {
+  const dbErr = requireDb();
+  if (dbErr) return dbErr;
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Log in to trade" }, { status: 401 });
   const offer = await prisma.offer.findUnique({ where: { id: params.id } });
@@ -27,6 +29,8 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
 }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  const dbErr = requireDb();
+  if (dbErr) return dbErr;
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   const offer = await prisma.offer.findUnique({ where: { id: params.id } });

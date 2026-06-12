@@ -1,11 +1,46 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { useProgress } from "@react-three/drei";
+import * as THREE from "three";
 import { useGame, SKIN_TONES, HAIR_COLORS, SHIRTS, Appearance } from "@/lib/store";
 import { loginCloud, registerCloud, connectWallet, chooseName, startSaveSync } from "@/lib/cloud";
+import CharacterModel from "./CharacterModel";
 
 type Mode = "menu" | "guest" | "online" | "walletname" | "customize";
+
+function Turntable({ children }: { children: React.ReactNode }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame((_, dt) => {
+    if (ref.current) ref.current.rotation.y += dt * 0.9;
+  });
+  return <group ref={ref}>{children}</group>;
+}
+
+function PreviewCanvas() {
+  const appearance = useGame((s) => s.appearance);
+  const shirt = useGame((s) => s.shirt);
+  return (
+    <div className="cust-preview">
+      <Canvas camera={{ position: [0, 1.1, 2.6], fov: 35 }} dpr={[1, 2]}>
+        <ambientLight intensity={0.8} color="#fff4e0" />
+        <directionalLight position={[2, 4, 3]} intensity={1.6} color="#fff3d6" />
+        <directionalLight position={[-3, 2, -2]} intensity={0.5} color="#b8d4e8" />
+        <Turntable>
+          <group position={[0, -0.82, 0]}>
+            <CharacterModel appearance={appearance} shirt={shirt} hat={null} />
+          </group>
+        </Turntable>
+        {/* little grass disc to stand on */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.84, 0]}>
+          <circleGeometry args={[0.85, 24]} />
+          <meshStandardMaterial color="#6f924a" roughness={1} />
+        </mesh>
+      </Canvas>
+    </div>
+  );
+}
 
 function Customizer({ onDone }: { onDone: () => void }) {
   const appearance = useGame((s) => s.appearance);
@@ -16,6 +51,7 @@ function Customizer({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="intro-actions wide">
+      <PreviewCanvas />
       <div className="cust-row">
         <span className="cust-label">Skin</span>
         {SKIN_TONES.map((c, i) => (

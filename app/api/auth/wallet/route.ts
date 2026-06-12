@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { SignJWT, jwtVerify } from "jose";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
-import { prisma } from "@/lib/server/db";
+import { prisma, requireDb } from "@/lib/server/db";
 import { createSession } from "@/lib/server/auth";
 
 const SECRET = new TextEncoder().encode(process.env.WW_JWT_SECRET ?? "wildwood-dev");
@@ -19,6 +19,8 @@ export async function GET() {
 
 // POST: verify the signature and log in / register by wallet
 export async function POST(req: Request) {
+  const dbErr = requireDb();
+  if (dbErr) return dbErr;
   const { pubkey, signature, nonce, token } = await req.json().catch(() => ({}));
   if (![pubkey, signature, nonce, token].every((v) => typeof v === "string")) {
     return NextResponse.json({ error: "Bad wallet login" }, { status: 400 });

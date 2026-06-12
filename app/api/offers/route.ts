@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/server/db";
+import { prisma, requireDb } from "@/lib/server/db";
 import { getSessionUser } from "@/lib/server/auth";
 
 export async function GET() {
+  const dbErr = requireDb();
+  if (dbErr) return dbErr;
   const user = await getSessionUser();
   const offers = await prisma.offer.findMany({
     where: { status: "open" },
@@ -22,6 +24,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const dbErr = requireDb();
+  if (dbErr) return dbErr;
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Log in to post offers" }, { status: 401 });
   const { item, qty, price } = await req.json().catch(() => ({}));

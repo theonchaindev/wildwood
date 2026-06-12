@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
-import { useGame, SHIRTS, SKIN_TONES, HAIR_COLORS, COLLECTIBLE_RESPAWN_MS, Interact } from "@/lib/store";
+import { useGame, COLLECTIBLE_RESPAWN_MS, Interact } from "@/lib/store";
 import { live, moveTarget, chop, mine, fishing, teleport, zombies, animals, daylight } from "@/lib/runtime";
 import { sfx } from "@/lib/sound";
 import {
@@ -13,6 +13,7 @@ import {
   HOME_EXTEND_POS, HOME_COOP_POS, HOME_TIERS, zoneAt, resolveMovement, resolveHomeMovement, bridgeY,
 } from "@/lib/world";
 import HitPop from "./HitPop";
+import CharacterModel from "./CharacterModel";
 import { onAnimalHit } from "./Animals";
 
 // screen-relative WASD axes for the fixed isometric camera angle
@@ -87,10 +88,6 @@ export default function Player() {
   }, [hurtAt]);
 
   const appearance = useGame((s) => s.appearance);
-  const shirtColor = SHIRTS[shirt]?.color ?? "#3f6d35";
-  const sleeveColor = new THREE.Color(shirtColor).multiplyScalar(0.85).getStyle();
-  const skinColor = SKIN_TONES[appearance.skin] ?? SKIN_TONES[0];
-  const hairColor = HAIR_COLORS[appearance.hairColor] ?? HAIR_COLORS[0];
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -506,114 +503,7 @@ export default function Player() {
 
   return (
     <group ref={group}>
-      {/* legs */}
-      <mesh position={[-0.12, 0.3, 0]} castShadow>
-        <boxGeometry args={[0.18, 0.6, 0.18]} />
-        <meshStandardMaterial color="#4a3b28" roughness={1} />
-      </mesh>
-      <mesh position={[0.12, 0.3, 0]} castShadow>
-        <boxGeometry args={[0.18, 0.6, 0.18]} />
-        <meshStandardMaterial color="#4a3b28" roughness={1} />
-      </mesh>
-      {/* torso */}
-      <mesh position={[0, 0.85, 0]} castShadow>
-        <boxGeometry args={[0.52, 0.55, 0.3]} />
-        <meshStandardMaterial color={shirtColor} roughness={1} />
-      </mesh>
-      {/* armour overlay */}
-      {armor && (
-        <mesh position={[0, 0.88, 0]} castShadow>
-          <boxGeometry args={[0.58, 0.48, 0.36]} />
-          <meshStandardMaterial
-            color={armor === "iron" ? "#9aa0a6" : "#8a5a2f"}
-            metalness={armor === "iron" ? 0.65 : 0.05}
-            roughness={armor === "iron" ? 0.35 : 0.8}
-          />
-        </mesh>
-      )}
-      {/* arms */}
-      <mesh position={[-0.34, 0.82, 0]} castShadow>
-        <boxGeometry args={[0.14, 0.5, 0.16]} />
-        <meshStandardMaterial color={sleeveColor} roughness={1} />
-      </mesh>
-      <mesh position={[0.34, 0.82, 0]} castShadow>
-        <boxGeometry args={[0.14, 0.5, 0.16]} />
-        <meshStandardMaterial color={sleeveColor} roughness={1} />
-      </mesh>
-      {/* head */}
-      <mesh position={[0, 1.32, 0]} castShadow>
-        <boxGeometry args={[0.32, 0.32, 0.3]} />
-        <meshStandardMaterial color={skinColor} roughness={1} />
-      </mesh>
-      {/* hair (when no hat covers it) */}
-      {!hat && appearance.hair === "short" && (
-        <mesh position={[0, 1.47, -0.02]} castShadow>
-          <boxGeometry args={[0.34, 0.1, 0.32]} />
-          <meshStandardMaterial color={hairColor} roughness={1} />
-        </mesh>
-      )}
-      {!hat && appearance.hair === "long" && (
-        <>
-          <mesh position={[0, 1.47, -0.02]} castShadow>
-            <boxGeometry args={[0.34, 0.1, 0.32]} />
-            <meshStandardMaterial color={hairColor} roughness={1} />
-          </mesh>
-          <mesh position={[0, 1.22, -0.18]} castShadow>
-            <boxGeometry args={[0.34, 0.42, 0.08]} />
-            <meshStandardMaterial color={hairColor} roughness={1} />
-          </mesh>
-        </>
-      )}
-      {/* beard */}
-      {appearance.beard && (
-        <mesh position={[0, 1.2, 0.15]}>
-          <boxGeometry args={[0.28, 0.14, 0.06]} />
-          <meshStandardMaterial color={hairColor} roughness={1} />
-        </mesh>
-      )}
-      {/* accessories */}
-      {appearance.accessory === "glasses" && (
-        <mesh position={[0, 1.36, 0.17]}>
-          <boxGeometry args={[0.32, 0.06, 0.02]} />
-          <meshStandardMaterial color="#1e1a16" roughness={0.4} />
-        </mesh>
-      )}
-      {appearance.accessory === "scarf" && (
-        <mesh position={[0, 1.12, 0]}>
-          <boxGeometry args={[0.4, 0.12, 0.36]} />
-          <meshStandardMaterial color="#a8403a" roughness={1} />
-        </mesh>
-      )}
-      {hat === "straw" && (
-        <group position={[0, 1.5, 0]}>
-          <mesh castShadow>
-            <cylinderGeometry args={[0.34, 0.36, 0.04, 10]} />
-            <meshStandardMaterial color="#d9c27a" roughness={1} />
-          </mesh>
-          <mesh position={[0, 0.08, 0]} castShadow>
-            <coneGeometry args={[0.2, 0.18, 10]} />
-            <meshStandardMaterial color="#cdb568" roughness={1} />
-          </mesh>
-        </group>
-      )}
-      {hat === "cap" && (
-        <group position={[0, 1.5, 0]}>
-          <mesh castShadow>
-            <boxGeometry args={[0.34, 0.12, 0.32]} />
-            <meshStandardMaterial color="#3a5a8a" roughness={1} />
-          </mesh>
-          <mesh position={[0, -0.03, 0.22]} castShadow>
-            <boxGeometry args={[0.3, 0.04, 0.14]} />
-            <meshStandardMaterial color="#2e4a72" roughness={1} />
-          </mesh>
-        </group>
-      )}
-      {hat === "crown" && (
-        <mesh position={[0, 1.52, 0]} castShadow>
-          <cylinderGeometry args={[0.19, 0.17, 0.14, 8]} />
-          <meshStandardMaterial color="#e8b53a" metalness={0.7} roughness={0.3} emissive="#6b4e10" emissiveIntensity={0.4} />
-        </mesh>
-      )}
+      <CharacterModel appearance={appearance} shirt={shirt} hat={hat} armor={armor} />
 
       {/* right hand: axe (or pickaxe while mining), or the rod while fishing */}
       <group ref={toolRef} position={[0.42, 0.65, 0.14]}>

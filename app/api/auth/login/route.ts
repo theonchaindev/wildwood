@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/server/db";
+import { prisma, requireDb } from "@/lib/server/db";
 import { verifyPassword, createSession } from "@/lib/server/auth";
 
 export async function POST(req: Request) {
+  const dbErr = requireDb();
+  if (dbErr) return dbErr;
   const { name, password } = await req.json().catch(() => ({}));
   if (typeof name !== "string" || typeof password !== "string") {
     return NextResponse.json({ error: "Name and password required" }, { status: 400 });

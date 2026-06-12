@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/server/db";
+import { prisma, requireDb } from "@/lib/server/db";
 
 export async function GET(_req: Request, { params }: { params: { name: string } }) {
+  const dbErr = requireDb();
+  if (dbErr) return dbErr;
   const user = await prisma.user.findUnique({ where: { name: params.name } });
   if (!user?.save) {
     return NextResponse.json({ error: "No forager by that name (or they have no save yet)" }, { status: 404 });

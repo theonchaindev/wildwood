@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/server/db";
+import { prisma, requireDb } from "@/lib/server/db";
 import { getSessionUser } from "@/lib/server/auth";
 
 // Play-to-earn exchange rate: 1000 acorns = 0.01 SOL
@@ -7,6 +7,8 @@ const ACORNS_PER_SOL = 100_000;
 const MIN_CASHOUT = 1000;
 
 export async function POST(req: Request) {
+  const dbErr = requireDb();
+  if (dbErr) return dbErr;
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   if (!user.wallet) {

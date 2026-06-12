@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/server/db";
+import { prisma, requireDb } from "@/lib/server/db";
 import { getSessionUser } from "@/lib/server/auth";
 
 // Pick / change the display name (used by wallet accounts on first login)
 export async function POST(req: Request) {
+  const dbErr = requireDb();
+  if (dbErr) return dbErr;
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   const { name } = await req.json().catch(() => ({}));
