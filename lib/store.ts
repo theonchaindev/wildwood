@@ -166,6 +166,7 @@ export const RECIPES: Record<string, string> = {
 
 // eating: hp/energy/hunger restored, and the infection risk of eating it raw
 export const FOODS: Record<string, { hp: number; energy: number; hunger: number; infect?: number }> = {
+  Water: { hp: 2, energy: 12, hunger: 3 },
   "Raw Chicken": { hp: 4, energy: 5, hunger: 8, infect: 0.6 },
   "Cooked Chicken": { hp: 25, energy: 15, hunger: 30 },
   "Raw Pork": { hp: 5, energy: 5, hunger: 10, infect: 0.25 },
@@ -472,17 +473,17 @@ export function dayOffers(day: number): Offer[] {
 }
 
 const QUESTS: Quest[] = [
-  { id: "leave-glade", title: "Leave the Glade", desc: "Head out through a gap in the fence into the wild.", goal: 1, progress: 0, done: false, xp: 40, acorns: 10 },
-  { id: "forage-mushrooms", title: "Mushroom Forager", desc: "Collect 5 wild mushrooms from the northern grove.", goal: 5, progress: 0, done: false, xp: 80, acorns: 25 },
+  { id: "leave-glade", title: "Leave Emberfern Glade", desc: "Head out through a gap in the fence into the wild.", goal: 1, progress: 0, done: false, xp: 40, acorns: 10 },
+  { id: "forage-mushrooms", title: "Mushroom Forager", desc: "Collect 5 wild mushrooms from Toadstool Hollow, north of the glade.", goal: 5, progress: 0, done: false, xp: 80, acorns: 25 },
   { id: "timber", title: "Timber!", desc: "Chop down 2 trees with your bare hands. Click a tree to start chopping.", goal: 2, progress: 0, done: false, xp: 80, acorns: 20 },
-  { id: "pick-flowers", title: "Meadow Florist", desc: "Pick 3 flowers from the southern meadow.", goal: 3, progress: 0, done: false, xp: 60, acorns: 20 },
-  { id: "buy-axe", title: "Tooled Up", desc: "Sell your goods at the Trading Post and buy an axe.", goal: 1, progress: 0, done: false, xp: 100, acorns: 0 },
+  { id: "pick-flowers", title: "Sunpetal Florist", desc: "Pick 3 flowers from Sunpetal Meadow in the south.", goal: 3, progress: 0, done: false, xp: 60, acorns: 20 },
+  { id: "buy-axe", title: "Tooled Up", desc: "Sell your goods at Oakhollow Stores and buy an axe.", goal: 1, progress: 0, done: false, xp: 100, acorns: 0 },
   { id: "go-fish", title: "Gone Fishing", desc: "Buy a fishing rod, stand by the river and press F. Catch 2 fish.", goal: 2, progress: 0, done: false, xp: 90, acorns: 25 },
   { id: "cross-bridge", title: "Cross the Old Bridge", desc: "Cross the river east of camp — only the bridge will get you over.", goal: 1, progress: 0, done: false, xp: 50, acorns: 15 },
   { id: "return-camp", title: "Back to Camp", desc: "Return to the campfire and warm up.", goal: 1, progress: 0, done: false, xp: 70, acorns: 30 },
   { id: "night-watch", title: "Night Watch", desc: "Zombies rise after dark. Put 3 of them back in the ground — click one to attack.", goal: 3, progress: 0, done: false, xp: 150, acorns: 50 },
   { id: "buy-plot", title: "Land Owner", desc: "Buy your own homestead at the 🏡 gate near camp — your private land, away from the forest.", goal: 1, progress: 0, done: false, xp: 120, acorns: 0 },
-  { id: "harvest", title: "Green Thumb", desc: "Buy seeds at the Trading Post, plant them on your homestead, and harvest 3 crops.", goal: 3, progress: 0, done: false, xp: 100, acorns: 30 },
+  { id: "harvest", title: "Green Thumb", desc: "Buy seeds at Oakhollow Stores, plant them on your homestead, and harvest 3 crops.", goal: 3, progress: 0, done: false, xp: 100, acorns: 30 },
   { id: "cook", title: "Home Cooking", desc: "Hunt an animal and cook its meat in your homestead furnace (each cook burns 1 Wood).", goal: 1, progress: 0, done: false, xp: 100, acorns: 25 },
 ];
 
@@ -583,6 +584,7 @@ type GameState = {
   showSkills: boolean;
   showJournal: boolean;
   showDecorShop: boolean;
+  showInventory: boolean;
 
   xpToLevel: () => number;
   chopTime: () => number;
@@ -623,6 +625,7 @@ type GameState = {
   toggleSkills: () => void;
   toggleJournal: () => void;
   toggleDecorShop: () => void;
+  toggleInventory: () => void;
   animalKilled: (kind: "chicken" | "boar" | "rabbit" | "deer") => void;
   hurt: (dmg: number, canInfect?: boolean) => void;
   buyHomestead: () => void;
@@ -765,7 +768,7 @@ export const useGame = create<GameState>()(
       dailyClaimed: [],
 
       quests: QUESTS,
-      zone: "The Glade",
+      zone: "Emberfern Glade",
       banner: null,
       toasts: [],
       nearInteract: null,
@@ -779,6 +782,7 @@ export const useGame = create<GameState>()(
       showSkills: false,
       showJournal: false,
       showDecorShop: false,
+      showInventory: false,
 
       xpToLevel: () => get().level * 100,
       chopTime: () =>
@@ -927,6 +931,10 @@ export const useGame = create<GameState>()(
         sfx.ui();
         set((s) => ({ showDecorShop: !s.showDecorShop, decorMode: null, showSkills: false, showJournal: false, showQuests: false, showHelp: false, openShop: null, openPanel: null }));
       },
+      toggleInventory: () => {
+        sfx.ui();
+        set((s) => ({ showInventory: !s.showInventory, showSkills: false, showJournal: false, showQuests: false, showHelp: false, openShop: null, openPanel: null, homeOffer: null }));
+      },
       registerHit: (key, amount, crit) => {
         set((s) => ({
           lastHit: { id: (s.lastHit?.id ?? 0) + 1, key, amount, crit, at: Date.now() },
@@ -997,6 +1005,8 @@ export const useGame = create<GameState>()(
           );
           get().addToast("🌟 +1 skill point — spend it in Skills");
           sfx.levelUp();
+          // a level-up is worth saving immediately
+          if (typeof window !== "undefined") window.dispatchEvent(new Event("ww-push-save"));
         } else {
           set({ xp });
         }
@@ -1172,6 +1182,7 @@ export const useGame = create<GameState>()(
         if (next.windmill && !cur.windmill) news.push("the windmill 🌬️");
         s.addToast(news.join(" · "));
         get().bumpStat("deeds");
+        if (typeof window !== "undefined") window.dispatchEvent(new Event("ww-push-save"));
       },
 
       buyDog: () => {
@@ -1572,7 +1583,7 @@ export const useGame = create<GameState>()(
           teleport.z = homeGateZ(s.homeTier) - 2;
         } else {
           const p = s.savedForestPos ?? { x: HOME_PORTAL_POS[0], z: HOME_PORTAL_POS[2] + 2 };
-          set({ location: "forest", zone: "The Glade" });
+          set({ location: "forest", zone: "Emberfern Glade" });
           teleport.x = p.x;
           teleport.z = p.z;
         }
@@ -1585,7 +1596,7 @@ export const useGame = create<GameState>()(
         if (s.farm[key]) return;
         const seedLabel = Object.keys(SEEDS).find((label) => (s.inventory[label] ?? 0) > 0);
         if (!seedLabel) {
-          s.addToast("No seeds! Buy some at the Trading Post 🌱");
+          s.addToast("No seeds! Buy some at Oakhollow Stores 🌱");
           sfx.error();
           return;
         }
@@ -1680,7 +1691,7 @@ export const useGame = create<GameState>()(
         // only zombie scratches can infect — animal attacks never do
         if (canInfect && dmg > 1 && !s.infected && Math.random() < 0.22) {
           set({ infected: true });
-          s.addToast("☣️ You've been infected! Get an Antidote at the Med-Bay");
+          s.addToast("☣️ You've been infected! Get an Antidote at the Toadstool Apothecary");
           sfx.error();
         }
         if (hp <= 0) {
@@ -2052,7 +2063,7 @@ export const useGame = create<GameState>()(
         set({
           openShop: null, openPanel: null, openPen: null, homeOffer: null, buildMode: null,
           decorMode: null, showQuests: false, showHelp: false, showSkills: false,
-          showJournal: false, showDecorShop: false,
+          showJournal: false, showDecorShop: false, showInventory: false,
         }),
     }),
     {

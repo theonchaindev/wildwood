@@ -14,6 +14,7 @@ import { clock, daylight, live, moveTarget, zombies, teleport, isBloodMoonNight,
 import { TREES, ROCKS } from "@/lib/world";
 import { ambience } from "@/lib/ambience";
 import { startMultiplayer, ghosts } from "@/lib/multiplayer";
+import * as cloud from "@/lib/cloud";
 
 const SKY_DAY = new THREE.Color("#7fae5e");
 const SKY_NIGHT = new THREE.Color("#0d1422");
@@ -195,6 +196,7 @@ export default function Game() {
     (window as any).__rocks = ROCKS;
     (window as any).__ghosts = ghosts;
     (window as any).__weather = weather;
+    (window as any).__cloud = cloud;
   }, []);
   return (
     <div className="game-root">

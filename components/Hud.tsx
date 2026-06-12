@@ -781,7 +781,7 @@ function ExchangeShop() {
           />
         );
       })}
-      <div className="shop-note">Other foragers post offers here daily — usually better than Trading Post prices.</div>
+      <div className="shop-note">Other foragers post offers here daily — usually better than Oakhollow prices.</div>
     </>
   );
 }
@@ -1228,6 +1228,22 @@ function LeaderboardModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Jump straight to someone's homestead from any name in the UI. */
+async function visitByName(name: string) {
+  const s = useGame.getState();
+  if (name === s.name) {
+    s.addToast("That's you! Walk through your own gate 🏡");
+    return;
+  }
+  try {
+    const data = await fetchVisit(name);
+    s.startVisit(data as any);
+    s.closeModals();
+  } catch (e: any) {
+    s.addToast(`🏡 ${e.message}`);
+  }
+}
+
 function LeaderboardDock() {
   const myName = useGame((s) => s.name);
   const [tab, setTab] = useState<"players" | "estates">("players");
@@ -1263,7 +1279,12 @@ function LeaderboardDock() {
         <>
           {data.players.length === 0 && <div className="lb-dock-empty">No foragers yet — be the first!</div>}
           {data.players.slice(0, 6).map((p, i) => (
-            <div key={p.name} className={`lb-line ${p.name === myName ? "me" : ""}`}>
+            <div
+              key={p.name}
+              className={`lb-line click ${p.name === myName ? "me" : ""}`}
+              title="Visit their homestead"
+              onClick={() => visitByName(p.name)}
+            >
               <span className="lb-rank">{medal(i)}</span>
               <span className="lb-name">{p.name}</span>
               <span className="lb-stats">Lv {p.level} · {p.acorns} 🌰</span>
@@ -1274,7 +1295,12 @@ function LeaderboardDock() {
         <>
           {(data.estates ?? []).length === 0 && <div className="lb-dock-empty">No land owned yet!</div>}
           {(data.estates ?? []).slice(0, 6).map((p, i) => (
-            <div key={p.name} className={`lb-line ${p.name === myName ? "me" : ""}`}>
+            <div
+              key={p.name}
+              className={`lb-line click ${p.name === myName ? "me" : ""}`}
+              title="Visit their homestead"
+              onClick={() => visitByName(p.name)}
+            >
               <span className="lb-rank">{medal(i)}</span>
               <span className="lb-name">{p.name}</span>
               <span className="lb-stats">
@@ -1389,6 +1415,58 @@ function GuestbookModal({ owner, onClose }: { owner: string; onClose: () => void
         )}
         {err && <div className="offer-error">{err}</div>}
         <button className="btn block" onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
+
+function InventoryModal() {
+  const s = useGame();
+  const entries = Object.entries(s.inventory);
+  const close = () => s.toggleInventory();
+  return (
+    <div className="modal-backdrop" onClick={close}>
+      <div className="modal wide" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <span className="modal-title">🎒 Your Pack</span>
+          <span className="modal-acorns">{s.packCount()}/{PACK_CAP} · 🌰 {s.acorns}</span>
+        </div>
+        {entries.length === 0 && (
+          <div className="shop-empty">Empty! Forage, chop, fish and hunt to fill it.</div>
+        )}
+        <div className="inv-grid">
+          {entries.map(([label, n]) => {
+            const food = FOODS[label];
+            const med = MEDS[label];
+            const usable = !!food || !!med;
+            const verb = med ? "use" : label === "Water" ? "drink" : "eat";
+            return (
+              <div
+                key={label}
+                className={`inv-slot ${usable ? "usable" : ""}`}
+                onClick={usable ? () => s.useItem(label) : undefined}
+                title={label}
+              >
+                <span className="inv-icon">{ITEM_ICONS[label] ?? "📦"}</span>
+                <span className="inv-count">{n}</span>
+                <span className="inv-label">{label}</span>
+                <span className="inv-sub">
+                  {med
+                    ? "click to use"
+                    : food
+                    ? `${verb}: +${food.hp}❤ +${food.energy}⚡ +${food.hunger}🍗${food.infect ? " ☣️" : ""}`
+                    : SELL_PRICES[label]
+                    ? `sells for ${SELL_PRICES[label]} 🌰`
+                    : "material"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="shop-note">
+          Click food to eat it, water to drink, meds to use. Raw meat is risky — cook it first ☣️
+        </div>
+        <button className="btn block" onClick={close}>Close (I)</button>
       </div>
     </div>
   );
@@ -1595,14 +1673,14 @@ function HelpModal() {
         </div>
         <div className="help-grid">
           <span>🚶</span><span><b>WASD / arrows</b> or click the ground to move · <b>Shift</b> sprints</span>
-          <span>🪓</span><span><b>Click a tree</b> to chop it — slow by hand, buy an axe at the Trading Post</span>
+          <span>🪓</span><span><b>Click a tree</b> to chop it — slow by hand, buy an axe at Oakhollow Stores</span>
           <span>🍄</span><span>Walk over mushrooms &amp; flowers to collect them</span>
           <span>🎣</span><span>Buy a rod, stand by the river, press <b>F</b> — and <b>F</b> again on the bite!</span>
           <span>💧</span><span>Click the river up close to collect water</span>
-          <span>🧟</span><span>Zombies rise at night (see the timer) — click one to attack. Buy weapons &amp; armour at the Armoury</span>
-          <span>☣️</span><span>Scratches can infect you — antidotes at the Med-Bay; click meds in the hotbar to use</span>
+          <span>🧟</span><span>Zombies rise at night (see the timer) — click one to attack. Buy weapons &amp; armour at Thornwall Arms</span>
+          <span>☣️</span><span>Scratches can infect you — antidotes at the Toadstool Apothecary; click meds in the hotbar to use</span>
           <span>⚖️</span><span>The Exchange posts daily offers from other foragers at premium prices</span>
-          <span>🧵</span><span>The Tailor sells shirts &amp; hats to customise your look</span>
+          <span>🧵</span><span>The Mossy Needle sells shirts &amp; hats to customise your look</span>
           <span>🪧</span><span><b>Buy your homestead</b> at the gate near camp — your own private land with farm tiles, a chest, a furnace and a cabin. Extend it at the 📐 sign inside</span>
           <span>🥕</span><span>Buy seeds, click a tilled tile to plant, click again to harvest when ready</span>
           <span>🐔</span><span>Hunt chickens &amp; boars for meat — <b>cook it first</b>; raw chicken can infect you!</span>
@@ -1708,7 +1786,13 @@ export default function Hud() {
           <Bar value={s.hunger} max={s.maxHunger} color={s.hunger <= 25 ? "#c0392b" : "#d98e4a"} icon="🍗" />
         </div>
         <div className="acorn-pill">🌰 {s.acorns}</div>
-        <div className="acorn-pill pack">🎒 {s.packCount()}/{PACK_CAP}</div>
+        <div
+          className="acorn-pill pack click"
+          title="Open your pack (I)"
+          onClick={s.toggleInventory}
+        >
+          🎒 {s.packCount()}/{PACK_CAP}
+        </div>
       </div>
 
       {/* bottom-center: prompts + hotbar */}
@@ -1828,6 +1912,10 @@ export default function Hud() {
               <span className="slot-icon">🎒</span>
             </div>
           )}
+          <div className="slot more" title="Open your full pack (I)" onClick={s.toggleInventory}>
+            <span className="slot-icon">🎒</span>
+            <span className="slot-count">…</span>
+          </div>
         </div>
       </div>
 
@@ -1873,6 +1961,7 @@ export default function Hud() {
       )}
       {s.homeOffer && <HomeOfferModal />}
       {s.showQuests && <QuestsModal />}
+      {s.showInventory && <InventoryModal />}
       {s.showSkills && <SkillsModal />}
       {s.showJournal && <JournalModal />}
       {s.showDecorShop && <DecorShopModal />}

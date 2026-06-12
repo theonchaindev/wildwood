@@ -52,11 +52,11 @@ export const BRIDGE_Z = 0;
 export type ShopId = "trader" | "armoury" | "tailor" | "medbay" | "exchange";
 
 export const BUILDINGS: { id: ShopId; label: string; pos: [number, number, number] }[] = [
-  { id: "trader", label: "🛖 Trading Post", pos: [-5, 0, 4] },
-  { id: "armoury", label: "⚔️ Armoury", pos: [-9, 0, -5] },
-  { id: "tailor", label: "🧵 Tailor", pos: [3, 0, 9] },
-  { id: "medbay", label: "🏥 Med-Bay", pos: [9, 0, 3] },
-  { id: "exchange", label: "⚖️ Exchange", pos: [-2, 0, -9] },
+  { id: "trader", label: "🛖 Oakhollow Stores", pos: [-5, 0, 4] },
+  { id: "armoury", label: "⚔️ Thornwall Arms", pos: [-9, 0, -5] },
+  { id: "tailor", label: "🧵 The Mossy Needle", pos: [3, 0, 9] },
+  { id: "medbay", label: "🏥 Toadstool Apothecary", pos: [9, 0, 3] },
+  { id: "exchange", label: "⚖️ The Barter Burrow", pos: [-2, 0, -9] },
 ];
 
 // gaps in the glade fence: east (path), south (meadow), north (grove),
@@ -652,10 +652,10 @@ export function resolveMovement(
 // ---- zones (for the location readout) ----
 
 export function zoneAt(x: number, z: number): string {
-  if (Math.abs(x - RIVER_X) < RIVER_WIDTH / 2 + 3) return "The River";
-  if (x > RIVER_X + RIVER_WIDTH / 2) return "Far Bank";
-  if (Math.hypot(x, z) < GLADE_RADIUS + 2) return "The Glade";
-  if (z < -20 && x < 18) return "Mushroom Grove";
-  if (z > 20) return "The Meadow";
-  return "Deep Forest";
+  if (Math.abs(x - RIVER_X) < RIVER_WIDTH / 2 + 3) return "The Silverwash";
+  if (x > RIVER_X + RIVER_WIDTH / 2) return "Duskmere Bank";
+  if (Math.hypot(x, z) < GLADE_RADIUS + 2) return "Emberfern Glade";
+  if (z < -20 && x < 18) return "Toadstool Hollow";
+  if (z > 20) return "Sunpetal Meadow";
+  return "The Tanglewood";
 }

@@ -127,6 +127,9 @@ export default function Player() {
           }
         }
       }
+      if (k === "i" || k === "b") {
+        useGame.getState().toggleInventory();
+      }
       if (k === "f") {
         const s = useGame.getState();
         if (s.fishingState === "bite") {
@@ -147,7 +150,7 @@ export default function Player() {
           fishing.biteAt = 0;
         } else if (s.nearWater) {
           if (!s.rod) {
-            s.addToast("You need a Fishing Rod — sold at the Trading Post 🎣");
+            s.addToast("You need a Fishing Rod — sold at Oakhollow Stores 🎣");
           } else {
             s.setFishingState("waiting");
             // bites come sooner with the Angling skill, and sooner still in the rain

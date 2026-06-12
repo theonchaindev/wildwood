@@ -7,9 +7,22 @@ export const dynamic = "force-dynamic";
 export async function GET(_req: Request, { params }: { params: { name: string } }) {
   const dbErr = requireDb();
   if (dbErr) return dbErr;
-  const user = await prisma.user.findUnique({ where: { name: params.name } });
-  if (!user?.save) {
-    return NextResponse.json({ error: "No forager by that name (or they have no save yet)" }, { status: 404 });
+  const name = decodeURIComponent(params.name).trim();
+  let user = await prisma.user.findUnique({ where: { name } });
+  if (!user) {
+    // forgive the capitalisation — works on sqlite and Postgres alike
+    const candidates = await prisma.user.findMany({ take: 500, select: { name: true } });
+    const hit = candidates.find((c) => c.name.toLowerCase() === name.toLowerCase());
+    if (hit) user = await prisma.user.findUnique({ where: { name: hit.name } });
+  }
+  if (!user) {
+    return NextResponse.json(
+      { error: "No forager by that name — guests can't be visited until they make an account" },
+      { status: 404 }
+    );
+  }
+  if (!user.save) {
+    return NextResponse.json({ error: `${user.name} hasn't played since signing up` }, { status: 404 });
   }
   const save = JSON.parse(user.save);
   if (!save.homeTier || save.homeTier < 1) {

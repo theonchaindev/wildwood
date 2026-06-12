@@ -68,10 +68,25 @@ export function saveData() {
   };
 }
 
+/** Roughly "how far along is this save" — used to pick the newer of two saves. */
+function progressScore(s: { level?: number; xp?: number; acorns?: number; homeTier?: number }) {
+  return (s.level ?? 1) * 1_000_000 + (s.homeTier ?? 0) * 10_000 + (s.xp ?? 0) * 10 + Math.min(9999, s.acorns ?? 0) / 1000;
+}
+
 function applyAuth(data: AuthResponse) {
   const s = useGame.getState();
   if (data.save) {
-    useGame.setState({ ...data.save, name: data.name });
+    // never let a stale cloud save clobber further-along local progress
+    // (this is what used to reset levels after every update)
+    const localScore = progressScore(s);
+    const cloudScore = progressScore(data.save);
+    if (localScore > cloudScore && s.level > 1) {
+      useGame.setState({ name: data.name });
+      s.addToast("💾 Kept your newer local progress — syncing it to the cloud");
+      setTimeout(pushSave, 1500);
+    } else {
+      useGame.setState({ ...data.save, name: data.name });
+    }
   } else {
     useGame.setState({ name: data.name });
   }
@@ -96,9 +111,19 @@ export async function loginCloud(name: string, password: string) {
   }));
 }
 
+let lastSaveWarn = 0;
+
 export async function pushSave() {
   if (!useGame.getState().account) return;
-  await api("/api/save", { method: "PUT", body: JSON.stringify(saveData()) }).catch(() => {});
+  try {
+    await api("/api/save", { method: "PUT", body: JSON.stringify(saveData()) });
+  } catch {
+    // a silent failure here is how progress used to get lost — say something
+    if (Date.now() - lastSaveWarn > 60_000) {
+      lastSaveWarn = Date.now();
+      useGame.getState().addToast("⚠️ Cloud save failed — progress is only on this device right now");
+    }
+  }
 }
 
 let syncTimer: ReturnType<typeof setInterval> | null = null;
@@ -107,6 +132,10 @@ let syncTimer: ReturnType<typeof setInterval> | null = null;
 export function startSaveSync() {
   if (syncTimer) return;
   syncTimer = setInterval(pushSave, 20_000);
+  // big moments save straight away (level-ups, land deeds, house builds)
+  window.addEventListener("ww-push-save", () => {
+    pushSave();
+  });
   window.addEventListener("beforeunload", () => {
     if (useGame.getState().account) {
       navigator.sendBeacon?.("/api/save", JSON.stringify(saveData()));

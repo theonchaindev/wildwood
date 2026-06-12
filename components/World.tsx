@@ -392,10 +392,10 @@ export default function World() {
 
       {/* signposts for the points of interest */}
       <group position={[-6, 0, -26]}>
-        <WorldLabel text="🍄 Mushroom Grove" y={1.4} />
+        <WorldLabel text="🍄 Toadstool Hollow" y={1.4} />
       </group>
       <group position={[-2, 0, 28]}>
-        <WorldLabel text="🌼 The Meadow" y={1.4} />
+        <WorldLabel text="🌼 Sunpetal Meadow" y={1.4} />
       </group>
 
       <Collectibles />
