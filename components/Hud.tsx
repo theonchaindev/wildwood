@@ -1494,6 +1494,68 @@ function GuestbookModal({ owner, onClose }: { owner: string; onClose: () => void
   );
 }
 
+function NoticeModal() {
+  const s = useGame();
+  const [data, setData] = useState<{
+    mint: string | null; network: string; totalAcorns: number; totalPayouts: number;
+    recent: { wallet: string; acorns: number; at: string }[];
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    fetch("/api/token").then((r) => r.json()).then(setData).catch(() => {});
+  }, []);
+  const close = () => s.toggleNotice();
+  const copy = () => {
+    if (!data?.mint) return;
+    navigator.clipboard?.writeText(data.mint);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <div className="modal-backdrop" onClick={close}>
+      <div className="note-paper" onClick={(e) => e.stopPropagation()}>
+        <div className="note-pin">📌</div>
+        <div className="note-title">~ WILDWOOD NOTICES ~</div>
+
+        <div className="note-section">🪙 The $ACORN coin</div>
+        {data === null ? (
+          <div className="note-line">fetching word from The Vault…</div>
+        ) : data.mint ? (
+          <>
+            <div className="note-line">Contract address ({data.network}):</div>
+            <div className="note-ca" onClick={copy} title="Click to copy">
+              {data.mint}
+              <span className="note-copy">{copied ? "✓ copied" : "copy"}</span>
+            </div>
+          </>
+        ) : (
+          <div className="note-line">CA to be posted here once the mint goes live — soon!</div>
+        )}
+        <div className="note-line small">1 🌰 = 1 $ACORN · convert at The Vault</div>
+
+        <div className="note-section">💸 Paid out to foragers so far</div>
+        <div className="note-big">
+          {data ? data.totalAcorns.toLocaleString() : "…"} $ACORN
+        </div>
+        <div className="note-line small">
+          across {data ? data.totalPayouts : "…"} conversion{data?.totalPayouts === 1 ? "" : "s"}
+        </div>
+        {data && data.recent.length > 0 && (
+          <>
+            <div className="note-section">Latest</div>
+            {data.recent.map((r, i) => (
+              <div key={i} className="note-line mono">
+                {r.wallet} ← {r.acorns.toLocaleString()} 🪙
+              </div>
+            ))}
+          </>
+        )}
+        <button className="btn block" style={{ marginTop: 12 }} onClick={close}>Pin it back up</button>
+      </div>
+    </div>
+  );
+}
+
 function TripOverlay() {
   const [, tick] = useState(0);
   const tripUntil = useGame((s) => s.tripUntil);
@@ -1919,7 +1981,8 @@ export default function Hud() {
               } else if (i.kind === "hive") {
                 if (s.hives[i.idx]) s.collectHive(i.idx);
                 else s.buildHive(i.idx);
-              } else if (i.kind === "cave") s.enterCave();
+              } else if (i.kind === "notice") s.toggleNotice();
+              else if (i.kind === "cave") s.enterCave();
               else if (i.kind === "caveexit") s.exitCave();
               else if (i.kind === "bench") s.setOpenPanel("bench");
             }}
@@ -1945,6 +2008,8 @@ export default function Hud() {
               ? "📜 Estate Deeds"
               : s.nearInteract.kind === "exitdoor"
               ? "🚪 Step outside"
+              : s.nearInteract.kind === "notice"
+              ? "📌 Notice Board"
               : s.nearInteract.kind === "cave"
               ? "⛏️ Enter the Old Mine"
               : s.nearInteract.kind === "caveexit"
@@ -2071,6 +2136,7 @@ export default function Hud() {
       {s.homeOffer && <HomeOfferModal />}
       {s.showQuests && <QuestsModal />}
       {s.showInventory && <InventoryModal />}
+      {s.showNotice && <NoticeModal />}
       {s.showSkills && <SkillsModal />}
       {s.showJournal && <JournalModal />}
       {s.showDecorShop && <DecorShopModal />}

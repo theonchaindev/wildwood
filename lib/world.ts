@@ -47,6 +47,7 @@ export const RIVER_X = 30;
 export const RIVER_WIDTH = 7;
 export const GLADE_RADIUS = 14;
 export const CAMPFIRE_POS: [number, number, number] = [3, 0, -2];
+export const NOTICE_BOARD_POS: [number, number, number] = [-1.5, 0, -4.5];
 export const BRIDGE_Z = 0;
 
 export type ShopId = "trader" | "armoury" | "tailor" | "medbay" | "exchange";

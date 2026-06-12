@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { Model, useCompositeModel } from "@/lib/assets";
 import {
   DECOR, COLLECTIBLES, RIVER_X, RIVER_WIDTH, CAMPFIRE_POS, BUILDINGS,
-  HOME_PORTAL_POS, HOME_TIERS, CAVE_ENTRANCE_POS,
+  HOME_PORTAL_POS, HOME_TIERS, CAVE_ENTRANCE_POS, NOTICE_BOARD_POS,
 } from "@/lib/world";
 import { useGame, collectibleRespawnMs } from "@/lib/store";
 import { moveTarget, daylight, lastWater } from "@/lib/runtime";
@@ -390,6 +390,7 @@ export default function World() {
       <GhostPlayers />
       <HomePortal />
       <CaveEntrance />
+      <NoticeBoard />
 
       {/* signposts for the points of interest */}
       <group position={[-6, 0, -26]}>
@@ -400,6 +401,58 @@ export default function World() {
       </group>
 
       <Collectibles />
+    </group>
+  );
+}
+
+function NoticeBoard() {
+  const click = (e: any) => {
+    e.stopPropagation();
+    const s = useGame.getState();
+    if (s.nearInteract?.kind === "notice") {
+      s.toggleNotice();
+    } else {
+      s.addToast("Walk up to the notice board");
+      moveTarget.x = NOTICE_BOARD_POS[0];
+      moveTarget.z = NOTICE_BOARD_POS[2] + 1.5;
+      moveTarget.active = true;
+    }
+  };
+  return (
+    <group
+      position={NOTICE_BOARD_POS}
+      rotation={[0, 0.4, 0]}
+      onClick={click}
+      onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; }}
+      onPointerOut={() => { document.body.style.cursor = ""; }}
+    >
+      {[-0.8, 0.8].map((x) => (
+        <mesh key={x} position={[x, 0.9, 0]} castShadow>
+          <cylinderGeometry args={[0.07, 0.09, 1.8, 6]} />
+          <meshStandardMaterial color="#5e4426" roughness={1} />
+        </mesh>
+      ))}
+      <mesh position={[0, 1.45, 0]} castShadow>
+        <boxGeometry args={[2, 1.2, 0.08]} />
+        <meshStandardMaterial color="#75582f" roughness={1} />
+      </mesh>
+      <mesh position={[0, 2.18, 0]} rotation={[0.25, 0, 0]} castShadow>
+        <boxGeometry args={[2.3, 0.06, 0.5]} />
+        <meshStandardMaterial color="#5e4426" roughness={1} />
+      </mesh>
+      <mesh position={[-0.5, 1.55, 0.05]} rotation={[0, 0, 0.08]}>
+        <planeGeometry args={[0.55, 0.65]} />
+        <meshStandardMaterial color="#f4ecd2" roughness={1} />
+      </mesh>
+      <mesh position={[0.35, 1.4, 0.05]} rotation={[0, 0, -0.06]}>
+        <planeGeometry args={[0.7, 0.5]} />
+        <meshStandardMaterial color="#ffe9b0" roughness={1} />
+      </mesh>
+      <mesh position={[0.1, 1.75, 0.05]} rotation={[0, 0, 0.04]}>
+        <planeGeometry args={[0.4, 0.3]} />
+        <meshStandardMaterial color="#d8ecd2" roughness={1} />
+      </mesh>
+      <WorldLabel text="📌 Notice Board" y={2.8} />
     </group>
   );
 }

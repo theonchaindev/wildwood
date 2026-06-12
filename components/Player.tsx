@@ -15,6 +15,7 @@ import {
   homeGateZ, zoneAt, resolveMovement, resolveHomeMovement, bridgeY,
   interiorDims, interiorLayout, resolveInteriorMovement,
   CAVE_ORES, CAVE_HD, CAVE_ENTRANCE_POS, resolveCaveMovement, HOME_BENCH_POS,
+  NOTICE_BOARD_POS,
 } from "@/lib/world";
 import HitPop from "./HitPop";
 import CharacterModel, { Motion } from "./CharacterModel";
@@ -194,7 +195,8 @@ export default function Player() {
           } else if (i.kind === "hive") {
             if (s.hives[i.idx]) s.collectHive(i.idx);
             else s.buildHive(i.idx);
-          } else if (i.kind === "cave") s.enterCave();
+          } else if (i.kind === "notice") s.toggleNotice();
+          else if (i.kind === "cave") s.enterCave();
           else if (i.kind === "caveexit") s.exitCave();
           else if (i.kind === "bench") s.setOpenPanel("bench");
         }
@@ -687,6 +689,11 @@ export default function Player() {
     if (caveD < nearestD) {
       nearestD = caveD;
       nearest = { kind: "cave" };
+    }
+    const noticeD = Math.hypot(px - NOTICE_BOARD_POS[0], pz - NOTICE_BOARD_POS[2]);
+    if (noticeD < nearestD) {
+      nearestD = noticeD;
+      nearest = { kind: "notice" };
     }
     state.setNearInteract(nearest);
 

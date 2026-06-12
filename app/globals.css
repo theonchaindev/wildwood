@@ -1792,3 +1792,89 @@ body {
   from { background-position: 0% 0; }
   to { background-position: 300% 0; }
 }
+
+/* ---------- the notice board's pinned note ---------- */
+.note-paper {
+  position: relative;
+  width: min(420px, 90vw);
+  background: linear-gradient(180deg, #fdf3d1, #f7e9bc);
+  border-radius: 6px;
+  box-shadow: 0 14px 40px rgba(20, 24, 16, 0.45);
+  padding: 30px 26px 18px;
+  transform: rotate(-1.2deg);
+  font-family: "Comic Sans MS", "Segoe Print", "Bradley Hand", cursive;
+  color: #4a3a1c;
+}
+
+.note-pin {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%) rotate(8deg);
+  font-size: 26px;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.3));
+}
+
+.note-title {
+  text-align: center;
+  font-weight: 800;
+  letter-spacing: 2px;
+  font-size: 15px;
+  border-bottom: 2px dashed rgba(74, 58, 28, 0.35);
+  padding-bottom: 8px;
+}
+
+.note-section {
+  margin-top: 14px;
+  font-weight: 800;
+  font-size: 13.5px;
+}
+
+.note-line {
+  font-size: 13px;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.note-line.small {
+  font-size: 11.5px;
+  opacity: 0.75;
+}
+
+.note-line.mono {
+  font-family: ui-monospace, monospace;
+  font-size: 11.5px;
+}
+
+.note-big {
+  font-size: 26px;
+  font-weight: 800;
+  margin-top: 4px;
+  color: #7a5a17;
+}
+
+.note-ca {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  word-break: break-all;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px dashed rgba(74, 58, 28, 0.4);
+  border-radius: 6px;
+  padding: 7px 9px;
+  margin-top: 5px;
+  cursor: pointer;
+  position: relative;
+}
+
+.note-copy {
+  position: absolute;
+  right: 6px;
+  bottom: -9px;
+  background: #6e8a3a;
+  color: #fff;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 2px 8px;
+}

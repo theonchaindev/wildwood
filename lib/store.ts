@@ -27,7 +27,8 @@ export type Interact =
   | { kind: "exitdoor" }
   | { kind: "cave" } // the mine entrance in Darkwood
   | { kind: "caveexit" }
-  | { kind: "bench" }; // crafting bench at the Haven
+  | { kind: "bench" } // crafting bench at the Haven
+  | { kind: "notice" }; // the camp notice board
 
 export type Quest = {
   id: string;
@@ -648,6 +649,7 @@ type GameState = {
   showJournal: boolean;
   showDecorShop: boolean;
   showInventory: boolean;
+  showNotice: boolean;
 
   xpToLevel: () => number;
   chopTime: () => number;
@@ -689,6 +691,7 @@ type GameState = {
   toggleJournal: () => void;
   toggleDecorShop: () => void;
   toggleInventory: () => void;
+  toggleNotice: () => void;
   animalKilled: (kind: "chicken" | "boar" | "rabbit" | "deer") => void;
   hurt: (dmg: number, canInfect?: boolean) => void;
   buyHomestead: () => void;
@@ -855,6 +858,7 @@ export const useGame = create<GameState>()(
       showJournal: false,
       showDecorShop: false,
       showInventory: false,
+      showNotice: false,
 
       xpToLevel: () => get().level * 100,
       chopTime: () =>
@@ -1006,6 +1010,10 @@ export const useGame = create<GameState>()(
       toggleInventory: () => {
         sfx.ui();
         set((s) => ({ showInventory: !s.showInventory, showSkills: false, showJournal: false, showQuests: false, showHelp: false, openShop: null, openPanel: null, homeOffer: null }));
+      },
+      toggleNotice: () => {
+        sfx.ui();
+        set((s) => ({ showNotice: !s.showNotice, showInventory: false, showSkills: false, showJournal: false, showQuests: false, showHelp: false, openShop: null, openPanel: null, homeOffer: null }));
       },
       registerHit: (key, amount, crit) => {
         set((s) => ({
@@ -2269,7 +2277,7 @@ export const useGame = create<GameState>()(
         set({
           openShop: null, openPanel: null, openPen: null, homeOffer: null, buildMode: null,
           decorMode: null, showQuests: false, showHelp: false, showSkills: false,
-          showJournal: false, showDecorShop: false, showInventory: false,
+          showJournal: false, showDecorShop: false, showInventory: false, showNotice: false,
         }),
     }),
     {
