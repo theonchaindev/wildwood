@@ -9,7 +9,7 @@ import {
   DECOR, COLLECTIBLES, RIVER_X, RIVER_WIDTH, CAMPFIRE_POS, BUILDINGS,
   HOME_PORTAL_POS, HOME_TIERS, CAVE_ENTRANCE_POS,
 } from "@/lib/world";
-import { useGame, COLLECTIBLE_RESPAWN_MS } from "@/lib/store";
+import { useGame, collectibleRespawnMs } from "@/lib/store";
 import { moveTarget, daylight, lastWater } from "@/lib/runtime";
 import Trees from "./Trees";
 import Rocks from "./Rocks";
@@ -302,7 +302,7 @@ function Collectibles() {
     <>
       {COLLECTIBLES.filter((c) => {
         const at = collected[c.id];
-        return !at || now - at > COLLECTIBLE_RESPAWN_MS;
+        return !at || now - at > collectibleRespawnMs(c.kind);
       }).map((c) => (
         <group key={c.id} position={c.pos}>
           <Model file={c.file} size={c.size} position={[0, 0, 0]} rotationY={c.rot} />

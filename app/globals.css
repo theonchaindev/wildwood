@@ -1674,3 +1674,93 @@ body {
 .acorn-pill.click {
   pointer-events: auto;
 }
+
+/* ---------- altered states ---------- */
+.trip-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+}
+
+/* shrooms: the full kaleidoscope — colours cycle, world breathes */
+.trip-overlay.shroom {
+  animation: tripShroom 3.2s linear infinite;
+}
+
+@keyframes tripShroom {
+  0%   { backdrop-filter: hue-rotate(0deg) saturate(2.4) contrast(1.12); }
+  25%  { backdrop-filter: hue-rotate(90deg) saturate(3) contrast(1.2) blur(0.6px); }
+  50%  { backdrop-filter: hue-rotate(180deg) saturate(2.2) contrast(1.05); }
+  75%  { backdrop-filter: hue-rotate(270deg) saturate(3.2) contrast(1.25) blur(1px); }
+  100% { backdrop-filter: hue-rotate(360deg) saturate(2.4) contrast(1.12); }
+}
+
+.trip-overlay.shroom::after {
+  content: "";
+  position: absolute;
+  inset: -60%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255, 80, 120, 0.5), rgba(255, 200, 60, 0.5), rgba(110, 230, 90, 0.5),
+    rgba(70, 200, 255, 0.5), rgba(170, 90, 255, 0.5), rgba(255, 80, 120, 0.5)
+  );
+  mix-blend-mode: overlay;
+  opacity: 0.4;
+  animation: tripSpin 7s linear infinite;
+}
+
+@keyframes tripSpin {
+  from { transform: rotate(0deg) scale(1); }
+  50%  { transform: rotate(180deg) scale(1.18); }
+  to   { transform: rotate(360deg) scale(1); }
+}
+
+/* weed: a slow, mellow drift — soft glow, gentle colour lean */
+.trip-overlay.weed {
+  animation: tripWeed 9s ease-in-out infinite;
+}
+
+@keyframes tripWeed {
+  0%   { backdrop-filter: hue-rotate(-25deg) saturate(1.5) brightness(1.04) blur(0.8px); }
+  50%  { backdrop-filter: hue-rotate(35deg) saturate(1.9) brightness(1.1) blur(1.4px); }
+  100% { backdrop-filter: hue-rotate(-25deg) saturate(1.5) brightness(1.04) blur(0.8px); }
+}
+
+.trip-overlay.weed::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 55%, transparent 40%, rgba(110, 200, 90, 0.28) 100%);
+  animation: weedPulse 5s ease-in-out infinite;
+}
+
+@keyframes weedPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.trip-pill {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  background: linear-gradient(90deg, #ff5078, #ffc83c, #6ee65a, #46c8ff, #aa5aff);
+  background-size: 300% 100%;
+  animation: tripPillShift 3s linear infinite;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+
+@keyframes tripPillShift {
+  from { background-position: 0% 0; }
+  to { background-position: 300% 0; }
+}

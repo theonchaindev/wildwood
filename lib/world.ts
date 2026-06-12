@@ -25,7 +25,7 @@ export type Collectible = {
   size: number;
   pos: [number, number, number];
   rot: number;
-  kind: "mushroom" | "flower";
+  kind: "mushroom" | "flower" | "herb";
   label: string;
 };
 
@@ -291,6 +291,17 @@ for (let i = 0; i < 8; i++) {
     label: m.label,
   });
 }
+
+// the forest's secret stashes — magic shrooms deep in Sporewood, weed on
+// the far bank. Rare finds with a long respawn.
+COLLECTIBLES.push(
+  { id: "shroom-0", file: "PP_Mushroom_Fantasy_Purple_05", size: 1.5, pos: [-21, 0, -47], rot: rand(0, 6.28), kind: "herb", label: "Magic Shroom" },
+  { id: "shroom-1", file: "PP_Mushroom_Fantasy_Purple_08", size: 1.4, pos: [9, 0, -49], rot: rand(0, 6.28), kind: "herb", label: "Magic Shroom" },
+  { id: "shroom-2", file: "PP_Mushroom_Fantasy_Purple_05", size: 1.6, pos: [-44, 0, -34], rot: rand(0, 6.28), kind: "herb", label: "Magic Shroom" },
+  { id: "weed-0", file: "PP_Grass_15", size: 1.3, pos: [48, 0, 24], rot: rand(0, 6.28), kind: "herb", label: "Weed" },
+  { id: "weed-1", file: "PP_Grass_15", size: 1.2, pos: [54, 0, -22], rot: rand(0, 6.28), kind: "herb", label: "Weed" },
+  { id: "weed-2", file: "PP_Grass_11", size: 1.3, pos: [-46, 0, 40], rot: rand(0, 6.28), kind: "herb", label: "Weed" },
+);
 
 // flowers in the southern meadow
 for (let i = 0; i < 6; i++) {

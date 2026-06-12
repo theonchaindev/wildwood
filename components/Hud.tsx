@@ -64,6 +64,8 @@ const ITEM_ICONS: Record<string, string> = {
   Honey: "🍯",
   Coal: "⚫",
   Diamond: "💎",
+  "Magic Shroom": "🌈",
+  Weed: "🌿",
   "Honey Apple": "🍏",
   "Forest Stew": "🍲",
 };
@@ -1478,6 +1480,26 @@ function GuestbookModal({ owner, onClose }: { owner: string; onClose: () => void
   );
 }
 
+function TripOverlay() {
+  const [, tick] = useState(0);
+  const tripUntil = useGame((s) => s.tripUntil);
+  const tripKind = useGame((s) => s.tripKind);
+  useEffect(() => {
+    const iv = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  if (!tripKind || Date.now() > tripUntil) return null;
+  const left = Math.ceil((tripUntil - Date.now()) / 1000);
+  return (
+    <>
+      <div className={`trip-overlay ${tripKind}`} />
+      <div className="trip-pill">
+        {tripKind === "shroom" ? "🍄 The forest is breathing…" : "🌿 Cruising…"} {left}s
+      </div>
+    </>
+  );
+}
+
 function InventoryModal() {
   const s = useGame();
   const entries = Object.entries(s.inventory);
@@ -2010,6 +2032,8 @@ export default function Hud() {
 
       {/* banner */}
       {s.banner && <div className="banner">{s.banner}</div>}
+
+      <TripOverlay />
 
       {/* hurt flash */}
       {Date.now() - s.hurtAt < 600 && <div className="hurt-flash" key={s.hurtAt} />}

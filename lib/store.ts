@@ -138,11 +138,18 @@ export const SELL_PRICES: Record<string, number> = {
   Honey: 25,
   Coal: 8,
   Diamond: 400,
+  "Magic Shroom": 45,
+  Weed: 35,
   "Honey Apple": 40,
   "Forest Stew": 55,
 };
 
 export const COLLECTIBLE_RESPAWN_MS = 90_000;
+export const HERB_RESPAWN_MS = 300_000; // the rare stuff takes its time
+
+export function collectibleRespawnMs(kind: string) {
+  return kind === "herb" ? HERB_RESPAWN_MS : COLLECTIBLE_RESPAWN_MS;
+}
 export const TREE_RESPAWN_MS = 120_000; // trees regrow after 2 minutes
 export const ROCK_RESPAWN_MS = 150_000;
 
@@ -607,6 +614,8 @@ type GameState = {
   catLastPet: number;
   horse: boolean;
   mounted: boolean;
+  tripUntil: number;
+  tripKind: "shroom" | "weed" | null;
   pens: Record<string, Pen>; // key = pen spot index
   orchard: Record<string, OrchardTree>; // key = orchard spot index
   hives: Record<string, Hive>; // key = hive spot index
@@ -812,6 +821,8 @@ export const useGame = create<GameState>()(
       catLastPet: 0,
       horse: false,
       mounted: false,
+      tripUntil: 0,
+      tripKind: null,
       pens: {},
       orchard: {},
       hives: {},
@@ -1076,7 +1087,7 @@ export const useGame = create<GameState>()(
       collectItem: (id, label, kind) => {
         const s = get();
         const at = s.collected[id];
-        if (at && Date.now() - at < COLLECTIBLE_RESPAWN_MS) return;
+        if (at && Date.now() - at < collectibleRespawnMs(kind)) return;
         if (s.gainItem(label, 1) < 1) return; // pack full — leave it in the world
         set({ collected: { ...get().collected, [id]: Date.now() } });
         s.addToast(`+1 ${label} · +10 XP`);
@@ -1200,7 +1211,7 @@ export const useGame = create<GameState>()(
         }
         const blood = isBloodMoonNight();
         const loot = (5 + Math.floor(Math.random() * 11)) * (blood ? 2 : 1);
-        const extra = Math.random() < 0.25 ? "Purple Mushroom" : null;
+        const extra = Math.random() < 0.06 ? "Magic Shroom" : Math.random() < 0.25 ? "Purple Mushroom" : null;
         if (extra) s.gainItem(extra, 1);
         set({ acorns: get().acorns + loot, attackTargetId: null });
         s.addToast(`${blood ? "🔴 " : ""}Zombie slain! +25 XP · +${loot} 🌰${extra ? ` · +1 ${extra}` : ""}`);
@@ -2036,6 +2047,27 @@ export const useGame = create<GameState>()(
           set({ infected: false });
           consume();
           s.addToast("💉 Infection cured!");
+          sfx.questDone();
+        } else if (label === "Magic Shroom") {
+          consume();
+          set({
+            tripUntil: Date.now() + 30_000,
+            tripKind: "shroom",
+            energy: Math.min(s.maxEnergy, s.energy + 20),
+          });
+          s.setBanner("🌈 The forest begins to breathe…");
+          s.addToast("🍄 +20 ⚡ · the colours… the COLOURS");
+          sfx.levelUp();
+        } else if (label === "Weed") {
+          consume();
+          set({
+            tripUntil: Date.now() + 25_000,
+            tripKind: "weed",
+            hp: Math.min(s.maxHp, s.hp + 8),
+            hunger: Math.max(0, s.hunger - 12), // munchies
+          });
+          s.setBanner("🌿 Everything is… fine, actually");
+          s.addToast("🌿 +8 ❤ · suddenly very hungry");
           sfx.questDone();
         } else if (FOODS[label]) {
           const food = FOODS[label];

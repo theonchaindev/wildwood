@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
-import { useGame, COLLECTIBLE_RESPAWN_MS, Interact } from "@/lib/store";
+import { useGame, collectibleRespawnMs, Interact } from "@/lib/store";
 import { live, moveTarget, chop, mine, fishing, teleport, zombies, animals, daylight, isRaining } from "@/lib/runtime";
 import { sfx } from "@/lib/sound";
 import {
@@ -671,7 +671,7 @@ export default function Player() {
     const now = Date.now();
     for (const c of COLLECTIBLES) {
       const at = state.collected[c.id];
-      if (at && now - at < COLLECTIBLE_RESPAWN_MS) continue;
+      if (at && now - at < collectibleRespawnMs(c.kind)) continue;
       if (Math.hypot(px - c.pos[0], pz - c.pos[2]) < 2.2) {
         state.collectItem(c.id, c.label, c.kind);
       }
