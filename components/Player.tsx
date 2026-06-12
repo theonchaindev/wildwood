@@ -5,7 +5,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { useGame, COLLECTIBLE_RESPAWN_MS, Interact } from "@/lib/store";
-import { live, moveTarget, chop, mine, fishing, teleport, zombies, animals, daylight } from "@/lib/runtime";
+import { live, moveTarget, chop, mine, fishing, teleport, zombies, animals, daylight, isRaining } from "@/lib/runtime";
 import { sfx } from "@/lib/sound";
 import {
   COLLECTIBLES, CAMPFIRE_POS, BUILDINGS, GLADE_RADIUS, RIVER_X, RIVER_WIDTH,
@@ -130,8 +130,18 @@ export default function Player() {
       if (k === "f") {
         const s = useGame.getState();
         if (s.fishingState === "bite") {
-          s.catchFish();
-          sfx.splash();
+          // the minigame: hook it while the marker swings through the green
+          const m = Math.sin((Date.now() - fishing.biteAt) / 220);
+          const zoneHalf = 0.22 + 0.05 * s.skills.angling;
+          if (Math.abs(m) <= zoneHalf) {
+            s.catchFish();
+            sfx.splash();
+          } else {
+            s.setFishingState("idle");
+            fishing.biteAt = 0;
+            s.addToast("💨 It wriggled free!");
+            sfx.error();
+          }
         } else if (s.fishingState === "waiting") {
           s.setFishingState("idle");
           fishing.biteAt = 0;
@@ -140,7 +150,9 @@ export default function Player() {
             s.addToast("You need a Fishing Rod — sold at the Trading Post 🎣");
           } else {
             s.setFishingState("waiting");
-            fishing.biteAt = Date.now() + 2500 + Math.random() * 4000;
+            // bites come sooner with the Angling skill, and sooner still in the rain
+            const wait = (2500 + Math.random() * 4000) * (1 - 0.1 * s.skills.angling) * (isRaining() ? 0.7 : 1);
+            fishing.biteAt = Date.now() + wait;
             sfx.splash();
           }
         }
@@ -198,10 +210,11 @@ export default function Player() {
       dir.normalize();
     }
 
-    // fishing bite timing
+    // fishing bite timing — the minigame bar needs a few swings' worth of time
     if (state.fishingState === "waiting" && fishing.biteAt && Date.now() > fishing.biteAt) {
       state.setFishingState("bite");
-      fishing.biteUntil = Date.now() + 1600;
+      fishing.biteAt = Date.now(); // marker oscillates from the moment of the bite
+      fishing.biteUntil = Date.now() + 3400;
       sfx.splash();
     } else if (state.fishingState === "bite" && Date.now() > fishing.biteUntil) {
       state.setFishingState("idle");
@@ -262,7 +275,7 @@ export default function Player() {
           if (targetZombie.hp <= 0) {
             targetZombie.state = "dying";
             targetZombie.dieAt = Date.now();
-            state.zombieKilled();
+            state.zombieKilled(targetZombie.type === "boss");
           }
         }
       }
@@ -395,7 +408,7 @@ export default function Player() {
       const homeHouseHere =
         state.location === "visit" ? state.visitData?.houseLevel ?? 1 : state.houseLevel;
       const [rx, rz] = atInterior
-        ? resolveInteriorMovement(g.position.x, g.position.z, nx, nz, state.houseLevel)
+        ? resolveInteriorMovement(g.position.x, g.position.z, nx, nz, homeHouseHere)
         : atHome
         ? resolveHomeMovement(g.position.x, g.position.z, nx, nz, homeTierHere, homeHouseHere)
         : resolveMovement(g.position.x, g.position.z, nx, nz, state.choppedAt, state.minedAt);
@@ -451,16 +464,20 @@ export default function Player() {
       // home sweet home: resting indoors slowly restores you, like the campfire
       state.tick(stepDt, moving, true, sprinting, false);
       state.setNearWater(false);
-      const lay = interiorLayout(state.houseLevel);
-      const { hd } = interiorDims(state.houseLevel);
+      const visitingIn = !!state.visitData;
+      const lvIn = visitingIn ? state.visitData?.houseLevel ?? 1 : state.houseLevel;
+      const lay = interiorLayout(lvIn);
+      const { hd } = interiorDims(lvIn);
       let nearest: Interact | null = null;
       let nearestD = 2.6;
-      const spots: [number, number, Interact][] = [
-        [lay.bed[0], lay.bed[1], { kind: "bed" }],
-        [lay.desk[0], lay.desk[1], { kind: "desk" }],
-        [lay.chest[0], lay.chest[1], { kind: "chest" }],
-        [0, hd, { kind: "exitdoor" }],
-      ];
+      const spots: [number, number, Interact][] = visitingIn
+        ? [[0, hd, { kind: "exitdoor" }]]
+        : [
+            [lay.bed[0], lay.bed[1], { kind: "bed" }],
+            [lay.desk[0], lay.desk[1], { kind: "desk" }],
+            [lay.chest[0], lay.chest[1], { kind: "chest" }],
+            [0, hd, { kind: "exitdoor" }],
+          ];
       for (const [sx, sz, interact] of spots) {
         const d = Math.hypot(px - sx, pz - sz);
         if (d < nearestD) {
@@ -486,7 +503,10 @@ export default function Player() {
       let nearestD = 3.4;
       const gateZ = homeGateZ(tierHere);
       const spots: [number, number, Interact][] = visiting
-        ? [[0, gateZ, { kind: "homegate" }]]
+        ? [
+            [0, gateZ, { kind: "homegate" }],
+            [HOME_CABIN_POS[0], HOME_CABIN_POS[2] + 2, { kind: "house" }],
+          ]
         : [
             [HOME_CHEST_POS[0], HOME_CHEST_POS[2], { kind: "chest" }],
             [HOME_FURNACE_POS[0], HOME_FURNACE_POS[2], { kind: "furnace" }],

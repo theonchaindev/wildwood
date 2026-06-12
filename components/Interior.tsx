@@ -8,7 +8,7 @@ import { useRef } from "react";
 import { useFrame, ThreeEvent } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
-import { useGame, HOUSE_LEVELS } from "@/lib/store";
+import { useGame, HOUSE_LEVELS, DECOR_ITEMS, DecorPiece } from "@/lib/store";
 import { live, moveTarget, isNight } from "@/lib/runtime";
 import { interiorDims, interiorLayout } from "@/lib/world";
 import { Model } from "@/lib/assets";
@@ -63,6 +63,10 @@ function hoverCursor() {
 function Bed({ pos }: { pos: [number, number] }) {
   const click = stopAnd(() => {
     const s = useGame.getState();
+    if (s.visitData) {
+      s.addToast("Not your bed! 🛏️");
+      return;
+    }
     if (!near(pos[0], pos[1])) {
       s.addToast("Walk over to the bed");
       return;
@@ -149,6 +153,10 @@ function Kitchen({ pos }: { pos: [number, number] }) {
 function Desk({ pos }: { pos: [number, number] }) {
   const click = stopAnd(() => {
     const s = useGame.getState();
+    if (s.visitData) {
+      s.addToast("Their deeds are private 📜");
+      return;
+    }
     if (!near(pos[0], pos[1])) {
       s.addToast("Walk over to the desk");
       return;
@@ -177,6 +185,10 @@ function Desk({ pos }: { pos: [number, number] }) {
 function InteriorChest({ pos }: { pos: [number, number] }) {
   const click = stopAnd(() => {
     const s = useGame.getState();
+    if (s.visitData) {
+      s.addToast("Hands off their valuables! 📦");
+      return;
+    }
     if (!near(pos[0], pos[1])) {
       s.addToast("Walk over to the chest");
       return;
@@ -251,9 +263,74 @@ function ExitDoor({ hd }: { hd: number }) {
   );
 }
 
+function DecorMesh({ piece, readOnly }: { piece: DecorPiece; readOnly: boolean }) {
+  const def = DECOR_ITEMS[piece.key];
+  const removeMode = useGame((s) => s.decorMode === "remove") && !readOnly;
+  if (!def) return null;
+  const click = stopAnd(() => {
+    const s = useGame.getState();
+    if (readOnly) return;
+    if (s.decorMode === "remove") s.removeDecor(piece.id);
+  });
+  return (
+    <group onClick={removeMode ? click : undefined} {...(removeMode ? hoverCursor() : {})}>
+      <Furn
+        file={def.file}
+        size={def.size}
+        by={def.by ?? "y"}
+        position={[piece.x, 0, piece.z]}
+        rotationY={piece.rot}
+      />
+    </group>
+  );
+}
+
+function HouseCat({ lv }: { lv: number }) {
+  const owned = useGame((s) => s.cat);
+  if (!owned) return null;
+  // she claims the warmest spot: by the fire if there is one, else the rug
+  const spot: [number, number] = lv >= 3 ? [interiorLayout(lv).fireplace![0] - 1.6, interiorLayout(lv).fireplace![1] + 1] : [1.2, 1.4];
+  const click = stopAnd(() => {
+    const s = useGame.getState();
+    if (s.visitData) return;
+    if (near(spot[0], spot[1])) s.petCat();
+    else s.addToast("She won't come to you. Cats.");
+  });
+  return (
+    <group position={[spot[0], 0, spot[1]]} rotation={[0, -0.8, 0]} onClick={click} {...hoverCursor()}>
+      <mesh position={[0, 0.14, 0]} castShadow>
+        <boxGeometry args={[0.2, 0.2, 0.34]} />
+        <meshStandardMaterial color="#5a5048" roughness={1} />
+      </mesh>
+      <mesh position={[0, 0.3, 0.14]} castShadow>
+        <boxGeometry args={[0.18, 0.16, 0.16]} />
+        <meshStandardMaterial color="#665a50" roughness={1} />
+      </mesh>
+      {[-0.06, 0.06].map((x) => (
+        <mesh key={x} position={[x, 0.41, 0.14]}>
+          <coneGeometry args={[0.035, 0.08, 4]} />
+          <meshStandardMaterial color="#5a5048" roughness={1} />
+        </mesh>
+      ))}
+      <mesh position={[0.12, 0.08, -0.2]} rotation={[0, 0.8, 1.2]}>
+        <boxGeometry args={[0.04, 0.04, 0.26]} />
+        <meshStandardMaterial color="#665a50" roughness={1} />
+      </mesh>
+      <Html position={[0, 0.8, 0]} center distanceFactor={16} zIndexRange={[9, 0]}>
+        <div className="world-label small">🐈 zzz…</div>
+      </Html>
+    </group>
+  );
+}
+
 export default function Interior() {
-  const houseLevel = useGame((s) => s.houseLevel);
-  const lv = Math.max(1, Math.min(houseLevel, HOUSE_LEVELS.length));
+  const ownLevel = useGame((s) => s.houseLevel);
+  const visitData = useGame((s) => s.visitData);
+  const visiting = !!visitData;
+  const ownDecor = useGame((s) => s.interiorDecor);
+  const decorMode = useGame((s) => s.decorMode);
+  const lv = Math.max(1, Math.min(visiting ? visitData!.houseLevel ?? 1 : ownLevel, HOUSE_LEVELS.length));
+  const decor = visiting ? visitData!.interiorDecor ?? [] : ownDecor;
   const def = HOUSE_LEVELS[lv - 1];
   const { hw, hd } = interiorDims(lv);
   const lay = interiorLayout(lv);
@@ -264,6 +341,11 @@ export default function Interior() {
 
   const groundClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
+    const s = useGame.getState();
+    if (!visiting && s.decorMode && s.decorMode !== "remove") {
+      s.placeDecor(e.point.x, e.point.z);
+      return;
+    }
     moveTarget.x = e.point.x;
     moveTarget.z = e.point.z;
     moveTarget.active = true;
@@ -339,6 +421,12 @@ export default function Interior() {
       <InteriorChest pos={lay.chest} />
       {lv >= 5 && <Chandelier />}
       <ExitDoor hd={hd} />
+      {!visiting && <HouseCat lv={lv} />}
+
+      {/* player-placed furnishings */}
+      {decor.map((piece) => (
+        <DecorMesh key={piece.id} piece={piece} readOnly={visiting} />
+      ))}
 
       {/* decor that arrives as the house grows */}
       <group position={[-hw + 0.5, 0, -hd + 0.5]}>

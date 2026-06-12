@@ -46,14 +46,25 @@ export function saveData() {
     acceptedOffers: s.acceptedOffers,
     homeTier: s.homeTier,
     houseLevel: s.houseLevel,
+    dailyDay: s.dailyDay,
+    dailyBase: s.dailyBase,
+    dailyClaimed: s.dailyClaimed,
     lastRentAt: s.lastRentAt,
     chest: s.chest,
     farm: s.farm,
     dog: s.dog,
+    dogXp: s.dogXp,
+    cat: s.cat,
+    catLastPet: s.catLastPet,
     pens: s.pens,
     orchard: s.orchard,
     hives: s.hives,
     structures: s.structures,
+    interiorDecor: s.interiorDecor,
+    stats: s.stats,
+    skills: s.skills,
+    skillPoints: s.skillPoints,
+    claimedAchievements: s.claimedAchievements,
   };
 }
 
@@ -194,10 +205,57 @@ export async function chooseName(name: string) {
   return data.name;
 }
 
+export type EstateRow = { name: string; homeTier: number; houseLevel: number };
+
 export async function fetchLeaderboard() {
-  return api<{ players: { name: string; level: number; acorns: number }[]; online: number }>(
-    "/api/leaderboard"
-  );
+  return api<{
+    players: { name: string; level: number; acorns: number }[];
+    estates: EstateRow[];
+    online: number;
+  }>("/api/leaderboard");
+}
+
+// ---- guestbook ----
+
+export type GuestbookEntry = { id: string; author: string; text: string; createdAt: string };
+
+export async function fetchGuestbook(name: string) {
+  return api<{ entries: GuestbookEntry[] }>(`/api/guestbook/${encodeURIComponent(name)}`);
+}
+
+export async function signGuestbook(name: string, text: string) {
+  return api<{ ok: boolean }>(`/api/guestbook/${encodeURIComponent(name)}`, {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+}
+
+// ---- gifts & tips ----
+
+export type Gift = {
+  id: string;
+  fromName: string;
+  item: string | null;
+  qty: number;
+  acorns: number;
+};
+
+export async function fetchGifts() {
+  return api<{ gifts: Gift[] }>("/api/gifts");
+}
+
+export async function sendGift(to: string, payload: { acorns?: number; item?: string; qty?: number }) {
+  return api<{ ok: boolean }>("/api/gifts", {
+    method: "POST",
+    body: JSON.stringify({ to, ...payload }),
+  });
+}
+
+export async function claimGift(id: string) {
+  return api<{ ok: boolean; gift: Gift }>("/api/gifts/claim", {
+    method: "POST",
+    body: JSON.stringify({ id }),
+  });
 }
 
 export const ACORNS_PER_SOL = 100_000;

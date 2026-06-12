@@ -10,7 +10,7 @@ import Player from "./Player";
 import Hud from "./Hud";
 import Login from "./Login";
 import { useGame } from "@/lib/store";
-import { clock, daylight, live, moveTarget, zombies, teleport, isBloodMoonNight, DAY_LENGTH_S } from "@/lib/runtime";
+import { clock, daylight, live, moveTarget, zombies, teleport, isBloodMoonNight, DAY_LENGTH_S, weather, isRaining, seasonFor } from "@/lib/runtime";
 import { TREES, ROCKS } from "@/lib/world";
 import { ambience } from "@/lib/ambience";
 import { startMultiplayer, ghosts } from "@/lib/multiplayer";
@@ -19,6 +19,15 @@ const SKY_DAY = new THREE.Color("#7fae5e");
 const SKY_NIGHT = new THREE.Color("#0d1422");
 const SKY_BLOOD = new THREE.Color("#2a0d10");
 const SKY_INTERIOR = new THREE.Color("#221a10");
+const SKY_RAIN = new THREE.Color("#5e7261");
+
+// each season nudges the sunlight: warm gold autumns, pale blue winters
+const SEASON_TINT: Record<string, THREE.Color> = {
+  Spring: new THREE.Color("#ffffff"),
+  Summer: new THREE.Color("#fff8e8"),
+  Autumn: new THREE.Color("#ffd9a8"),
+  Winter: new THREE.Color("#cfdce8"),
+};
 const SUN_DAY = new THREE.Color("#fff3d6");
 const SUN_NIGHT = new THREE.Color("#7a8fc9");
 const SUN_BLOOD = new THREE.Color("#d96a5a");
@@ -36,6 +45,19 @@ function DayNight() {
     clock.timeOfDay = (clock.timeOfDay + dt / DAY_LENGTH_S) % 1;
     if (clock.timeOfDay < prev) clock.day += 1;
 
+    // weather state machine: stretches of clear sky broken by rain showers
+    if (Date.now() > weather.until) {
+      if (weather.kind === "rain" || Math.random() < 0.65) {
+        weather.kind = "clear";
+        weather.until = Date.now() + (200 + Math.random() * 200) * 1000;
+      } else {
+        weather.kind = "rain";
+        weather.until = Date.now() + (90 + Math.random() * 110) * 1000;
+        useGame.getState().addToast("🌧 Rain! Crops drink it up, fish are biting");
+      }
+    }
+    const raining = isRaining();
+
     const d = daylight();
     if (isBloodMoonNight()) {
       sky.current.copy(SKY_BLOOD).lerp(SKY_DAY, d);
@@ -44,6 +66,8 @@ function DayNight() {
       sky.current.copy(SKY_NIGHT).lerp(SKY_DAY, d);
       sun.current.copy(SUN_NIGHT).lerp(SUN_DAY, d);
     }
+    if (raining) sky.current.lerp(SKY_RAIN, 0.55 * d);
+    sun.current.multiply(SEASON_TINT[seasonFor(clock.day).name]);
     // indoors the world falls away into warm darkness
     if (useGame.getState().location === "interior") sky.current.copy(SKY_INTERIOR);
 
@@ -52,7 +76,7 @@ function DayNight() {
     if (scene.fog) scene.fog.color.copy(sky.current);
 
     if (dirRef.current) {
-      dirRef.current.intensity = 0.12 + 1.4 * d;
+      dirRef.current.intensity = (0.12 + 1.4 * d) * (raining ? 0.55 : 1);
       dirRef.current.color.copy(sun.current);
     }
     if (ambRef.current) ambRef.current.intensity = 0.22 + 0.42 * d;
@@ -78,6 +102,58 @@ function DayNight() {
       />
       <hemisphereLight ref={hemiRef} args={["#b8d4e8", "#3d4a28", 0.4]} />
     </>
+  );
+}
+
+const RAIN_COUNT = 900;
+const RAIN_BOX = 36;
+const RAIN_H = 18;
+
+function Rain() {
+  const ref = useRef<THREE.Points>(null);
+  const positions = useRef<Float32Array>();
+  if (!positions.current) {
+    const p = new Float32Array(RAIN_COUNT * 3);
+    for (let i = 0; i < RAIN_COUNT; i++) {
+      p[i * 3] = (Math.random() - 0.5) * RAIN_BOX;
+      p[i * 3 + 1] = Math.random() * RAIN_H;
+      p[i * 3 + 2] = (Math.random() - 0.5) * RAIN_BOX;
+    }
+    positions.current = p;
+  }
+
+  useFrame((_, dt) => {
+    const pts = ref.current;
+    if (!pts) return;
+    const raining = isRaining() && useGame.getState().location !== "interior";
+    pts.visible = raining;
+    if (!raining) return;
+    const p = positions.current!;
+    for (let i = 0; i < RAIN_COUNT; i++) {
+      p[i * 3 + 1] -= dt * 26;
+      p[i * 3] -= dt * 3; // a touch of wind
+      if (p[i * 3 + 1] < 0) {
+        p[i * 3] = (Math.random() - 0.5) * RAIN_BOX;
+        p[i * 3 + 1] = RAIN_H;
+        p[i * 3 + 2] = (Math.random() - 0.5) * RAIN_BOX;
+      }
+    }
+    (pts.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+    pts.position.set(live.x, 0, live.z); // the shower follows the player
+  });
+
+  return (
+    <points ref={ref}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={RAIN_COUNT}
+          array={positions.current}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial color="#c8e2ee" size={0.18} transparent opacity={0.7} sizeAttenuation />
+    </points>
   );
 }
 
@@ -118,6 +194,7 @@ export default function Game() {
     (window as any).__teleport = teleport;
     (window as any).__rocks = ROCKS;
     (window as any).__ghosts = ghosts;
+    (window as any).__weather = weather;
   }, []);
   return (
     <div className="game-root">
@@ -132,6 +209,7 @@ export default function Game() {
         <Suspense fallback={null}>
           {location === "forest" ? <World /> : location === "interior" ? <Interior /> : <Homestead />}
           <Player />
+          <Rain />
         </Suspense>
       </Canvas>
       {started ? <Hud /> : spectator ? <SpectatorOverlay /> : <Login />}

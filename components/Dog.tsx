@@ -9,11 +9,11 @@ import { live, zombies } from "@/lib/runtime";
 import { resolveMovement } from "@/lib/world";
 import { sfx } from "@/lib/sound";
 
-const BITE_DMG = 8;
-
-/** The player's loyal dog: follows in the forest and bites whatever they're fighting. */
+/** The player's loyal dog: follows in the forest and bites whatever they're
+ *  fighting. Every bite earns him experience — a seasoned dog bites harder. */
 export default function Dog() {
   const owned = useGame((s) => s.dog);
+  const dogLevel = useGame((s) => s.dogLevel());
   const ref = useRef<THREE.Group>(null);
   const pos = useRef({ x: 2, z: 2, rot: 0 });
   const biteCd = useRef(0);
@@ -48,14 +48,16 @@ export default function Dog() {
       const distT = Math.hypot(target.x - p.x, target.z - p.z);
       if (distT < 1.2 && biteCd.current <= 0) {
         biteCd.current = 0.9;
-        target.hp -= BITE_DMG;
+        const dmg = 6 + 2 * state.dogLevel();
+        target.hp -= dmg;
         target.flinchAt = Date.now();
-        state.registerHit(`z${target.id}`, BITE_DMG, false);
+        state.registerHit(`z${target.id}`, dmg, false);
+        state.dogBit();
         sfx.hit();
         if (target.hp <= 0) {
           target.state = "dying";
           target.dieAt = Date.now();
-          state.zombieKilled();
+          state.zombieKilled(target.type === "boss");
         }
       }
       if (barkCd.current <= 0) {
@@ -137,7 +139,7 @@ export default function Dog() {
         </mesh>
       ))}
       <Html position={[0, 1.05, 0]} center distanceFactor={26} zIndexRange={[9, 0]}>
-        <div className="player-label">🐕 Buddy</div>
+        <div className="player-label">🐕 Buddy · Lv {dogLevel}</div>
       </Html>
     </group>
   );

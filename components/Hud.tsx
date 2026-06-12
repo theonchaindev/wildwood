@@ -6,10 +6,13 @@ import {
   SELL_PRICES, COMBAT, AxeTier, WeaponTier, ArmorTier, ROD_COST, DOG_COST,
   BUILDABLES, PEN_DEFS, PEN_BUILD_COST, MAX_PER_PEN, PenAnimal,
   PICKAXE_COST, HELD_TORCH_COST, HOUSE_LEVELS, RENT_AMOUNT, RENT_INTERVAL_MS,
+  SKILLS, SkillKey, MAX_SKILL_RANK, ACHIEVEMENTS, dailyQuestsFor,
+  DECOR_ITEMS, MAX_DECOR, CAT_COST,
   COLLECTIBLE_RESPAWN_MS, PACK_CAP, chestCapFor, rankFor, dayOffers,
 } from "@/lib/store";
 import {
   live, clock, timePhase, zombies, animals, isNight, isBloodMoonNight,
+  isBossNight, isRaining, seasonFor, fishing,
   secondsToNight, secondsToDawn,
 } from "@/lib/runtime";
 import {
@@ -19,6 +22,8 @@ import {
 import {
   fetchOffers, postOffer, acceptPlayerOffer, cancelPlayerOffer, fetchVisit,
   cashOut, fetchLeaderboard, ACORNS_PER_SOL, PlayerOffer,
+  fetchGifts, sendGift, claimGift, Gift as CloudGift,
+  fetchGuestbook, signGuestbook, GuestbookEntry,
 } from "@/lib/cloud";
 import { ghosts } from "@/lib/multiplayer";
 
@@ -193,26 +198,34 @@ function Minimap() {
 function ClockPill() {
   const [, tick] = useState(0);
   useEffect(() => {
-    const iv = setInterval(() => tick((n) => n + 1), 1000);
+    const iv = setInterval(() => {
+      tick((n) => n + 1);
+      useGame.getState().ensureDaily(); // roll the daily tasks at each new game day
+    }, 1000);
     return () => clearInterval(iv);
   }, []);
   const phase = timePhase();
   const night = isNight();
   const blood = isBloodMoonNight();
+  const boss = isBossNight();
+  const bossComing = !night && boss;
   const bloodComing = !night && clock.day % 5 === 0;
+  const season = seasonFor(clock.day);
   const icon = blood ? "🔴" : night ? "🌙" : phase === "Dusk" || phase === "Dawn" ? "🌅" : "☀️";
   return (
     <>
       <div className="pill">
-        {icon} Day {clock.day} · {phase}
+        {icon} Day {clock.day} · {phase} · {season.icon} {season.name}{isRaining() ? " · 🌧" : ""}
       </div>
-      {blood ? (
+      {boss && night ? (
+        <div className="pill danger">👹 THE BUTCHER WALKS! Dawn in {fmtTime(secondsToDawn())}</div>
+      ) : blood ? (
         <div className="pill danger">🔴 BLOOD MOON! Dawn in {fmtTime(secondsToDawn())}</div>
       ) : night ? (
         <div className="pill danger">🧟 Out now! Dawn in {fmtTime(secondsToDawn())}</div>
       ) : (
         <div className="pill">
-          {bloodComing ? "🔴 Blood moon" : "🧟 Rise"} in {fmtTime(secondsToNight())}
+          {bossComing ? "👹 The Butcher" : bloodComing ? "🔴 Blood moon" : "🧟 Rise"} in {fmtTime(secondsToNight())}
         </div>
       )}
     </>
@@ -304,8 +317,14 @@ function TraderShop() {
       <ShopRow
         icon="🐕"
         name="Loyal Dog"
-        blurb="Follows you everywhere and bites zombies (8 dmg). Sleeps at your homestead."
+        blurb="Follows you everywhere and bites zombies — he levels up with every scrap"
         right={s.dog ? <span className="shop-owned">Adopted</span> : <BuyBtn cost={DOG_COST} onClick={s.buyDog} />}
+      />
+      <ShopRow
+        icon="🐈"
+        name="House Cat"
+        blurb="Lives on your homestead. Pet her once a day for a little present"
+        right={s.cat ? <span className="shop-owned">Adopted</span> : <BuyBtn cost={CAT_COST} onClick={s.buyCat} />}
       />
       <div className="shop-section">Seeds — plant on your own plot</div>
       {Object.entries(SEEDS).map(([label, def]) => (
@@ -568,6 +587,8 @@ function PlayerOffers() {
         </button>
       </div>
 
+      <GiftsSection />
+
       <div className="shop-section">💸 Cash out — play to earn</div>
       {s.account.wallet ? (
         <>
@@ -604,6 +625,116 @@ function PlayerOffers() {
         <button className="btn small" disabled={!visitName.trim()} onClick={doVisit}>
           Visit 🏡
         </button>
+      </div>
+      {err && <div className="offer-error">{err}</div>}
+    </>
+  );
+}
+
+function GiftsSection() {
+  const s = useGame();
+  const [gifts, setGifts] = useState<CloudGift[] | null>(null);
+  const [to, setTo] = useState("");
+  const [giftItem, setGiftItem] = useState("");
+  const [giftQty, setGiftQty] = useState(1);
+  const [tip, setTip] = useState(0);
+  const [err, setErr] = useState<string | null>(null);
+  const refresh = () => {
+    fetchGifts().then((d) => setGifts(d.gifts)).catch(() => setGifts([]));
+  };
+  useEffect(refresh, []);
+
+  const claim = async (g: CloudGift) => {
+    try {
+      await claimGift(g.id);
+      if (g.acorns > 0) useGame.setState({ acorns: useGame.getState().acorns + g.acorns });
+      if (g.item && g.qty > 0) s.gainItem(g.item, g.qty);
+      s.addToast(
+        `🎁 From ${g.fromName}: ${[g.acorns > 0 ? `${g.acorns} 🌰` : "", g.item ? `${g.qty} ${g.item}` : ""].filter(Boolean).join(" + ")}`
+      );
+      refresh();
+    } catch (e: any) {
+      setErr(e.message);
+    }
+  };
+
+  const send = async () => {
+    setErr(null);
+    const payload: { acorns?: number; item?: string; qty?: number } = {};
+    if (tip > 0) {
+      if (s.acorns < tip) {
+        setErr("Not enough acorns for that tip");
+        return;
+      }
+      payload.acorns = tip;
+    }
+    if (giftItem && giftQty > 0) {
+      if ((s.inventory[giftItem] ?? 0) < giftQty) {
+        setErr(`You don't have ${giftQty} ${giftItem}`);
+        return;
+      }
+      payload.item = giftItem;
+      payload.qty = giftQty;
+    }
+    if (!payload.acorns && !payload.item) {
+      setErr("Add a tip or an item to the parcel");
+      return;
+    }
+    try {
+      await sendGift(to.trim(), payload);
+      // hand the goods over locally
+      if (payload.acorns) useGame.setState({ acorns: useGame.getState().acorns - payload.acorns });
+      if (payload.item && payload.qty) {
+        const inv = { ...useGame.getState().inventory };
+        if (inv[payload.item] - payload.qty <= 0) delete inv[payload.item];
+        else inv[payload.item] -= payload.qty;
+        useGame.setState({ inventory: inv });
+      }
+      s.addToast(`🎁 Gift sent to ${to.trim()}!`);
+      setTo("");
+      setTip(0);
+      setGiftItem("");
+    } catch (e: any) {
+      setErr(e.message);
+    }
+  };
+
+  return (
+    <>
+      <div className="shop-section">🎁 Gifts</div>
+      {gifts === null && <div className="shop-empty">Checking the post…</div>}
+      {gifts !== null && gifts.length === 0 && <div className="shop-empty">No parcels waiting.</div>}
+      {gifts?.map((g) => (
+        <ShopRow
+          key={g.id}
+          icon="🎁"
+          name={<>From <b>{g.fromName}</b></>}
+          blurb={[g.acorns > 0 ? `${g.acorns} 🌰` : "", g.item ? `${g.qty} ${g.item}` : ""].filter(Boolean).join(" + ")}
+          right={<button className="btn small" onClick={() => claim(g)}>Open</button>}
+        />
+      ))}
+      <div className="offer-form">
+        <input
+          className="offer-input grow" placeholder="Send to…"
+          value={to} onChange={(e) => setTo(e.target.value)}
+        />
+        <input
+          className="offer-input num" type="number" min={0} placeholder="🌰"
+          value={tip || ""} onChange={(e) => setTip(Math.max(0, Number(e.target.value)))}
+        />
+        <select className="offer-input" value={giftItem} onChange={(e) => setGiftItem(e.target.value)}>
+          <option value="">+ item…</option>
+          {Object.keys(s.inventory).map((l) => (
+            <option key={l} value={l}>{l} (×{s.inventory[l]})</option>
+          ))}
+        </select>
+        {giftItem && (
+          <input
+            className="offer-input num" type="number" min={1} max={s.inventory[giftItem] ?? 1}
+            value={giftQty} onChange={(e) => setGiftQty(Number(e.target.value))}
+          />
+        )}
+        <button className="btn small" disabled={!to.trim()} onClick={send}>Send</button>
       </div>
       {err && <div className="offer-error">{err}</div>}
     </>
@@ -1099,7 +1230,8 @@ function LeaderboardModal({ onClose }: { onClose: () => void }) {
 
 function LeaderboardDock() {
   const myName = useGame((s) => s.name);
-  const [data, setData] = useState<{ players: { name: string; level: number; acorns: number }[]; online: number } | null>(null);
+  const [tab, setTab] = useState<"players" | "estates">("players");
+  const [data, setData] = useState<Awaited<ReturnType<typeof fetchLeaderboard>> | null>(null);
   useEffect(() => {
     const load = () => fetchLeaderboard().then(setData).catch(() => {});
     load();
@@ -1107,20 +1239,51 @@ function LeaderboardDock() {
     return () => clearInterval(iv);
   }, []);
   if (!data) return null;
+  const medal = (i: number) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`);
   return (
     <div className="lb-dock">
       <div className="lb-dock-head">
-        <span>🏆 Top Foragers</span>
+        <span>
+          <button
+            className={`lb-tab ${tab === "players" ? "on" : ""}`}
+            onClick={() => setTab("players")}
+          >
+            🏆 Foragers
+          </button>
+          <button
+            className={`lb-tab ${tab === "estates" ? "on" : ""}`}
+            onClick={() => setTab("estates")}
+          >
+            🏡 Estates
+          </button>
+        </span>
         <span className="online-tag">🟢 {data.online}</span>
       </div>
-      {data.players.length === 0 && <div className="lb-dock-empty">No foragers yet — be the first!</div>}
-      {data.players.slice(0, 6).map((p, i) => (
-        <div key={p.name} className={`lb-line ${p.name === myName ? "me" : ""}`}>
-          <span className="lb-rank">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`}</span>
-          <span className="lb-name">{p.name}</span>
-          <span className="lb-stats">Lv {p.level} · {p.acorns} 🌰</span>
-        </div>
-      ))}
+      {tab === "players" ? (
+        <>
+          {data.players.length === 0 && <div className="lb-dock-empty">No foragers yet — be the first!</div>}
+          {data.players.slice(0, 6).map((p, i) => (
+            <div key={p.name} className={`lb-line ${p.name === myName ? "me" : ""}`}>
+              <span className="lb-rank">{medal(i)}</span>
+              <span className="lb-name">{p.name}</span>
+              <span className="lb-stats">Lv {p.level} · {p.acorns} 🌰</span>
+            </div>
+          ))}
+        </>
+      ) : (
+        <>
+          {(data.estates ?? []).length === 0 && <div className="lb-dock-empty">No land owned yet!</div>}
+          {(data.estates ?? []).slice(0, 6).map((p, i) => (
+            <div key={p.name} className={`lb-line ${p.name === myName ? "me" : ""}`}>
+              <span className="lb-rank">{medal(i)}</span>
+              <span className="lb-name">{p.name}</span>
+              <span className="lb-stats">
+                Deed {p.homeTier}/10 · {HOUSE_LEVELS[Math.max(0, Math.min(p.houseLevel, HOUSE_LEVELS.length) - 1)].icon}
+              </span>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }
@@ -1142,6 +1305,234 @@ function OnlinePill() {
   );
 }
 
+function GuestbookModal({ owner, onClose }: { owner: string; onClose: () => void }) {
+  const s = useGame();
+  const [entries, setEntries] = useState<GuestbookEntry[] | null>(null);
+  const [text, setText] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const refresh = () => {
+    fetchGuestbook(owner).then((d) => setEntries(d.entries)).catch(() => setEntries([]));
+  };
+  useEffect(refresh, [owner]);
+
+  const sign = async () => {
+    setErr(null);
+    try {
+      await signGuestbook(owner, text.trim());
+      setText("");
+      s.addToast("🪶 Signed their guestbook");
+      refresh();
+    } catch (e: any) {
+      setErr(e.message);
+    }
+  };
+
+  const tipThem = async (n: number) => {
+    setErr(null);
+    if (s.acorns < n) {
+      setErr("Not enough acorns");
+      return;
+    }
+    try {
+      await sendGift(owner, { acorns: n });
+      useGame.setState({ acorns: useGame.getState().acorns - n });
+      s.addToast(`🌰 Tipped ${owner} ${n} acorns!`);
+    } catch (e: any) {
+      setErr(e.message);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <span className="modal-title">🪶 {owner}&apos;s Guestbook</span>
+          <span className="modal-acorns">🌰 {s.acorns}</span>
+        </div>
+        {entries === null && <div className="shop-empty">Opening the book…</div>}
+        {entries !== null && entries.length === 0 && (
+          <div className="shop-empty">No entries yet — be their first visitor!</div>
+        )}
+        {entries?.map((e) => (
+          <div key={e.id} className="lb-line">
+            <span className="lb-name">
+              <b>{e.author}</b> — {e.text}
+            </span>
+          </div>
+        ))}
+        {s.account ? (
+          <>
+            <div className="offer-form" style={{ marginTop: 10 }}>
+              <input
+                className="offer-input grow"
+                placeholder="Leave a kind word… (once a day)"
+                maxLength={120}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && text.trim().length >= 2 && sign()}
+              />
+              <button className="btn small" disabled={text.trim().length < 2} onClick={sign}>
+                Sign
+              </button>
+            </div>
+            <div className="offer-form">
+              <span className="offer-x">Leave a tip:</span>
+              {[25, 100, 500].map((n) => (
+                <button key={n} className="btn small ghost" disabled={s.acorns < n} onClick={() => tipThem(n)}>
+                  🌰 {n}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="shop-note">Log in with an online account to sign and tip.</div>
+        )}
+        {err && <div className="offer-error">{err}</div>}
+        <button className="btn block" onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
+
+function SkillsModal() {
+  const s = useGame();
+  return (
+    <div className="modal-backdrop" onClick={s.toggleSkills}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <span className="modal-title">🌟 Skills</span>
+          <span className="modal-acorns">{s.skillPoints} point{s.skillPoints === 1 ? "" : "s"}</span>
+        </div>
+        <div className="plot-pitch">Every level-up earns a skill point. Spend them on your craft:</div>
+        {(Object.keys(SKILLS) as SkillKey[]).map((key) => {
+          const def = SKILLS[key];
+          const rank = s.skills[key];
+          return (
+            <ShopRow
+              key={key}
+              icon={def.icon}
+              name={
+                <>
+                  {def.label}{" "}
+                  <span style={{ letterSpacing: 2 }}>
+                    {"●".repeat(rank)}{"○".repeat(MAX_SKILL_RANK - rank)}
+                  </span>
+                </>
+              }
+              blurb={def.blurb}
+              right={
+                rank >= MAX_SKILL_RANK ? (
+                  <span className="shop-owned">Maxed</span>
+                ) : (
+                  <button className="btn small" disabled={s.skillPoints < 1} onClick={() => s.upgradeSkill(key)}>
+                    🌟 1
+                  </button>
+                )
+              }
+            />
+          );
+        })}
+        <button className="btn block" onClick={s.toggleSkills}>Close</button>
+      </div>
+    </div>
+  );
+}
+
+function JournalModal() {
+  const s = useGame();
+  const done = s.claimedAchievements.length;
+  return (
+    <div className="modal-backdrop" onClick={s.toggleJournal}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <span className="modal-title">📖 Journal</span>
+          <span className="modal-acorns">{done}/{ACHIEVEMENTS.length}</span>
+        </div>
+        <div className="modal-scroll">
+          {ACHIEVEMENTS.map((a) => {
+            const claimed = s.claimedAchievements.includes(a.id);
+            const progress = Math.min(s.stats[a.stat] ?? 0, a.goal);
+            return (
+              <div key={a.id} className={`quest-line ${claimed ? "done" : ""}`}>
+                <span className="quest-check">{claimed ? a.icon : "🔒"}</span>
+                <div className="quest-body">
+                  <div className="quest-name">{a.title}</div>
+                  <div className="quest-desc">
+                    {a.desc} — {progress}/{a.goal}
+                  </div>
+                  <div className="quest-reward">+{a.acorns} 🌰 · +{a.xp} XP</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <button className="btn block" onClick={s.toggleJournal}>Close</button>
+      </div>
+    </div>
+  );
+}
+
+function DecorShopModal() {
+  const s = useGame();
+  return (
+    <div className="modal-backdrop" onClick={s.toggleDecorShop}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <span className="modal-title">🛋️ Furnishings</span>
+          <span className="modal-acorns">🌰 {s.acorns} · {s.interiorDecor.length}/{MAX_DECOR}</span>
+        </div>
+        <div className="plot-pitch">
+          Pick a piece, then click the floor to place it. Visitors will see your taste — or lack of it.
+        </div>
+        <div className="modal-scroll">
+          {Object.entries(DECOR_ITEMS).map(([key, def]) => (
+            <ShopRow
+              key={key}
+              icon="🪑"
+              name={def.label}
+              blurb={<>Place anywhere on your floor</>}
+              right={
+                <button className="btn small" disabled={s.acorns < def.cost} onClick={() => s.setDecorMode(key)}>
+                  🌰 {def.cost}
+                </button>
+              }
+            />
+          ))}
+        </div>
+        <button className="btn block ghost" onClick={() => s.setDecorMode("remove")}>
+          🗑️ Remove a piece (half refund)
+        </button>
+        <button className="btn block" onClick={s.toggleDecorShop}>Close</button>
+      </div>
+    </div>
+  );
+}
+
+function FishingBar() {
+  const angling = useGame((s) => s.skills.angling);
+  const markerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let raf = 0;
+    const loop = () => {
+      const m = Math.sin((Date.now() - fishing.biteAt) / 220); // mirrors the catch check
+      if (markerRef.current) markerRef.current.style.left = `${50 + m * 46}%`;
+      raf = requestAnimationFrame(loop);
+    };
+    loop();
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const zoneHalf = 0.22 + 0.05 * angling;
+  return (
+    <div className="fish-bar-wrap">
+      <div className="fish-bar">
+        <div className="fish-zone" style={{ left: `${50 - zoneHalf * 46}%`, width: `${zoneHalf * 2 * 46}%` }} />
+        <div className="fish-marker" ref={markerRef} />
+      </div>
+      <div className="fish-hint">🎣 Press <b>F</b> in the green!</div>
+    </div>
+  );
+}
+
 function QuestsModal() {
   const s = useGame();
   return (
@@ -1153,6 +1544,28 @@ function QuestsModal() {
             {s.quests.filter((q) => q.done).length}/{s.quests.length}
           </span>
         </div>
+        <div className="shop-section">📋 Today&apos;s tasks — day {clock.day}</div>
+        {dailyQuestsFor(clock.day).map((q) => {
+          const progress = Math.min(q.goal, (s.stats[q.stat] ?? 0) - (s.dailyBase[q.stat] ?? 0));
+          const claimed = s.dailyClaimed.includes(q.id);
+          return (
+            <div key={q.id} className={`quest-line ${claimed ? "done" : ""}`}>
+              <span className="quest-check">{q.icon}</span>
+              <div className="quest-body">
+                <div className="quest-name">{q.label}</div>
+                <div className="quest-reward">+{q.acorns} 🌰 · +{q.xp} XP</div>
+              </div>
+              {claimed ? (
+                <span className="quest-prog">✅</span>
+              ) : progress >= q.goal ? (
+                <button className="btn small" onClick={() => s.claimDaily(q.id)}>Claim</button>
+              ) : (
+                <span className="quest-prog">{Math.max(0, progress)}/{q.goal}</span>
+              )}
+            </div>
+          );
+        })}
+        <div className="shop-section">📜 Story</div>
         {s.quests.map((q) => (
           <div key={q.id} className={`quest-line ${q.done ? "done" : ""}`}>
             <span className="quest-check">{q.done ? "✅" : "⬜"}</span>
@@ -1206,6 +1619,7 @@ export default function Hud() {
   const s = useGame();
   const [showBuild, setShowBuild] = useState(false);
   const [showLb, setShowLb] = useState(false);
+  const [showGuestbook, setShowGuestbook] = useState(false);
   const activeQuest = s.quests.find((q) => !q.done);
   const questIndex = s.quests.findIndex((q) => !q.done);
 
@@ -1364,6 +1778,14 @@ export default function Hud() {
               : `${BUILDABLES[s.buildMode]?.icon} Placing ${BUILDABLES[s.buildMode]?.label} — click the ground · Esc to stop`}
           </div>
         )}
+        {s.decorMode && (
+          <div className="trade-prompt as-pill bite">
+            {s.decorMode === "remove"
+              ? "🗑️ Click a furnishing to remove it · Esc to stop"
+              : `🛋️ Placing ${DECOR_ITEMS[s.decorMode]?.label} — click the floor · Esc to stop`}
+          </div>
+        )}
+        {s.fishingState === "bite" && <FishingBar />}
         {s.nearWater && s.fishingState === "idle" && (
           <div className="trade-prompt as-pill">
             {s.rod ? <>Press <b>F</b> to fish 🎣 · click water for 💧</> : <>Click water for 💧 · rod unlocks fishing 🎣</>}
@@ -1415,7 +1837,17 @@ export default function Hud() {
           <button className="round-btn" onClick={() => setShowBuild(true)} title="Build">🔨</button>
         )}
         <button className="round-btn" onClick={() => setShowLb(true)} title="Leaderboard">🏆</button>
+        {s.visitData && (
+          <button className="round-btn" onClick={() => setShowGuestbook(true)} title="Guestbook">🪶</button>
+        )}
         <button className="round-btn" onClick={s.toggleQuests} title="Quests">📜</button>
+        <button className="round-btn badge-holder" onClick={s.toggleSkills} title="Skills">
+          🌟{s.skillPoints > 0 && <span className="round-badge">{s.skillPoints}</span>}
+        </button>
+        <button className="round-btn" onClick={s.toggleJournal} title="Journal">📖</button>
+        {s.location === "interior" && !s.visitData && (
+          <button className="round-btn" onClick={s.toggleDecorShop} title="Furnish">🛋️</button>
+        )}
         <button className="round-btn" onClick={s.toggleHelp} title="How to play">❓</button>
         <button className="round-btn" onClick={s.toggleMute} title="Sound">
           {s.muted ? "🔇" : "🔊"}
@@ -1436,8 +1868,14 @@ export default function Hud() {
       {s.openPen !== null && <PenModal />}
       {showBuild && <BuildModal onClose={() => setShowBuild(false)} />}
       {showLb && <LeaderboardModal onClose={() => setShowLb(false)} />}
+      {showGuestbook && s.visitData && (
+        <GuestbookModal owner={s.visitData.name} onClose={() => setShowGuestbook(false)} />
+      )}
       {s.homeOffer && <HomeOfferModal />}
       {s.showQuests && <QuestsModal />}
+      {s.showSkills && <SkillsModal />}
+      {s.showJournal && <JournalModal />}
+      {s.showDecorShop && <DecorShopModal />}
       {s.showHelp && <HelpModal />}
     </div>
   );

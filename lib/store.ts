@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { sfx } from "./sound";
-import { teleport, live, isBloodMoonNight, isNight, clock, DAY_LENGTH_S } from "./runtime";
+import { teleport, live, isBloodMoonNight, isNight, isRaining, clock, DAY_LENGTH_S } from "./runtime";
 import {
   CAMPFIRE_POS, ShopId, HOME_TIERS, HOME_PORTAL_POS, HOME_CABIN_POS,
   homeGateZ, homeTierDef, interiorDims,
@@ -187,9 +187,139 @@ export const FOODS: Record<string, { hp: number; energy: number; hunger: number;
   Honey: { hp: 18, energy: 20, hunger: 18 },
 };
 
+// ---- skills: spend points earned at each level-up ----
+
+export const SKILLS = {
+  forestry: { label: "Forestry", icon: "🪓", blurb: "Chop & mine 8% faster per rank" },
+  angling: { label: "Angling", icon: "🎣", blurb: "Bites 10% sooner, bigger catch window, +2% golden fish per rank" },
+  warfare: { label: "Warfare", icon: "⚔️", blurb: "+6% damage per rank" },
+  harvest: { label: "Harvest", icon: "🌾", blurb: "Crops 5% faster, +8% bonus-crop chance per rank" },
+} as const;
+
+export type SkillKey = keyof typeof SKILLS;
+export const MAX_SKILL_RANK = 5;
+
+// ---- achievements: auto-granted as the matching stat ticks up ----
+
+export type Achievement = {
+  id: string;
+  icon: string;
+  title: string;
+  desc: string;
+  stat: string;
+  goal: number;
+  acorns: number;
+  xp: number;
+};
+
+export const ACHIEVEMENTS: Achievement[] = [
+  { id: "chop-1", icon: "🪓", title: "Lumberjack", desc: "Chop 10 trees", stat: "treesChopped", goal: 10, acorns: 30, xp: 50 },
+  { id: "chop-2", icon: "🪓", title: "Deforester", desc: "Chop 100 trees", stat: "treesChopped", goal: 100, acorns: 150, xp: 150 },
+  { id: "chop-3", icon: "🪓", title: "Timber Tycoon", desc: "Chop 500 trees", stat: "treesChopped", goal: 500, acorns: 600, xp: 400 },
+  { id: "mine-1", icon: "⛏️", title: "Rock Bottom", desc: "Mine 10 rocks", stat: "rocksMined", goal: 10, acorns: 30, xp: 50 },
+  { id: "mine-2", icon: "⛏️", title: "Quarry Master", desc: "Mine 100 rocks", stat: "rocksMined", goal: 100, acorns: 200, xp: 200 },
+  { id: "fish-1", icon: "🎣", title: "First Catch", desc: "Catch 10 fish", stat: "fishCaught", goal: 10, acorns: 30, xp: 50 },
+  { id: "fish-2", icon: "🎣", title: "River Regular", desc: "Catch 50 fish", stat: "fishCaught", goal: 50, acorns: 120, xp: 150 },
+  { id: "fish-3", icon: "🎣", title: "Master Angler", desc: "Catch 200 fish", stat: "fishCaught", goal: 200, acorns: 500, xp: 350 },
+  { id: "golden-1", icon: "🐡", title: "One in a Million", desc: "Catch a Golden Fish", stat: "goldenFish", goal: 1, acorns: 100, xp: 100 },
+  { id: "zombie-1", icon: "🧟", title: "Night Watchman", desc: "Slay 10 zombies", stat: "zombiesKilled", goal: 10, acorns: 50, xp: 80 },
+  { id: "zombie-2", icon: "🧟", title: "Gravekeeper", desc: "Slay 50 zombies", stat: "zombiesKilled", goal: 50, acorns: 200, xp: 200 },
+  { id: "zombie-3", icon: "🧟", title: "Scourge of the Dead", desc: "Slay 250 zombies", stat: "zombiesKilled", goal: 250, acorns: 800, xp: 500 },
+  { id: "boss-1", icon: "👹", title: "Butcher's Bane", desc: "Fell the Butcher on a boss night", stat: "bossKills", goal: 1, acorns: 400, xp: 300 },
+  { id: "hunt-1", icon: "🏹", title: "Hunter-Gatherer", desc: "Hunt 10 animals", stat: "animalsHunted", goal: 10, acorns: 40, xp: 60 },
+  { id: "hunt-2", icon: "🏹", title: "Apex Predator", desc: "Hunt 50 animals", stat: "animalsHunted", goal: 50, acorns: 180, xp: 180 },
+  { id: "harvest-1", icon: "🌾", title: "Green Thumb", desc: "Harvest 10 crops", stat: "cropsHarvested", goal: 10, acorns: 30, xp: 50 },
+  { id: "harvest-2", icon: "🌾", title: "Breadbasket", desc: "Harvest 100 crops", stat: "cropsHarvested", goal: 100, acorns: 250, xp: 220 },
+  { id: "cook-1", icon: "🍳", title: "Camp Cook", desc: "Cook 10 meals", stat: "mealsCooked", goal: 10, acorns: 30, xp: 50 },
+  { id: "cook-2", icon: "🍳", title: "Forest Chef", desc: "Cook 50 meals", stat: "mealsCooked", goal: 50, acorns: 150, xp: 150 },
+  { id: "sell-1", icon: "💰", title: "Trader", desc: "Earn 1,000 acorns from sales", stat: "acornsEarned", goal: 1000, acorns: 100, xp: 100 },
+  { id: "sell-2", icon: "💰", title: "Merchant Prince", desc: "Earn 10,000 acorns from sales", stat: "acornsEarned", goal: 10000, acorns: 500, xp: 300 },
+  { id: "produce-1", icon: "🥚", title: "Farmhand", desc: "Collect 50 farm produce", stat: "produceCollected", goal: 50, acorns: 100, xp: 100 },
+  { id: "produce-2", icon: "🥚", title: "Land Baron", desc: "Collect 250 farm produce", stat: "produceCollected", goal: 250, acorns: 400, xp: 250 },
+  { id: "deeds-10", icon: "🏡", title: "Lord of the Wildwood", desc: "Hold all 10 land deeds", stat: "deeds", goal: 10, acorns: 1000, xp: 500 },
+  { id: "house-5", icon: "🏰", title: "Manor Born", desc: "Build the Wildwood Manor", stat: "housePeak", goal: 5, acorns: 500, xp: 300 },
+];
+
+// ---- daily quests: three fresh tasks every game day ----
+
+export type DailyQuest = {
+  id: string;
+  stat: string;
+  goal: number;
+  label: string;
+  icon: string;
+  acorns: number;
+  xp: number;
+};
+
+const DAILY_TEMPLATES = [
+  { stat: "treesChopped", icon: "🪓", word: "Chop", thing: "trees", min: 5, max: 12, per: 6 },
+  { stat: "fishCaught", icon: "🎣", word: "Catch", thing: "fish", min: 3, max: 7, per: 10 },
+  { stat: "zombiesKilled", icon: "🧟", word: "Slay", thing: "zombies", min: 3, max: 8, per: 12 },
+  { stat: "cropsHarvested", icon: "🌾", word: "Harvest", thing: "crops", min: 4, max: 10, per: 8 },
+  { stat: "rocksMined", icon: "⛏️", word: "Mine", thing: "rocks", min: 3, max: 8, per: 8 },
+  { stat: "produceCollected", icon: "🥚", word: "Collect", thing: "farm produce", min: 4, max: 10, per: 7 },
+  { stat: "animalsHunted", icon: "🏹", word: "Hunt", thing: "animals", min: 2, max: 6, per: 12 },
+];
+
+export function dailyQuestsFor(day: number): DailyQuest[] {
+  const r = mulberry32(day * 31 + 7);
+  const picks: number[] = [];
+  while (picks.length < 3) {
+    const i = Math.floor(r() * DAILY_TEMPLATES.length);
+    if (!picks.includes(i)) picks.push(i);
+  }
+  return picks.map((i) => {
+    const t = DAILY_TEMPLATES[i];
+    const goal = t.min + Math.floor(r() * (t.max - t.min + 1));
+    return {
+      id: `d${day}-${t.stat}`,
+      stat: t.stat,
+      goal,
+      label: `${t.word} ${goal} ${t.thing}`,
+      icon: t.icon,
+      acorns: goal * t.per,
+      xp: goal * 5,
+    };
+  });
+}
+
+// ---- interior decoration: furniture-pack pieces you can buy & place ----
+
+export const DECOR_ITEMS: Record<string, { label: string; file: string; cost: number; size: number; by?: "y" | "xz" }> = {
+  sofa: { label: "Sofa", file: "sofa_001", cost: 350, size: 2, by: "xz" },
+  armchair: { label: "Lounge Chair", file: "lounge_chair_001", cost: 220, size: 1 },
+  coffeetable: { label: "Coffee Table", file: "coffee_table_001", cost: 140, size: 0.5 },
+  chair: { label: "Kitchen Chair", file: "kitchen_chair_001", cost: 60, size: 0.95 },
+  dresser: { label: "Dresser", file: "dresser_001", cost: 180, size: 1.1 },
+  wardrobe: { label: "Wardrobe", file: "closet_002", cost: 260, size: 2 },
+  floorlamp: { label: "Floor Lamp", file: "lamp_001", cost: 100, size: 1.5 },
+  tablelamp: { label: "Table Lamp", file: "lamp_002", cost: 60, size: 0.5 },
+  plant: { label: "House Plant", file: "flower_001", cost: 80, size: 0.9 },
+  tv: { label: "TV Wall", file: "tv_wall_001", cost: 400, size: 1.6 },
+  washer: { label: "Washing Machine", file: "washing_machine_001", cost: 250, size: 1 },
+  microwave: { label: "Microwave", file: "microwave_oven_001", cost: 120, size: 0.45 },
+  dumbbells: { label: "Dumbbell Rack", file: "dumbbell_001", cost: 200, size: 0.9 },
+  bench: { label: "Workout Bench", file: "training_item_001", cost: 260, size: 1 },
+  treadmill: { label: "Exercise Rig", file: "training_item_002", cost: 320, size: 1.3 },
+  scratch: { label: "Scratching Post", file: "scratching_post_001", cost: 150, size: 1.1 },
+  bear: { label: "Teddy Bear", file: "toy_001", cost: 90, size: 0.5 },
+  blocks: { label: "Toy Blocks", file: "toy_002", cost: 70, size: 0.35 },
+  guitar: { label: "Instrument", file: "musical_instrument_001", cost: 320, size: 1.4 },
+  airhockey: { label: "Air Hockey", file: "air_hockey_001", cost: 500, size: 2.2, by: "xz" },
+  crate: { label: "Old Crate", file: "box_001", cost: 40, size: 0.6 },
+};
+
+export type DecorPiece = { id: number; key: string; x: number; z: number; rot: number };
+export const MAX_DECOR = 25;
+
 // ---- homestead extras ----
 
 export const DOG_COST = 200;
+export const CAT_COST = 250;
+
+// the cat brings a present once per game day if you remember to pet her
+const CAT_GIFTS = ["Egg", "Apple", "Carrot", "Stone", "Wood", "Carp", "Orange Mushroom"];
 
 // ---- the house: five upgrade levels, each with a real perk ----
 
@@ -279,15 +409,15 @@ export const ANIMAL_DROPS: Record<"chicken" | "boar" | "rabbit" | "deer", { labe
   deer: { label: "Raw Venison", min: 2, max: 3, xp: 20 },
 };
 
-const FISH_TABLE: { label: string; weight: number }[] = [
-  { label: "Carp", weight: 60 },
-  { label: "Trout", weight: 32 },
-  { label: "Golden Fish", weight: 8 },
-];
-
-function rollFish(): string {
-  let r = Math.random() * 100;
-  for (const f of FISH_TABLE) {
+function rollFish(goldenBonus = 0): string {
+  const table: { label: string; weight: number }[] = [
+    { label: "Carp", weight: 60 },
+    { label: "Trout", weight: 32 },
+    { label: "Golden Fish", weight: 8 + goldenBonus },
+  ];
+  const total = table.reduce((a, f) => a + f.weight, 0);
+  let r = Math.random() * total;
+  for (const f of table) {
     if ((r -= f.weight) <= 0) return f.label;
   }
   return "Carp";
@@ -414,15 +544,29 @@ type GameState = {
     pens: Record<string, Pen>;
     orchard?: Record<string, OrchardTree>;
     hives?: Record<string, Hive>;
+    interiorDecor?: DecorPiece[];
   } | null;
   chest: Record<string, number>;
   farm: Record<string, { seed: string; at: number }>;
   dog: boolean;
+  dogXp: number;
+  cat: boolean;
+  catLastPet: number;
   pens: Record<string, Pen>; // key = pen spot index
   orchard: Record<string, OrchardTree>; // key = orchard spot index
   hives: Record<string, Hive>; // key = hive spot index
   structures: Structure[];
   buildMode: string | null; // buildable key, or "remove"
+  interiorDecor: DecorPiece[];
+  decorMode: string | null; // DECOR_ITEMS key, or "remove"
+
+  stats: Record<string, number>;
+  skills: Record<SkillKey, number>;
+  skillPoints: number;
+  claimedAchievements: string[];
+  dailyDay: number;
+  dailyBase: Record<string, number>;
+  dailyClaimed: string[];
 
   quests: Quest[];
   zone: string;
@@ -436,6 +580,9 @@ type GameState = {
   homeOffer: "buy" | "extend" | null;
   showQuests: boolean;
   showHelp: boolean;
+  showSkills: boolean;
+  showJournal: boolean;
+  showDecorShop: boolean;
 
   xpToLevel: () => number;
   chopTime: () => number;
@@ -461,7 +608,21 @@ type GameState = {
   setSpectator: (on: boolean) => void;
   setAttackTarget: (id: number | null) => void;
   setAnimalTarget: (id: string | null) => void;
-  zombieKilled: () => void;
+  zombieKilled: (boss?: boolean) => void;
+  bumpStat: (key: string, n?: number) => void;
+  upgradeSkill: (key: SkillKey) => void;
+  ensureDaily: () => void;
+  claimDaily: (id: string) => void;
+  buyCat: () => void;
+  petCat: () => void;
+  dogBit: () => void;
+  dogLevel: () => number;
+  placeDecor: (x: number, z: number) => void;
+  removeDecor: (id: number) => void;
+  setDecorMode: (mode: string | null) => void;
+  toggleSkills: () => void;
+  toggleJournal: () => void;
+  toggleDecorShop: () => void;
   animalKilled: (kind: "chicken" | "boar" | "rabbit" | "deer") => void;
   hurt: (dmg: number, canInfect?: boolean) => void;
   buyHomestead: () => void;
@@ -584,11 +745,24 @@ export const useGame = create<GameState>()(
       chest: {},
       farm: {},
       dog: false,
+      dogXp: 0,
+      cat: false,
+      catLastPet: 0,
       pens: {},
       orchard: {},
       hives: {},
       structures: [],
       buildMode: null,
+      interiorDecor: [],
+      decorMode: null,
+
+      stats: {},
+      skills: { forestry: 0, angling: 0, warfare: 0, harvest: 0 },
+      skillPoints: 0,
+      claimedAchievements: [],
+      dailyDay: 0,
+      dailyBase: {},
+      dailyClaimed: [],
 
       quests: QUESTS,
       zone: "The Glade",
@@ -602,13 +776,156 @@ export const useGame = create<GameState>()(
       homeOffer: null,
       showQuests: false,
       showHelp: false,
+      showSkills: false,
+      showJournal: false,
+      showDecorShop: false,
 
       xpToLevel: () => get().level * 100,
-      chopTime: () => (get().axe ? AXES[get().axe!].chopTime : HAND_CHOP_TIME),
+      chopTime: () =>
+        (get().axe ? AXES[get().axe!].chopTime : HAND_CHOP_TIME) *
+        (1 - 0.08 * get().skills.forestry),
       combatProfile: () => {
         const s = get();
-        if (s.weapon) return COMBAT[s.weapon];
-        return s.axe ? COMBAT.axe : COMBAT.fists;
+        const base = s.weapon ? COMBAT[s.weapon] : s.axe ? COMBAT.axe : COMBAT.fists;
+        const rank = s.skills.warfare;
+        return rank > 0 ? { ...base, dmg: Math.round(base.dmg * (1 + 0.06 * rank)) } : base;
+      },
+
+      bumpStat: (key, n = 1) => {
+        if (n === 0) return;
+        const stats = { ...get().stats, [key]: (get().stats[key] ?? 0) + n };
+        set({ stats });
+        for (const a of ACHIEVEMENTS) {
+          if (a.stat !== key) continue;
+          if (stats[key] >= a.goal && !get().claimedAchievements.includes(a.id)) {
+            set({
+              claimedAchievements: [...get().claimedAchievements, a.id],
+              acorns: get().acorns + a.acorns,
+            });
+            get().setBanner(`${a.icon} Achievement — ${a.title}!`);
+            get().addToast(`📖 ${a.desc} · +${a.acorns} 🌰 · +${a.xp} XP`);
+            sfx.questDone();
+            get().addXp(a.xp);
+          }
+        }
+        get().ensureDaily();
+      },
+
+      ensureDaily: () => {
+        const s = get();
+        if (s.dailyDay === clock.day) return;
+        const base: Record<string, number> = {};
+        for (const q of dailyQuestsFor(clock.day)) base[q.stat] = s.stats[q.stat] ?? 0;
+        set({ dailyDay: clock.day, dailyBase: base, dailyClaimed: [] });
+        if (s.dailyDay > 0) s.addToast("📋 New daily tasks have arrived!");
+      },
+
+      claimDaily: (id) => {
+        const s = get();
+        if (s.dailyClaimed.includes(id)) return;
+        const q = dailyQuestsFor(clock.day).find((d) => d.id === id);
+        if (!q) return;
+        if ((s.stats[q.stat] ?? 0) - (s.dailyBase[q.stat] ?? 0) < q.goal) return;
+        set({ dailyClaimed: [...s.dailyClaimed, id], acorns: s.acorns + q.acorns });
+        sfx.coin();
+        s.addToast(`📋 ${q.label} — +${q.acorns} 🌰 · +${q.xp} XP`);
+        s.addXp(q.xp);
+      },
+
+      upgradeSkill: (key) => {
+        const s = get();
+        if (s.skillPoints < 1 || s.skills[key] >= MAX_SKILL_RANK) return;
+        set({ skillPoints: s.skillPoints - 1, skills: { ...s.skills, [key]: s.skills[key] + 1 } });
+        sfx.levelUp();
+        s.addToast(`${SKILLS[key].icon} ${SKILLS[key].label} is now rank ${s.skills[key] + 1}`);
+      },
+
+      buyCat: () => {
+        const s = get();
+        if (s.cat) return;
+        if (!spend(s, CAT_COST)) return;
+        set({ acorns: s.acorns - CAT_COST, cat: true });
+        sfx.buy();
+        s.setBanner("🐈 A cat has adopted you (it works that way round)");
+      },
+
+      petCat: () => {
+        const s = get();
+        if (!s.cat) return;
+        if (Date.now() - s.catLastPet < DAY_LENGTH_S * 1000) {
+          s.addToast("😺 She purrs contentedly");
+          return;
+        }
+        const gift = CAT_GIFTS[Math.floor(Math.random() * CAT_GIFTS.length)];
+        if (s.gainItem(gift, 1) < 1) return;
+        set({ catLastPet: Date.now() });
+        sfx.pickup();
+        s.addToast(`😺 She's brought you 1 ${gift}!`);
+      },
+
+      dogBit: () => set({ dogXp: get().dogXp + 5 }),
+      dogLevel: () => Math.min(5, 1 + Math.floor(get().dogXp / 100)),
+
+      placeDecor: (x, z) => {
+        const s = get();
+        const key = s.decorMode;
+        if (!key || key === "remove") return;
+        const def = DECOR_ITEMS[key];
+        if (!def) return;
+        if (s.interiorDecor.length >= MAX_DECOR) {
+          s.addToast(`Limit of ${MAX_DECOR} furnishings reached`);
+          sfx.error();
+          return;
+        }
+        const { hw, hd } = interiorDims(s.houseLevel);
+        if (Math.abs(x) > hw - 0.5 || Math.abs(z) > hd - 0.5) {
+          s.addToast("Keep it inside the walls!");
+          return;
+        }
+        if (s.interiorDecor.some((d) => Math.hypot(d.x - x, d.z - z) < 0.7)) {
+          s.addToast("Too close to another piece");
+          return;
+        }
+        if (!spend(s, def.cost)) return;
+        set({
+          acorns: get().acorns - def.cost,
+          interiorDecor: [
+            ...s.interiorDecor,
+            { id: Date.now() + Math.floor(Math.random() * 1000), key, x, z, rot: Math.random() * Math.PI * 2 },
+          ],
+        });
+        sfx.buy();
+      },
+
+      removeDecor: (id) => {
+        const s = get();
+        const piece = s.interiorDecor.find((d) => d.id === id);
+        if (!piece) return;
+        const refund = Math.floor((DECOR_ITEMS[piece.key]?.cost ?? 0) / 2);
+        set({
+          interiorDecor: s.interiorDecor.filter((d) => d.id !== id),
+          acorns: s.acorns + refund,
+        });
+        s.addToast(`Removed ${DECOR_ITEMS[piece.key]?.label ?? "furnishing"} · +${refund} 🌰 back`);
+        sfx.ui();
+      },
+
+      setDecorMode: (mode) => {
+        set({ decorMode: mode, showDecorShop: false });
+        if (mode) sfx.ui();
+      },
+
+      toggleSkills: () => {
+        sfx.ui();
+        set((s) => ({ showSkills: !s.showSkills, showJournal: false, showQuests: false, showHelp: false, openShop: null, openPanel: null, homeOffer: null }));
+      },
+      toggleJournal: () => {
+        sfx.ui();
+        set((s) => ({ showJournal: !s.showJournal, showSkills: false, showQuests: false, showHelp: false, openShop: null, openPanel: null, homeOffer: null }));
+      },
+      toggleDecorShop: () => {
+        sfx.ui();
+        set((s) => ({ showDecorShop: !s.showDecorShop, decorMode: null, showSkills: false, showJournal: false, showQuests: false, showHelp: false, openShop: null, openPanel: null }));
       },
       registerHit: (key, amount, crit) => {
         set((s) => ({
@@ -669,12 +986,16 @@ export const useGame = create<GameState>()(
           const newMaxHp = 100 + (level - 1) * 10;
           const oldRank = rankFor(get().level);
           const newRank = rankFor(level);
-          set({ xp, level, maxHp: newMaxHp, hp: newMaxHp, energy: get().maxEnergy });
+          set({
+            xp, level, maxHp: newMaxHp, hp: newMaxHp, energy: get().maxEnergy,
+            skillPoints: get().skillPoints + 1,
+          });
           get().setBanner(
             newRank !== oldRank
               ? `Rank up! You are now a ${newRank} (Lv ${level})`
               : `Level up! You are now level ${level}`
           );
+          get().addToast("🌟 +1 skill point — spend it in Skills");
           sfx.levelUp();
         } else {
           set({ xp });
@@ -702,7 +1023,9 @@ export const useGame = create<GameState>()(
         if (get().mineTargetId !== id) set({ mineTargetId: id, chopTargetId: null, attackTargetId: null });
       },
 
-      mineTime: () => (get().pickaxe ? PICK_MINE_TIME : HAND_MINE_TIME),
+      mineTime: () =>
+        (get().pickaxe ? PICK_MINE_TIME : HAND_MINE_TIME) *
+        (1 - 0.08 * get().skills.forestry),
 
       mineComplete: (rockId) => {
         const s = get();
@@ -716,6 +1039,7 @@ export const useGame = create<GameState>()(
         sfx.treeFall();
         if (got > 0) s.addToast(`+${got} Stone · +15 XP`);
         s.addXp(15);
+        get().bumpStat("rocksMined");
       },
 
       respawnRock: (rockId) => {
@@ -756,6 +1080,7 @@ export const useGame = create<GameState>()(
         sfx.treeFall();
         if (got > 0) s.addToast(`+${got} Wood · +15 XP`);
         s.addXp(15);
+        get().bumpStat("treesChopped");
         get().questEvent("timber");
       },
 
@@ -769,8 +1094,22 @@ export const useGame = create<GameState>()(
         if (get().attackTargetId !== id) set({ attackTargetId: id, chopTargetId: null });
       },
 
-      zombieKilled: () => {
+      zombieKilled: (boss = false) => {
         const s = get();
+        if (boss) {
+          const loot = 300 + Math.floor(Math.random() * 201);
+          s.gainItem("Medkit", 1);
+          s.gainItem("Purple Mushroom", 2);
+          set({ acorns: get().acorns + loot, attackTargetId: null });
+          s.setBanner("👹 THE BUTCHER HAS FALLEN!");
+          s.addToast(`+${loot} 🌰 · +150 XP · 🧰 Medkit · 🍄 ×2`);
+          sfx.questDone();
+          s.addXp(150);
+          get().bumpStat("bossKills");
+          get().bumpStat("zombiesKilled");
+          get().questEvent("night-watch");
+          return;
+        }
         const blood = isBloodMoonNight();
         const loot = (5 + Math.floor(Math.random() * 11)) * (blood ? 2 : 1);
         const extra = Math.random() < 0.25 ? "Purple Mushroom" : null;
@@ -779,6 +1118,7 @@ export const useGame = create<GameState>()(
         s.addToast(`${blood ? "🔴 " : ""}Zombie slain! +25 XP · +${loot} 🌰${extra ? ` · +1 ${extra}` : ""}`);
         sfx.coin();
         s.addXp(25);
+        get().bumpStat("zombiesKilled");
         get().questEvent("night-watch");
       },
 
@@ -798,6 +1138,7 @@ export const useGame = create<GameState>()(
         s.addToast(`${icon} +${got} ${drop.label} · +${drop.xp} XP`);
         sfx.coin();
         s.addXp(drop.xp);
+        get().bumpStat("animalsHunted");
       },
 
       buyHomestead: () => {
@@ -809,6 +1150,7 @@ export const useGame = create<GameState>()(
         sfx.buy();
         s.setBanner("🏡 The Homestead is yours!");
         s.addToast("Walk through the gate to visit your land");
+        get().bumpStat("deeds");
         get().questEvent("buy-plot");
       },
 
@@ -829,6 +1171,7 @@ export const useGame = create<GameState>()(
         if (next.pond && !cur.pond) news.push("a fishing pond 🎣");
         if (next.windmill && !cur.windmill) news.push("the windmill 🌬️");
         s.addToast(news.join(" · "));
+        get().bumpStat("deeds");
       },
 
       buyDog: () => {
@@ -907,10 +1250,18 @@ export const useGame = create<GameState>()(
         s.addToast(`${def.productIcon} Collected ${got} ${def.product} · +${4 * got} XP`);
         sfx.pickup();
         s.addXp(4 * got);
+        get().bumpStat("produceCollected", got);
       },
 
-      // a Stone Farmhouse tends the fields; a Hunter's Lodge tends the beasts
-      growMsFor: (seed) => SEEDS[seed].growMs * (get().houseLevel >= 3 ? 0.8 : 1),
+      // a Stone Farmhouse tends the fields, the Harvest skill sharpens them,
+      // and rain waters everything for free
+      growMsFor: (seed) => {
+        const s = get();
+        let f = s.houseLevel >= 3 ? 0.8 : 1;
+        f *= 1 - 0.05 * s.skills.harvest;
+        if (isRaining()) f *= 0.75;
+        return SEEDS[seed].growMs * f;
+      },
       produceFactor: () => (get().houseLevel >= 4 ? 0.8 : 1),
 
       upgradeHouse: () => {
@@ -939,6 +1290,7 @@ export const useGame = create<GameState>()(
         sfx.levelUp();
         s.setBanner(`${next.icon} Your house is now a ${next.name}!`);
         s.addToast(next.perk);
+        get().bumpStat("housePeak", get().houseLevel - (get().stats.housePeak ?? 0));
       },
 
       sleepTillDawn: () => {
@@ -1026,6 +1378,7 @@ export const useGame = create<GameState>()(
         s.addToast(`🍎 Picked ${got} Apple${got > 1 ? "s" : ""} · +${4 * got} XP`);
         sfx.pickup();
         s.addXp(4 * got);
+        get().bumpStat("produceCollected", got);
       },
 
       buildHive: (idx) => {
@@ -1071,6 +1424,7 @@ export const useGame = create<GameState>()(
         s.addToast(`🍯 Collected ${got} Honey · +${6 * got} XP`);
         sfx.pickup();
         s.addXp(6 * got);
+        get().bumpStat("produceCollected", got);
       },
 
       setBuildMode: (mode) => {
@@ -1139,13 +1493,18 @@ export const useGame = create<GameState>()(
 
       enterHouse: () => {
         const s = get();
-        if (s.homeTier < 1 || s.location !== "home") return;
-        const { hd } = interiorDims(s.houseLevel);
-        const lv = Math.max(1, Math.min(s.houseLevel, HOUSE_LEVELS.length));
+        const visiting = s.location === "visit" && !!s.visitData;
+        if (!visiting && (s.homeTier < 1 || s.location !== "home")) return;
+        const lvRaw = visiting ? s.visitData!.houseLevel ?? 1 : s.houseLevel;
+        const lv = Math.max(1, Math.min(lvRaw, HOUSE_LEVELS.length));
+        const { hd } = interiorDims(lv);
         set({
           location: "interior",
-          zone: `🏠 ${HOUSE_LEVELS[lv - 1].name}`,
+          zone: visiting
+            ? `🏠 ${s.visitData!.name}'s ${HOUSE_LEVELS[lv - 1].name}`
+            : `🏠 ${HOUSE_LEVELS[lv - 1].name}`,
           buildMode: null,
+          decorMode: null,
           fishingState: "idle",
           openShop: null,
           openPanel: null,
@@ -1160,9 +1519,16 @@ export const useGame = create<GameState>()(
       exitHouse: () => {
         const s = get();
         if (s.location !== "interior") return;
-        set({ location: "home", zone: "🏡 Homestead", openPanel: null });
+        const visiting = !!s.visitData;
+        const lv = visiting ? s.visitData!.houseLevel ?? 1 : s.houseLevel;
+        set({
+          location: visiting ? "visit" : "home",
+          zone: visiting ? `🏡 ${s.visitData!.name}'s land` : "🏡 Homestead",
+          openPanel: null,
+          decorMode: null,
+        });
         teleport.x = HOME_CABIN_POS[0];
-        teleport.z = HOME_CABIN_POS[2] + 2.2 + s.houseLevel * 0.25 + 0.8;
+        teleport.z = HOME_CABIN_POS[2] + 2.2 + lv * 0.25 + 0.8;
         teleport.pending = true;
         sfx.ui();
       },
@@ -1242,14 +1608,16 @@ export const useGame = create<GameState>()(
           s.addToast(`Still growing… ${pct}%`);
           return;
         }
-        const got = s.gainItem(def.yieldLabel, def.yieldN);
+        const bonus = Math.random() < 0.08 * s.skills.harvest ? 1 : 0;
+        const got = s.gainItem(def.yieldLabel, def.yieldN + bonus);
         if (got < 1) return;
         const farm = { ...get().farm };
         delete farm[key];
         set({ farm });
-        s.addToast(`+${got} ${def.yieldLabel} · +8 XP`);
+        s.addToast(`+${got} ${def.yieldLabel}${bonus ? " (bonus!)" : ""} · +8 XP`);
         sfx.pickup();
         s.addXp(8);
+        get().bumpStat("cropsHarvested");
         get().questEvent("harvest");
       },
 
@@ -1299,6 +1667,7 @@ export const useGame = create<GameState>()(
         s.addToast(`🔥 Cooked 1 ${cooked} · +5 XP`);
         sfx.pickup();
         s.addXp(5);
+        get().bumpStat("mealsCooked");
         get().questEvent("cook");
       },
 
@@ -1344,12 +1713,14 @@ export const useGame = create<GameState>()(
 
       catchFish: () => {
         const s = get();
-        const fish = rollFish();
+        const fish = rollFish(s.skills.angling * 2);
         set({ fishingState: "idle" });
         if (s.gainItem(fish, 1) < 1) return;
         s.addToast(fish === "Golden Fish" ? `✨ Rare catch! +1 ${fish} · +12 XP` : `+1 ${fish} · +12 XP`);
         sfx.pickup();
         s.addXp(12);
+        get().bumpStat("fishCaught");
+        if (fish === "Golden Fish") get().bumpStat("goldenFish");
         get().questEvent("go-fish");
       },
 
@@ -1360,6 +1731,7 @@ export const useGame = create<GameState>()(
         s.addToast("+1 Water · +3 XP");
         sfx.pickup();
         s.addXp(3);
+        get().bumpStat("watersCollected");
       },
 
       buyAxe: (tier) => {
@@ -1518,6 +1890,7 @@ export const useGame = create<GameState>()(
           });
           s.addToast(`Traded ${offer.qty} ${offer.item} to ${offer.npc} for ${offer.price} 🌰`);
           sfx.coin();
+          get().bumpStat("acornsEarned", offer.price);
         } else {
           if (!spend(s, offer.price)) return;
           const got = s.gainItem(offer.item, offer.qty);
@@ -1543,6 +1916,7 @@ export const useGame = create<GameState>()(
         set({ inventory: inv, acorns: s.acorns + price * n });
         sfx.coin();
         s.addToast(`Sold ${n} ${label} for ${price * n} acorns`);
+        get().bumpStat("acornsEarned", price * n);
       },
 
       questEvent: (questId) => {
@@ -1675,7 +2049,11 @@ export const useGame = create<GameState>()(
         set({ muted });
       },
       closeModals: () =>
-        set({ openShop: null, openPanel: null, openPen: null, homeOffer: null, buildMode: null, showQuests: false, showHelp: false }),
+        set({
+          openShop: null, openPanel: null, openPen: null, homeOffer: null, buildMode: null,
+          decorMode: null, showQuests: false, showHelp: false, showSkills: false,
+          showJournal: false, showDecorShop: false,
+        }),
     }),
     {
       name: "wildwood-save-v7",
@@ -1710,10 +2088,21 @@ export const useGame = create<GameState>()(
         chest: s.chest,
         farm: s.farm,
         dog: s.dog,
+        dogXp: s.dogXp,
+        cat: s.cat,
+        catLastPet: s.catLastPet,
         pens: s.pens,
         orchard: s.orchard,
         hives: s.hives,
         structures: s.structures,
+        interiorDecor: s.interiorDecor,
+        stats: s.stats,
+        skills: s.skills,
+        skillPoints: s.skillPoints,
+        claimedAchievements: s.claimedAchievements,
+        dailyDay: s.dailyDay,
+        dailyBase: s.dailyBase,
+        dailyClaimed: s.dailyClaimed,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) sfx.muted = state.muted;

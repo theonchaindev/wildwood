@@ -207,15 +207,11 @@ function House({ level, visiting }: { level: number; visiting: boolean }) {
 
   const click = stopAnd(() => {
     const st = useGame.getState();
-    if (visiting) {
-      st.addToast("Their door is locked 🏠");
-      return;
-    }
     if (!near(HOME_CABIN_POS[0], HOME_CABIN_POS[2], 4.2 + lv * 0.3)) {
-      st.addToast("Walk up to your front door");
+      st.addToast(visiting ? "Walk up to their front door" : "Walk up to your front door");
       return;
     }
-    st.enterHouse();
+    st.enterHouse(); // visitors may step inside for a look around
   });
 
   return (
@@ -869,6 +865,72 @@ function StructureMesh({ st, readOnly }: { st: Structure; readOnly?: boolean }) 
   );
 }
 
+function CatMesh({ sitting }: { sitting?: boolean }) {
+  return (
+    <group>
+      <mesh position={[0, 0.16, 0]} rotation={sitting ? [-0.5, 0, 0] : [0, 0, 0]} castShadow>
+        <boxGeometry args={[0.2, 0.18, 0.42]} />
+        <meshStandardMaterial color="#5a5048" roughness={1} />
+      </mesh>
+      <mesh position={[0, 0.32, 0.22]} castShadow>
+        <boxGeometry args={[0.18, 0.16, 0.16]} />
+        <meshStandardMaterial color="#665a50" roughness={1} />
+      </mesh>
+      {[-0.06, 0.06].map((x) => (
+        <mesh key={x} position={[x, 0.43, 0.22]}>
+          <coneGeometry args={[0.035, 0.08, 4]} />
+          <meshStandardMaterial color="#5a5048" roughness={1} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.22, -0.26]} rotation={[1, 0, 0]}>
+        <boxGeometry args={[0.04, 0.04, 0.24]} />
+        <meshStandardMaterial color="#665a50" roughness={1} />
+      </mesh>
+    </group>
+  );
+}
+
+function HomeCat() {
+  const owned = useGame((s) => s.cat);
+  const ref = useRef<THREE.Group>(null);
+  const st = useRef({ x: 3.5, z: -3.5, tx: 3.5, tz: -3.5, rot: 0, think: 0 });
+  useFrame((_, dt) => {
+    if (!ref.current || !owned) return;
+    const c = st.current;
+    c.think -= dt;
+    if (c.think <= 0) {
+      c.think = 4 + Math.random() * 6;
+      // pad about the yard near the house
+      c.tx = HOME_CABIN_POS[0] + (Math.random() - 0.5) * 9;
+      c.tz = HOME_CABIN_POS[2] + 4.5 + Math.random() * 3;
+    }
+    const dx = c.tx - c.x;
+    const dz = c.tz - c.z;
+    const d = Math.hypot(dx, dz);
+    if (d > 0.3) {
+      c.x += (dx / d) * 1.3 * dt;
+      c.z += (dz / d) * 1.3 * dt;
+      c.rot = Math.atan2(dx, dz);
+    }
+    ref.current.position.set(c.x, 0, c.z);
+    ref.current.rotation.y = c.rot;
+  });
+  if (!owned) return null;
+  const click = stopAnd(() => {
+    const s = useGame.getState();
+    if (near(st.current.x, st.current.z)) s.petCat();
+    else s.addToast("She won't come to you. Cats.");
+  });
+  return (
+    <group ref={ref} onClick={click} {...hoverCursor()}>
+      <CatMesh />
+      <Html position={[0, 0.85, 0]} center distanceFactor={26} zIndexRange={[9, 0]}>
+        <div className="world-label small">🐈 Mittens</div>
+      </Html>
+    </group>
+  );
+}
+
 function SleepingDog() {
   const owned = useGame((s) => s.dog);
   if (!owned) return null;
@@ -1055,6 +1117,7 @@ export default function Homestead() {
           )
         : HIVE_SPOTS.slice(0, tier.hives).map((_, i) => <HiveSpot key={i} idx={i} />)}
       {!visiting && <SleepingDog />}
+      {!visiting && <HomeCat />}
 
       {structures.map((st) => (
         <StructureMesh key={st.id} st={st} readOnly={visiting} />

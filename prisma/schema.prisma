@@ -18,11 +18,39 @@ model User {
   pendingAcorns Int      @default(0) // proceeds from offers sold while offline
   level         Int      @default(1) // denormalised for the leaderboard
   acorns        Int      @default(0)
+  homeTier      Int      @default(0) // denormalised for the estate leaderboard
+  houseLevel    Int      @default(1)
+  flagged       Int      @default(0) // implausible-earning strikes (anti-cheat)
   lastSeen      DateTime @default(now()) // heartbeat for the online count
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   offers        Offer[]
   payouts       Payout[]
+}
+
+// messages visitors leave at someone's homestead
+model Guestbook {
+  id        String   @id @default(cuid())
+  owner     String // homestead owner's player name
+  author    String
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([owner, createdAt])
+}
+
+// player-to-player gifts: tips (acorns) or items, claimed from the Exchange
+model Gift {
+  id        String   @id @default(cuid())
+  toName    String
+  fromName  String
+  item      String?
+  qty       Int      @default(0)
+  acorns    Int      @default(0)
+  claimed   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([toName, claimed])
 }
 
 // one row per active browser session (guests included) — powers the online

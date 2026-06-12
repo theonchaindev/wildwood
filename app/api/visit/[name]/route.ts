@@ -25,6 +25,7 @@ export async function GET(_req: Request, { params }: { params: { name: string } 
     pens: save.pens ?? {},
     orchard: save.orchard ?? {},
     hives: save.hives ?? {},
+    interiorDecor: save.interiorDecor ?? [],
     level: save.level ?? 1,
   });
 }

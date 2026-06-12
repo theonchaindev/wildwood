@@ -52,7 +52,33 @@ export const lastWater = { at: 0 };
 // set pending=true to teleport the player next frame (used on death)
 export const teleport = { x: 0, z: 0, pending: false };
 
-export type ZombieType = "walker" | "runner" | "brute";
+export type ZombieType = "walker" | "runner" | "brute" | "boss";
+
+/** Every 10th night the Butcher walks. */
+export function isBossNight() {
+  return clock.day % 10 === 0;
+}
+
+// ---- weather ----
+
+export const weather = { kind: "clear" as "clear" | "rain", until: 0 };
+
+export function isRaining() {
+  return weather.kind === "rain";
+}
+
+// ---- seasons: one week of game days each ----
+
+const SEASONS = [
+  { name: "Spring", icon: "🌸" },
+  { name: "Summer", icon: "☀️" },
+  { name: "Autumn", icon: "🍂" },
+  { name: "Winter", icon: "❄️" },
+];
+
+export function seasonFor(day: number) {
+  return SEASONS[Math.floor((day - 1) / 7) % 4];
+}
 
 export type Zombie = {
   id: number;

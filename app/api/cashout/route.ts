@@ -18,6 +18,23 @@ export async function POST(req: Request) {
   if (!Number.isInteger(acorns) || acorns < MIN_CASHOUT) {
     return NextResponse.json({ error: `Minimum cash-out is ${MIN_CASHOUT} acorns` }, { status: 400 });
   }
+  // guard rails: flagged accounts and burst withdrawals wait for review
+  if (user.flagged >= 3) {
+    return NextResponse.json({ error: "Account under review — cash-outs paused" }, { status: 403 });
+  }
+  const recent = await prisma.payout.findFirst({
+    where: { userId: user.id, createdAt: { gt: new Date(Date.now() - 3600_000) }, status: { not: "failed" } },
+  });
+  if (recent) {
+    return NextResponse.json({ error: "One cash-out per hour — try again later" }, { status: 429 });
+  }
+  const dayTotal = await prisma.payout.aggregate({
+    _sum: { acorns: true },
+    where: { userId: user.id, createdAt: { gt: new Date(Date.now() - 24 * 3600_000) }, status: { not: "failed" } },
+  });
+  if ((dayTotal._sum.acorns ?? 0) + acorns > 5000) {
+    return NextResponse.json({ error: "Daily cash-out cap is 5,000 acorns" }, { status: 429 });
+  }
   const lamports = Math.floor((acorns / ACORNS_PER_SOL) * 1_000_000_000);
 
   const payout = await prisma.payout.create({

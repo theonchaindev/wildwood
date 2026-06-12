@@ -5,7 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { useGame } from "@/lib/store";
-import { live, daylight, zombies, zombieSeq, Zombie, ZombieType, isBloodMoonNight } from "@/lib/runtime";
+import { live, daylight, zombies, zombieSeq, Zombie, ZombieType, isBloodMoonNight, isBossNight } from "@/lib/runtime";
 import { resolveMovement, GLADE_RADIUS, RIVER_X } from "@/lib/world";
 import { sfx } from "@/lib/sound";
 import HitPop from "./HitPop";
@@ -19,6 +19,8 @@ export const ZOMBIE_TYPES: Record<ZombieType, {
   walker: { hp: 30, dmg: 8, speed: 2.9, chase: 13, scale: 1, skin: "#7fa05a", shirt: "#4a4452" },
   runner: { hp: 18, dmg: 6, speed: 4.8, chase: 18, scale: 0.85, skin: "#9ab05a", shirt: "#5a3a3a" },
   brute: { hp: 70, dmg: 16, speed: 1.7, chase: 13, scale: 1.4, skin: "#5a7a45", shirt: "#33333b" },
+  // the Butcher — one rises every 10th night
+  boss: { hp: 400, dmg: 30, speed: 2.0, chase: 30, scale: 2.3, skin: "#3d5232", shirt: "#1c1018" },
 };
 
 function rollType(blood: boolean): ZombieType {
@@ -27,7 +29,7 @@ function rollType(blood: boolean): ZombieType {
   return r < 60 ? "walker" : r < 90 ? "runner" : "brute";
 }
 
-function spawnZombie(blood: boolean): Zombie | null {
+function spawnZombie(blood: boolean, forceType?: ZombieType): Zombie | null {
   for (let tries = 0; tries < 8; tries++) {
     const a = Math.random() * Math.PI * 2;
     const d = 16 + Math.random() * 16;
@@ -36,7 +38,7 @@ function spawnZombie(blood: boolean): Zombie | null {
     if (Math.abs(x) > 64 || Math.abs(z) > 64) continue;
     if (Math.hypot(x, z) < GLADE_RADIUS + 3) continue; // the fence keeps camp safe
     if (Math.abs(x - RIVER_X) < 6) continue;
-    const type = rollType(blood);
+    const type = forceType ?? rollType(blood);
     const def = ZOMBIE_TYPES[type];
     return {
       id: ++zombieSeq.n,
@@ -144,8 +146,13 @@ function ZombieMesh({ z }: { z: Zombie }) {
           <meshBasicMaterial color="#ff5040" />
         </mesh>
       </group>
+      {z.type === "boss" && z.state !== "dying" && (
+        <Html position={[0, 4, 0]} center distanceFactor={30} zIndexRange={[15, 0]}>
+          <div className="world-label">👹 The Butcher</div>
+        </Html>
+      )}
       {z.state !== "dying" && z.hp < z.maxHp && (
-        <Html position={[0, 1.75, 0]} center distanceFactor={26} zIndexRange={[15, 0]}>
+        <Html position={[0, z.type === "boss" ? 3.4 : 1.75, 0]} center distanceFactor={26} zIndexRange={[15, 0]}>
           <div className="zombie-hp">
             <div className="zombie-hp-fill" ref={barRef} />
           </div>
@@ -178,7 +185,12 @@ export default function Zombies() {
 
     // nightfall / dawn transitions
     if (night && !wasNight.current) {
-      if (blood) {
+      if (isBossNight()) {
+        state.setBanner("👹 THE BUTCHER WALKS TONIGHT");
+        state.addToast("Fell him for a fortune in acorns…");
+        const boss = spawnZombie(blood, "boss");
+        if (boss) zombies.push(boss);
+      } else if (blood) {
         state.setBanner("🔴 BLOOD MOON — they hunger tonight");
         state.addToast("Double loot for every kill… if you survive");
       } else {

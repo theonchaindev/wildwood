@@ -31,12 +31,21 @@ export async function PUT(req: Request) {
   if (json.length > 200_000) {
     return NextResponse.json({ error: "Save too large" }, { status: 413 });
   }
+  const newAcorns = Number.isInteger(body.acorns) ? body.acorns : 0;
+  // anti-cheat heuristic: flag implausible earning rates (the save still
+  // applies — strikes only gate cash-outs, so honest play is uninterrupted)
+  const minutes = Math.max(0.5, (Date.now() - user.lastSeen.getTime()) / 60_000);
+  const rate = (newAcorns - user.acorns) / minutes;
+  const strike = rate > 8000 && newAcorns > 50_000 ? 1 : 0;
   await prisma.user.update({
     where: { id: user.id },
     data: {
       save: json,
       level: Number.isInteger(body.level) ? body.level : 1,
-      acorns: Number.isInteger(body.acorns) ? body.acorns : 0,
+      acorns: newAcorns,
+      homeTier: Number.isInteger(body.homeTier) ? body.homeTier : 0,
+      houseLevel: Number.isInteger(body.houseLevel) ? body.houseLevel : 1,
+      flagged: { increment: strike },
       lastSeen: new Date(),
     },
   });
