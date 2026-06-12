@@ -1622,7 +1622,9 @@ export const useGame = create<GameState>()(
           sfx.error();
         }
         if (starving) {
-          hp -= dt * 1.2;
+          // starving is an emergency: fast drain + the hurt vignette so it's unmissable
+          hp -= dt * 3;
+          if (Date.now() - s.hurtAt > 3000) set({ hurtAt: Date.now() });
         }
 
         // infection slowly eats away at you

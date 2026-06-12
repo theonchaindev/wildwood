@@ -1097,6 +1097,34 @@ function LeaderboardModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+function LeaderboardDock() {
+  const myName = useGame((s) => s.name);
+  const [data, setData] = useState<{ players: { name: string; level: number; acorns: number }[]; online: number } | null>(null);
+  useEffect(() => {
+    const load = () => fetchLeaderboard().then(setData).catch(() => {});
+    load();
+    const iv = setInterval(load, 45_000);
+    return () => clearInterval(iv);
+  }, []);
+  if (!data) return null;
+  return (
+    <div className="lb-dock">
+      <div className="lb-dock-head">
+        <span>🏆 Top Foragers</span>
+        <span className="online-tag">🟢 {data.online}</span>
+      </div>
+      {data.players.length === 0 && <div className="lb-dock-empty">No foragers yet — be the first!</div>}
+      {data.players.slice(0, 6).map((p, i) => (
+        <div key={p.name} className={`lb-line ${p.name === myName ? "me" : ""}`}>
+          <span className="lb-rank">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`}</span>
+          <span className="lb-name">{p.name}</span>
+          <span className="lb-stats">Lv {p.level} · {p.acorns} 🌰</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function OnlinePill() {
   const account = useGame((s) => s.account);
   const [online, setOnline] = useState<number | null>(null);
@@ -1247,6 +1275,7 @@ export default function Hud() {
             <div className="quest-card-desc">The forest is yours. Keep exploring!</div>
           </div>
         )}
+        <LeaderboardDock />
       </div>
 
       {/* bottom-left: avatar + stats */}

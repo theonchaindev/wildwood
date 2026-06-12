@@ -311,7 +311,7 @@ for (let i = 0; i < 6; i++) {
 export const HOME_PORTAL_POS: [number, number, number] = [-14.5, 0, 0];
 export const HOME_CHEST_POS: [number, number, number] = [9, 0, -5];
 export const HOME_FURNACE_POS: [number, number, number] = [9, 0, -1.5];
-export const HOME_EXTEND_POS: [number, number, number] = [8.5, 0, 5.5]; // extension sign, east of the field
+export const HOME_EXTEND_POS: [number, number, number] = [9, 0, 5.5]; // extension sign, in the east utility column
 export const HOME_CABIN_POS: [number, number, number] = [0, 0, -6.5];
 export const HOME_WELL_POS: [number, number, number] = [9, 0, 2]; // continues the utility column
 export const HOME_POND_POS: [number, number, number] = [19, 0, 8];
@@ -347,10 +347,10 @@ export const HOME_TIERS: HomeTier[] = [
   { name: "Smallholding",       price: 900,  tiles: 24, halfW: 20, halfD: 15, chestCap: 550,  pens: 4, orchard: 2, hives: 0, well: true,  pond: false, windmill: false, tagline: "An orchard takes root behind the house" },
   { name: "Farmstead",          price: 1300, tiles: 30, halfW: 22, halfD: 17, chestCap: 700,  pens: 4, orchard: 2, hives: 1, well: true,  pond: false, windmill: false, tagline: "The bees move in" },
   { name: "Greenacre Farm",     price: 1800, tiles: 34, halfW: 24, halfD: 18, chestCap: 900,  pens: 5, orchard: 4, hives: 1, well: true,  pond: false, windmill: false, tagline: "Green as far as the fence runs" },
-  { name: "Riverside Estate",   price: 2400, tiles: 38, halfW: 26, halfD: 19, chestCap: 1100, pens: 5, orchard: 4, hives: 1, well: true,  pond: true,  windmill: false, tagline: "A private pond, stocked with fish" },
-  { name: "Forest Estate",      price: 3200, tiles: 42, halfW: 27, halfD: 20, chestCap: 1400, pens: 6, orchard: 5, hives: 2, well: true,  pond: true,  windmill: false, tagline: "The forest itself works for you" },
-  { name: "Greatwood Estate",   price: 4200, tiles: 45, halfW: 28, halfD: 22, chestCap: 1700, pens: 7, orchard: 6, hives: 2, well: true,  pond: true,  windmill: false, tagline: "An estate worthy of a Warden" },
-  { name: "Wildwood Domain",    price: 5500, tiles: 48, halfW: 30, halfD: 23, chestCap: 2000, pens: 8, orchard: 6, hives: 2, well: true,  pond: true,  windmill: true,  tagline: "The windmill turns — the whole wood is yours" },
+  { name: "Riverside Estate",   price: 2400, tiles: 38, halfW: 26, halfD: 20, chestCap: 1100, pens: 5, orchard: 4, hives: 1, well: true,  pond: true,  windmill: false, tagline: "A private pond, stocked with fish" },
+  { name: "Forest Estate",      price: 3200, tiles: 42, halfW: 27, halfD: 21, chestCap: 1400, pens: 6, orchard: 5, hives: 2, well: true,  pond: true,  windmill: false, tagline: "The forest itself works for you" },
+  { name: "Greatwood Estate",   price: 4200, tiles: 45, halfW: 28, halfD: 23, chestCap: 1700, pens: 7, orchard: 6, hives: 2, well: true,  pond: true,  windmill: false, tagline: "An estate worthy of a Warden" },
+  { name: "Wildwood Domain",    price: 5500, tiles: 48, halfW: 30, halfD: 24, chestCap: 2000, pens: 8, orchard: 6, hives: 2, well: true,  pond: true,  windmill: true,  tagline: "The windmill turns — the whole wood is yours" },
 ];
 
 export function homeTierDef(tier: number): HomeTier {
@@ -378,11 +378,13 @@ export const HIVE_SPOTS: [number, number][] = [
   [13, -1.5],
 ];
 
-/** Farm tile position within the homestead (6 per row). */
+/** Farm tile position within the homestead (6 per row). The first row sits
+ *  south of the house with room for the Manor's porch — the field only ever
+ *  grows AWAY from the buildings. */
 export function homeTilePos(idx: number): [number, number] {
   const col = idx % 6;
   const row = Math.floor(idx / 6);
-  return [-9 + col * 2.7, -3 + row * 3.2];
+  return [-9 + col * 2.7, -1.2 + row * 3.2];
 }
 
 export function homeTileKey(idx: number) {
