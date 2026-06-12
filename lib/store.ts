@@ -4,7 +4,10 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { sfx } from "./sound";
 import { teleport, live, isBloodMoonNight, isNight, clock, DAY_LENGTH_S } from "./runtime";
-import { CAMPFIRE_POS, ShopId, HOME_TIERS, HOME_PORTAL_POS, homeGateZ, homeTierDef } from "./world";
+import {
+  CAMPFIRE_POS, ShopId, HOME_TIERS, HOME_PORTAL_POS, HOME_CABIN_POS,
+  homeGateZ, homeTierDef, interiorDims,
+} from "./world";
 
 export type Interact =
   | { kind: "shop"; id: ShopId }
@@ -17,7 +20,10 @@ export type Interact =
   | { kind: "house" } // your front door
   | { kind: "well" }
   | { kind: "orchard"; idx: number }
-  | { kind: "hive"; idx: number };
+  | { kind: "hive"; idx: number }
+  | { kind: "bed" } // indoors
+  | { kind: "desk" }
+  | { kind: "exitdoor" };
 
 export type Quest = {
   id: string;
@@ -396,7 +402,7 @@ type GameState = {
   homeTier: number; // 0 = no land owned
   houseLevel: number; // index+1 into HOUSE_LEVELS
   lastRentAt: number;
-  location: "forest" | "home" | "visit";
+  location: "forest" | "home" | "visit" | "interior";
   savedForestPos: { x: number; z: number } | null;
   account: { name: string; wallet?: string } | null;
   visitData: {
@@ -461,6 +467,8 @@ type GameState = {
   buyHomestead: () => void;
   extendHomestead: () => void;
   travel: (to: "forest" | "home") => void;
+  enterHouse: () => void;
+  exitHouse: () => void;
   startVisit: (data: GameState["visitData"]) => void;
   buyDog: () => void;
   buildPen: (idx: number, animal: PenAnimal) => void;
@@ -1126,6 +1134,36 @@ export const useGame = create<GameState>()(
         if (refundStone > 0) s.gainItem("Stone", refundStone);
         set({ structures: get().structures.filter((x) => x.id !== id) });
         s.addToast(`Removed ${def.label}`);
+        sfx.ui();
+      },
+
+      enterHouse: () => {
+        const s = get();
+        if (s.homeTier < 1 || s.location !== "home") return;
+        const { hd } = interiorDims(s.houseLevel);
+        const lv = Math.max(1, Math.min(s.houseLevel, HOUSE_LEVELS.length));
+        set({
+          location: "interior",
+          zone: `🏠 ${HOUSE_LEVELS[lv - 1].name}`,
+          buildMode: null,
+          fishingState: "idle",
+          openShop: null,
+          openPanel: null,
+          openPen: null,
+        });
+        teleport.x = 0;
+        teleport.z = hd - 1.1;
+        teleport.pending = true;
+        sfx.questDone();
+      },
+
+      exitHouse: () => {
+        const s = get();
+        if (s.location !== "interior") return;
+        set({ location: "home", zone: "🏡 Homestead", openPanel: null });
+        teleport.x = HOME_CABIN_POS[0];
+        teleport.z = HOME_CABIN_POS[2] + 2.2 + s.houseLevel * 0.25 + 0.8;
+        teleport.pending = true;
         sfx.ui();
       },
 

@@ -215,7 +215,7 @@ function House({ level, visiting }: { level: number; visiting: boolean }) {
       st.addToast("Walk up to your front door");
       return;
     }
-    st.setOpenPanel("house");
+    st.enterHouse();
   });
 
   return (

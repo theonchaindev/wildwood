@@ -5,6 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import World from "./World";
 import Homestead from "./Homestead";
+import Interior from "./Interior";
 import Player from "./Player";
 import Hud from "./Hud";
 import Login from "./Login";
@@ -17,6 +18,7 @@ import { startMultiplayer, ghosts } from "@/lib/multiplayer";
 const SKY_DAY = new THREE.Color("#7fae5e");
 const SKY_NIGHT = new THREE.Color("#0d1422");
 const SKY_BLOOD = new THREE.Color("#2a0d10");
+const SKY_INTERIOR = new THREE.Color("#221a10");
 const SUN_DAY = new THREE.Color("#fff3d6");
 const SUN_NIGHT = new THREE.Color("#7a8fc9");
 const SUN_BLOOD = new THREE.Color("#d96a5a");
@@ -42,6 +44,8 @@ function DayNight() {
       sky.current.copy(SKY_NIGHT).lerp(SKY_DAY, d);
       sun.current.copy(SUN_NIGHT).lerp(SUN_DAY, d);
     }
+    // indoors the world falls away into warm darkness
+    if (useGame.getState().location === "interior") sky.current.copy(SKY_INTERIOR);
 
     if (scene.background instanceof THREE.Color) scene.background.copy(sky.current);
     else scene.background = sky.current.clone();
@@ -126,7 +130,7 @@ export default function Game() {
         <fog attach="fog" args={["#7fae5e", 60, 130]} />
         <DayNight />
         <Suspense fallback={null}>
-          {location === "forest" ? <World /> : <Homestead />}
+          {location === "forest" ? <World /> : location === "interior" ? <Interior /> : <Homestead />}
           <Player />
         </Suspense>
       </Canvas>

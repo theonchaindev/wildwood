@@ -1284,7 +1284,10 @@ export default function Hud() {
               } else if (i.kind === "homegate") s.travel("forest");
               else if (i.kind === "extend") s.setHomeOffer("extend");
               else if (i.kind === "pen") s.setOpenPen(i.idx);
-              else if (i.kind === "house") s.setOpenPanel("house");
+              else if (i.kind === "house") s.enterHouse();
+              else if (i.kind === "bed") s.sleepTillDawn();
+              else if (i.kind === "desk") s.setOpenPanel("house");
+              else if (i.kind === "exitdoor") s.exitHouse();
               else if (i.kind === "well") s.collectWater();
               else if (i.kind === "orchard") {
                 if (s.orchard[i.idx]) s.collectOrchard(i.idx);
@@ -1309,7 +1312,13 @@ export default function Hud() {
               : s.nearInteract.kind === "pen"
               ? (s.pens[s.nearInteract.idx] ? `${PEN_DEFS[s.pens[s.nearInteract.idx].animal].icon} Animal Pen` : "🚧 Empty Pen")
               : s.nearInteract.kind === "house"
-              ? `${HOUSE_LEVELS[Math.min(s.houseLevel, HOUSE_LEVELS.length) - 1].icon} Your House`
+              ? `${HOUSE_LEVELS[Math.min(s.houseLevel, HOUSE_LEVELS.length) - 1].icon} Step inside`
+              : s.nearInteract.kind === "bed"
+              ? "🛏️ Sleep till dawn"
+              : s.nearInteract.kind === "desk"
+              ? "📜 Estate Deeds"
+              : s.nearInteract.kind === "exitdoor"
+              ? "🚪 Step outside"
               : s.nearInteract.kind === "well"
               ? "💧 Draw water"
               : s.nearInteract.kind === "orchard"

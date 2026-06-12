@@ -425,6 +425,59 @@ export function resolveHomeMovement(
   return [nx, nz];
 }
 
+// ---- inside the house: a cosy interior instance, sized by house level ----
+
+export function interiorDims(houseLevel: number) {
+  const lv = Math.max(1, Math.min(houseLevel, 5));
+  return { hw: 3.6 + lv * 0.9, hd: 2.6 + lv * 0.65 };
+}
+
+/** Fixed anchors for the furniture, hugging the walls as the room grows. */
+export function interiorLayout(houseLevel: number) {
+  const lv = Math.max(1, Math.min(houseLevel, 5));
+  const { hw, hd } = interiorDims(lv);
+  return {
+    bed: [-hw + 1.4, -hd + 1.3] as [number, number],
+    table: lv >= 2 ? ([0.3, 0.2] as [number, number]) : null,
+    fireplace: lv >= 3 ? ([hw * 0.4, -hd + 0.55] as [number, number]) : null,
+    shelf: lv >= 4 ? ([-hw + 0.55, 0.8] as [number, number]) : null,
+    desk: [hw - 1.1, -hd + 1.1] as [number, number],
+    chest: [hw - 0.9, hd - 1.5] as [number, number],
+    door: [0, hd] as [number, number],
+  };
+}
+
+export function resolveInteriorMovement(
+  px: number, pz: number, nxIn: number, nzIn: number, houseLevel: number
+): [number, number] {
+  const { hw, hd } = interiorDims(houseLevel);
+  const lay = interiorLayout(houseLevel);
+  const colliders: { x: number; z: number; r: number }[] = [
+    { x: lay.bed[0], z: lay.bed[1], r: 1.0 },
+    { x: lay.desk[0], z: lay.desk[1], r: 0.7 },
+    { x: lay.chest[0], z: lay.chest[1], r: 0.55 },
+  ];
+  if (lay.table) colliders.push({ x: lay.table[0], z: lay.table[1], r: 0.85 });
+  if (lay.fireplace) colliders.push({ x: lay.fireplace[0], z: lay.fireplace[1], r: 0.8 });
+  if (lay.shelf) colliders.push({ x: lay.shelf[0], z: lay.shelf[1], r: 0.6 });
+  let nx = nxIn;
+  let nz = nzIn;
+  for (const c of colliders) {
+    const r = c.r + 0.3;
+    const dx = nx - c.x;
+    const dz = nz - c.z;
+    const d2 = dx * dx + dz * dz;
+    if (d2 < r * r && d2 > 1e-9) {
+      const d = Math.sqrt(d2);
+      nx = c.x + (dx / d) * r;
+      nz = c.z + (dz / d) * r;
+    }
+  }
+  nx = Math.max(-hw + 0.45, Math.min(hw - 0.45, nx));
+  nz = Math.max(-hd + 0.45, Math.min(hd - 0.45, nz));
+  return [nx, nz];
+}
+
 // ---- animals ----
 
 export type WildKind = "chicken" | "boar" | "rabbit" | "deer";

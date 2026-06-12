@@ -13,6 +13,7 @@ import {
   HOME_EXTEND_POS, HOME_CABIN_POS, HOME_WELL_POS, HOME_POND_POS, POND_R,
   ORCHARD_SPOTS, HIVE_SPOTS, PEN_SPOTS, pensAllowed, HOME_TIERS, homeTierDef,
   homeGateZ, zoneAt, resolveMovement, resolveHomeMovement, bridgeY,
+  interiorDims, interiorLayout, resolveInteriorMovement,
 } from "@/lib/world";
 import HitPop from "./HitPop";
 import CharacterModel, { Motion } from "./CharacterModel";
@@ -23,6 +24,7 @@ const FORWARD = new THREE.Vector3(-1, 0, -1).normalize();
 const RIGHT = new THREE.Vector3(1, 0, -1).normalize();
 
 const CAM_OFFSET = new THREE.Vector3(16, 22, 16);
+const INTERIOR_CAM_OFFSET = new THREE.Vector3(6.5, 8.5, 6.5);
 
 const TREE_MAP = new Map(TREES.map((t) => [t.id, t]));
 const ROCK_MAP = new Map(ROCKS.map((r) => [r.id, r]));
@@ -111,7 +113,10 @@ export default function Player() {
           } else if (i.kind === "homegate") s.travel("forest");
           else if (i.kind === "extend") s.setHomeOffer("extend");
           else if (i.kind === "pen") s.setOpenPen(i.idx);
-          else if (i.kind === "house") s.setOpenPanel("house");
+          else if (i.kind === "house") s.enterHouse();
+          else if (i.kind === "bed") s.sleepTillDawn();
+          else if (i.kind === "desk") s.setOpenPanel("house");
+          else if (i.kind === "exitdoor") s.exitHouse();
           else if (i.kind === "well") s.collectWater();
           else if (i.kind === "orchard") {
             if (s.orchard[i.idx]) s.collectOrchard(i.idx);
@@ -214,7 +219,8 @@ export default function Player() {
       );
     };
 
-    const atHome = state.location !== "forest"; // own homestead or visiting
+    const atHome = state.location !== "forest"; // own homestead, visiting or indoors
+    const atInterior = state.location === "interior";
 
     // --- zombie attack target: walk to it, then swing ---
     let attacking = false;
@@ -388,7 +394,9 @@ export default function Player() {
         state.location === "visit" ? state.visitData?.homeTier ?? 1 : state.homeTier;
       const homeHouseHere =
         state.location === "visit" ? state.visitData?.houseLevel ?? 1 : state.houseLevel;
-      const [rx, rz] = atHome
+      const [rx, rz] = atInterior
+        ? resolveInteriorMovement(g.position.x, g.position.z, nx, nz, state.houseLevel)
+        : atHome
         ? resolveHomeMovement(g.position.x, g.position.z, nx, nz, homeTierHere, homeHouseHere)
         : resolveMovement(g.position.x, g.position.z, nx, nz, state.choppedAt, state.minedAt);
       g.position.x = rx;
@@ -425,8 +433,8 @@ export default function Player() {
     motion.phase = walkPhase.current;
     motion.moving = moving;
 
-    // --- camera follow ---
-    const desired = g.position.clone().add(CAM_OFFSET);
+    // --- camera follow (pulled in close indoors so the room fills the screen) ---
+    const desired = g.position.clone().add(atInterior ? INTERIOR_CAM_OFFSET : CAM_OFFSET);
     camera.position.lerp(desired, Math.min(1, dt * 4));
     camera.lookAt(g.position.x, g.position.y + 0.8, g.position.z);
 
@@ -438,6 +446,31 @@ export default function Player() {
 
     const px = g.position.x;
     const pz = g.position.z;
+
+    if (atInterior) {
+      // home sweet home: resting indoors slowly restores you, like the campfire
+      state.tick(stepDt, moving, true, sprinting, false);
+      state.setNearWater(false);
+      const lay = interiorLayout(state.houseLevel);
+      const { hd } = interiorDims(state.houseLevel);
+      let nearest: Interact | null = null;
+      let nearestD = 2.6;
+      const spots: [number, number, Interact][] = [
+        [lay.bed[0], lay.bed[1], { kind: "bed" }],
+        [lay.desk[0], lay.desk[1], { kind: "desk" }],
+        [lay.chest[0], lay.chest[1], { kind: "chest" }],
+        [0, hd, { kind: "exitdoor" }],
+      ];
+      for (const [sx, sz, interact] of spots) {
+        const d = Math.hypot(px - sx, pz - sz);
+        if (d < nearestD) {
+          nearestD = d;
+          nearest = interact;
+        }
+      }
+      state.setNearInteract(nearest);
+      return;
+    }
 
     if (atHome) {
       // peaceful instance: no zombies, foraging or quest triggers
