@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  passHash      String
+  wallet        String?  @unique // Solana wallet address (Phantom sign-in)
+  save          String? // full game save as JSON
+  pendingAcorns Int      @default(0) // proceeds from offers sold while offline
+  level         Int      @default(1) // denormalised for the leaderboard
+  acorns        Int      @default(0)
+  lastSeen      DateTime @default(now()) // heartbeat for the online count
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  offers        Offer[]
+  payouts       Payout[]
+}
+
+model Payout {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  wallet    String
+  acorns    Int
+  lamports  Int
+  txSig     String?
+  status    String   @default("pending") // pending | paid | failed
+  createdAt DateTime @default(now())
+}
+
+model Offer {
+  id         String   @id @default(cuid())
+  seller     User     @relation(fields: [sellerId], references: [id])
+  sellerId   String
+  sellerName String
+  item       String
+  qty        Int
+  price      Int
+  status     String   @default("open") // open | sold | cancelled
+  createdAt  DateTime @default(now())
+}
