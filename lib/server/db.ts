@@ -13,7 +13,11 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
  * instead of a 500.
  */
 export function requireDb(): NextResponse | null {
-  if (!process.env.DATABASE_URL) {
+  const url = process.env.DATABASE_URL;
+  // SQLite is for local dev only — on Vercel the bundled file is read-only,
+  // so treat it as "no database" rather than half-working
+  const usable = url && !(process.env.VERCEL && url.startsWith("file:"));
+  if (!usable) {
     return NextResponse.json(
       { error: "Online features aren't live yet — the server database isn't configured" },
       { status: 503 }
