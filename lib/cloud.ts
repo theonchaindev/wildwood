@@ -4,11 +4,29 @@
 
 import { useGame } from "./store";
 
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function api<T>(path: string, init?: RequestInit, attempt = 0): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      headers: { "Content-Type": "application/json" },
+      ...init,
+    });
+  } catch (e) {
+    // network hiccup — retry
+    if (attempt < 2) {
+      await sleep(1200 * (attempt + 1));
+      return api(path, init, attempt + 1);
+    }
+    throw e;
+  }
+  // the serverless database naps between visits; the first request after a
+  // deploy can 500 while it wakes — retry instead of surfacing it
+  if (res.status >= 500 && attempt < 2) {
+    await sleep(1200 * (attempt + 1));
+    return api(path, init, attempt + 1);
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as any).error ?? `Request failed (${res.status})`);
   return data as T;

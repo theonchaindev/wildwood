@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
@@ -8,11 +8,13 @@ import { useModel } from "@/lib/assets";
 import { ROCKS, TreeDef } from "@/lib/world";
 import { useGame, ROCK_RESPAWN_MS } from "@/lib/store";
 import { mine, moveTarget } from "@/lib/runtime";
+import { HoverRing } from "./Trees";
 
 function Rock({ r }: { r: TreeDef }) {
   const proto = useModel(r.file, r.size);
   const instance = useMemo(() => proto.clone(true), [proto]);
   const pivot = useRef<THREE.Group>(null);
+  const [hovered, setHovered] = useState(false);
   const minedAtTs = useGame((s) => s.minedAt[r.id]);
   const isTarget = useGame((s) => s.mineTargetId === r.id);
 
@@ -59,12 +61,15 @@ function Rock({ r }: { r: TreeDef }) {
             if (minedAtTs) return;
             e.stopPropagation();
             document.body.style.cursor = "pointer";
+            setHovered(true);
           }}
           onPointerOut={() => {
             document.body.style.cursor = "";
+            setHovered(false);
           }}
         />
       </group>
+      {hovered && !minedAtTs && <HoverRing r={r.r + 0.5} />}
       {isTarget && !minedAtTs && <MineBar height={r.size * 0.9 + 0.6} />}
     </group>
   );

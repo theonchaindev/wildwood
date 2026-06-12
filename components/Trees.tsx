@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
@@ -8,6 +8,25 @@ import { useModel } from "@/lib/assets";
 import { TREES, TreeDef } from "@/lib/world";
 import { useGame, TREE_RESPAWN_MS } from "@/lib/store";
 import { chop, moveTarget } from "@/lib/runtime";
+
+/** A pulsing golden ring at the base of anything harvestable under the cursor. */
+export function HoverRing({ r }: { r: number }) {
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }) => {
+    if (ref.current) {
+      const k = 1 + Math.sin(clock.elapsedTime * 5) * 0.06;
+      ref.current.scale.setScalar(k);
+      (ref.current.material as THREE.MeshBasicMaterial).opacity =
+        0.55 + Math.sin(clock.elapsedTime * 5) * 0.2;
+    }
+  });
+  return (
+    <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]}>
+      <ringGeometry args={[r * 0.78, r, 28]} />
+      <meshBasicMaterial color="#ffe27a" transparent opacity={0.6} depthWrite={false} />
+    </mesh>
+  );
+}
 
 function hashDir(id: string) {
   let h = 0;
@@ -19,6 +38,7 @@ function Tree({ t }: { t: TreeDef }) {
   const proto = useModel(t.file, t.size);
   const instance = useMemo(() => proto.clone(true), [proto]);
   const pivot = useRef<THREE.Group>(null);
+  const [hovered, setHovered] = useState(false);
   const choppedAtTs = useGame((s) => s.choppedAt[t.id]);
   const isTarget = useGame((s) => s.chopTargetId === t.id);
   const growStart = useRef(0);
@@ -91,12 +111,15 @@ function Tree({ t }: { t: TreeDef }) {
             if (!clickable) return;
             e.stopPropagation();
             document.body.style.cursor = "pointer";
+            setHovered(true);
           }}
           onPointerOut={() => {
             document.body.style.cursor = "";
+            setHovered(false);
           }}
         />
       </group>
+      {hovered && clickable && <HoverRing r={t.r + 0.7} />}
       {/* stump while chopped */}
       {choppedAtTs && (
         <mesh position={[0, 0.18, 0]} castShadow>

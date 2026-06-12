@@ -233,7 +233,9 @@ for (const [x, z] of MOUNTAINS) {
     pos: [x, 0, z],
     rot: rand(0, Math.PI * 2),
   });
-  COLLIDERS.push({ x, z, r: size * 0.34 });
+  // the mossy mountain models are squat: the footprint at the base is far
+  // wider than the height, so the collider tracks the visible rock face
+  COLLIDERS.push({ x, z, r: size * 0.62 });
 }
 
 // daffodils sprinkled around the glade as decoration (not collectible)
@@ -628,17 +630,18 @@ export function resolveMovement(
     }
 
     // the bridge itself is solid stone: block its side walls and arch
-    // (its footprint reaches past the water band onto both banks)
+    // (its footprint reaches past the water band onto both banks, and the
+    // wing walls flare wider at the ends — cover those too)
     const bdx = Math.abs(nx - RIVER_X);
     const bdz = nz - BRIDGE_Z;
-    if (bdx < BRIDGE_HALF_SPAN && Math.abs(bdz) > BRIDGE_HALF_WIDTH && Math.abs(bdz) < 3.4) {
-      const wasInside = Math.abs(px - RIVER_X) < BRIDGE_HALF_SPAN && Math.abs(pz - BRIDGE_Z) <= BRIDGE_HALF_WIDTH;
+    if (bdx < BRIDGE_HALF_SPAN + 1.2 && Math.abs(bdz) > BRIDGE_HALF_WIDTH && Math.abs(bdz) < 3.6) {
+      const wasInside = Math.abs(px - RIVER_X) < BRIDGE_HALF_SPAN + 1.2 && Math.abs(pz - BRIDGE_Z) <= BRIDGE_HALF_WIDTH;
       if (wasInside) {
         // on the deck: the parapet keeps them on it
         nz = BRIDGE_Z + Math.sign(bdz) * BRIDGE_HALF_WIDTH;
       } else {
         // outside: the stone flank pushes them away
-        nz = BRIDGE_Z + Math.sign(bdz) * 3.4;
+        nz = BRIDGE_Z + Math.sign(bdz) * 3.6;
       }
     }
   }
