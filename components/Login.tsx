@@ -311,7 +311,7 @@ export default function Login() {
 
         {ready && mode === "walletname" && (
           <div className="intro-actions">
-            <p className="intro-step-title">👻 Wallet connected — pick your forager name</p>
+            <p className="intro-step-title">👻 Wallet connected — pick your survivor name</p>
             <input
               className="login-input"
               placeholder="Your username"
@@ -334,7 +334,7 @@ export default function Login() {
 
         {ready && mode === "customize" && (
           <>
-            <p className="intro-step-title">Customize your forager — you&apos;re behind this card 👀</p>
+            <p className="intro-step-title">Customize your survivor — you&apos;re behind this card 👀</p>
             <Customizer onDone={finish} />
           </>
         )}

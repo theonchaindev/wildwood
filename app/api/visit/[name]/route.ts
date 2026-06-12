@@ -17,7 +17,7 @@ export async function GET(_req: Request, { params }: { params: { name: string } 
   }
   if (!user) {
     return NextResponse.json(
-      { error: "No forager by that name — guests can't be visited until they make an account" },
+      { error: "No survivor by that name — guests can't be visited until they make an account" },
       { status: 404 }
     );
   }

@@ -641,7 +641,7 @@ function PlayerOffers() {
         </div>
       )}
 
-      <div className="shop-section">Visit a forager</div>
+      <div className="shop-section">Visit a survivor</div>
       <div className="offer-form">
         <input
           className="offer-input grow" placeholder="Their name…"
@@ -807,7 +807,7 @@ function ExchangeShop() {
           />
         );
       })}
-      <div className="shop-note">Other foragers post offers here daily — usually better than Den prices.</div>
+      <div className="shop-note">Other survivors post offers here daily — usually better than Den prices.</div>
     </>
   );
 }
@@ -1283,7 +1283,7 @@ function LeaderboardModal({ onClose }: { onClose: () => void }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <span className="modal-title">🏆 Top Foragers</span>
+          <span className="modal-title">🏆 Top Survivors</span>
           {data && <span className="online-tag">🟢 {data.online} online</span>}
         </div>
         {err && <div className="shop-empty">Leaderboard unavailable — are you online?</div>}
@@ -1338,7 +1338,7 @@ function LeaderboardDock() {
             className={`lb-tab ${tab === "players" ? "on" : ""}`}
             onClick={() => setTab("players")}
           >
-            🏆 Foragers
+            🏆 Survivors
           </button>
           <button
             className={`lb-tab ${tab === "estates" ? "on" : ""}`}
@@ -1351,7 +1351,7 @@ function LeaderboardDock() {
       </div>
       {tab === "players" ? (
         <>
-          {data.players.length === 0 && <div className="lb-dock-empty">No foragers yet — be the first!</div>}
+          {data.players.length === 0 && <div className="lb-dock-empty">No survivors out here yet — be the first!</div>}
           {data.players.slice(0, 6).map((p, i) => (
             <div
               key={p.name}
@@ -1533,7 +1533,7 @@ function NoticeModal() {
         )}
         <div className="note-line small">1 🌰 = 1 $ACORN · convert at The Vault</div>
 
-        <div className="note-section">💸 Paid out to foragers so far</div>
+        <div className="note-section">💸 Paid out to survivors so far</div>
         <div className="note-big">
           {data ? data.totalAcorns.toLocaleString() : "…"} $ACORN
         </div>
@@ -1838,7 +1838,7 @@ function HelpModal() {
           <span>💧</span><span>Click the river up close to collect water</span>
           <span>🧟</span><span>Zombies rise at night (see the timer) — click one to attack. Buy weapons &amp; armour at The Forge</span>
           <span>☣️</span><span>Scratches can infect you — antidotes at The Remedy; click meds in the hotbar to use</span>
-          <span>⚖️</span><span>The Exchange posts daily offers from other foragers at premium prices</span>
+          <span>⚖️</span><span>The Vault posts daily offers from other survivors at premium prices</span>
           <span>🧵</span><span>Threads sells shirts &amp; hats to customise your look</span>
           <span>🪧</span><span><b>Buy your Haven</b> at the gate near camp — your own private land with farm tiles, a chest, a furnace and a cabin. Extend it at the 📐 sign inside</span>
           <span>🥕</span><span>Buy seeds, click a tilled tile to plant, click again to harvest when ready</span>

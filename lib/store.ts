@@ -93,7 +93,7 @@ export const SHIRTS: Record<string, { label: string; cost: number; color: string
 
 export const HATS: Record<string, { label: string; icon: string; cost: number }> = {
   straw: { label: "Straw Hat", icon: "👒", cost: 60 },
-  cap: { label: "Forager's Cap", icon: "🧢", cost: 40 },
+  cap: { label: "Scout's Cap", icon: "🧢", cost: 40 },
   crown: { label: "Golden Crown", icon: "👑", cost: 300 },
 };
 
@@ -490,7 +490,7 @@ export function rankFor(level: number): string {
   if (level >= 12) return "Ranger";
   if (level >= 8) return "Hunter";
   if (level >= 5) return "Woodsman";
-  if (level >= 3) return "Forager";
+  if (level >= 3) return "Scavenger";
   return "Drifter";
 }
 
@@ -534,7 +534,7 @@ export function dayOffers(day: number): Offer[] {
 
 const QUESTS: Quest[] = [
   { id: "leave-glade", title: "Leave the Hollow", desc: "Head out through a gap in the fence into the wild.", goal: 1, progress: 0, done: false, xp: 40, acorns: 10 },
-  { id: "forage-mushrooms", title: "Mushroom Forager", desc: "Collect 5 wild mushrooms from Sporewood, north of the Hollow.", goal: 5, progress: 0, done: false, xp: 80, acorns: 25 },
+  { id: "forage-mushrooms", title: "Mushroom Hunter", desc: "Collect 5 wild mushrooms from Sporewood, north of the Hollow.", goal: 5, progress: 0, done: false, xp: 80, acorns: 25 },
   { id: "timber", title: "Timber!", desc: "Chop down 2 trees with your bare hands. Click a tree to start chopping.", goal: 2, progress: 0, done: false, xp: 80, acorns: 20 },
   { id: "pick-flowers", title: "Bloom Florist", desc: "Pick 3 flowers from the Bloom in the south.", goal: 3, progress: 0, done: false, xp: 60, acorns: 20 },
   { id: "buy-axe", title: "Tooled Up", desc: "Sell your goods at The Den and buy an axe.", goal: 1, progress: 0, done: false, xp: 100, acorns: 0 },

@@ -44,7 +44,7 @@ function GhostPlayer({ g }: { g: Ghost }) {
         motion={motion}
       />
       <Html position={[0, 2.05, 0]} center distanceFactor={26} zIndexRange={[9, 0]}>
-        <div className="player-label ghost">{g.name || "Forager"} · Lv {g.level}</div>
+        <div className="player-label ghost">{g.name || "Survivor"} · Lv {g.level}</div>
       </Html>
     </group>
   );

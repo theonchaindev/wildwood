@@ -25,7 +25,7 @@ export async function POST(req: Request, { params }: { params: { name: string } 
     return NextResponse.json({ error: "You can't sign your own guestbook!" }, { status: 400 });
   }
   const owner = await prisma.user.findUnique({ where: { name: params.name } });
-  if (!owner) return NextResponse.json({ error: "No forager by that name" }, { status: 404 });
+  if (!owner) return NextResponse.json({ error: "No survivor by that name" }, { status: 404 });
   const { text } = await req.json().catch(() => ({}));
   const clean = typeof text === "string" ? text.trim().slice(0, 120) : "";
   if (clean.length < 2) return NextResponse.json({ error: "Write a little something!" }, { status: 400 });

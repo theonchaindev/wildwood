@@ -16,7 +16,7 @@ type Props = {
   motion?: Motion;
 };
 
-/** The forager's body — shared between the player, other live players and the creator preview. */
+/** The survivor's body — shared between the player, other live players and the creator preview. */
 export default function CharacterModel({ appearance, shirt, hat, armor = null, motion }: Props) {
   const shirtColor = SHIRTS[shirt]?.color ?? "#3f6d35";
   const sleeveColor = new THREE.Color(shirtColor).multiplyScalar(0.85).getStyle();

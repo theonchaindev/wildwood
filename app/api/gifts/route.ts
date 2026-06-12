@@ -30,13 +30,13 @@ export async function POST(req: Request) {
   const qty = Number.isInteger(body.qty) ? Math.max(0, Math.min(99, body.qty)) : 0;
   const item = typeof body.item === "string" && qty > 0 ? body.item.slice(0, 40) : null;
   if (!to || to === user.name) {
-    return NextResponse.json({ error: "Pick another forager to gift" }, { status: 400 });
+    return NextResponse.json({ error: "Pick another survivor to gift" }, { status: 400 });
   }
   if (acorns === 0 && !item) {
     return NextResponse.json({ error: "The gift is empty!" }, { status: 400 });
   }
   const target = await prisma.user.findUnique({ where: { name: to } });
-  if (!target) return NextResponse.json({ error: "No forager by that name" }, { status: 404 });
+  if (!target) return NextResponse.json({ error: "No survivor by that name" }, { status: 404 });
   const gift = await prisma.gift.create({
     data: { toName: to, fromName: user.name, item, qty: item ? qty : 0, acorns },
   });
