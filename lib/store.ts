@@ -1696,14 +1696,18 @@ export const useGame = create<GameState>()(
         }
         if (hp <= 0) {
           const lost = Math.floor(s.acorns * 0.25);
+          const lootCount = Object.values(s.inventory).reduce((a, n) => a + n, 0);
           teleport.x = CAMPFIRE_POS[0] + 2;
           teleport.z = CAMPFIRE_POS[2] + 2;
           teleport.pending = true;
+          // death is expensive: the whole pack is gone. Tools and gear stay
+          // yours, and anything in your chest is safe — that's what it's for.
           set({
             hp: Math.round(s.maxHp * 0.5),
             energy: 40,
             hunger: Math.max(s.hunger, 30),
             acorns: s.acorns - lost,
+            inventory: {},
             hurtAt: Date.now(),
             infected: false,
             location: "forest",
@@ -1711,8 +1715,12 @@ export const useGame = create<GameState>()(
             chopTargetId: null,
             animalTargetId: null,
           });
-          s.setBanner("You blacked out… you wake by the campfire");
-          if (lost > 0) s.addToast(`Lost ${lost} acorns in the dark`);
+          s.setBanner("You blacked out… you wake by the campfire, pack empty");
+          s.addToast(
+            lootCount > 0
+              ? `💀 Lost all your loot (${lootCount} items)${lost > 0 ? ` · ${lost} 🌰` : ""} — chest items are safe`
+              : `💀 ${lost > 0 ? `Lost ${lost} 🌰 in the dark` : "At least your pack was already empty"}`
+          );
         } else {
           set({ hp, hurtAt: Date.now() });
         }

@@ -130,11 +130,28 @@ export async function loginCloud(name: string, password: string) {
 }
 
 let lastSaveWarn = 0;
+let restoringSave = false;
 
 export async function pushSave() {
   if (!useGame.getState().account) return;
   try {
-    await api("/api/save", { method: "PUT", body: JSON.stringify(saveData()) });
+    const res = await api<{ ok: boolean; keptServer?: boolean }>("/api/save", {
+      method: "PUT",
+      body: JSON.stringify(saveData()),
+    });
+    // the server holds a higher-level save than this device — pull it back
+    if (res.keptServer && !restoringSave) {
+      restoringSave = true;
+      try {
+        const data = await api<AuthResponse>("/api/save");
+        if (data.save && progressScore(data.save) > progressScore(useGame.getState())) {
+          useGame.setState({ ...data.save, name: data.name });
+          useGame.getState().addToast("💾 Restored your higher cloud save");
+        }
+      } finally {
+        restoringSave = false;
+      }
+    }
   } catch {
     // a silent failure here is how progress used to get lost — say something
     if (Date.now() - lastSaveWarn > 60_000) {

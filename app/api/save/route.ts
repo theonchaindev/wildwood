@@ -32,6 +32,14 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "Save too large" }, { status: 413 });
   }
   const newAcorns = Number.isInteger(body.acorns) ? body.acorns : 0;
+  const newLevel = Number.isInteger(body.level) ? body.level : 1;
+  // levels never go down in this game — a save with a LOWER level than the
+  // stored one is stale (old tab, wiped browser, …). Keep the better save
+  // and tell the client so it can pull it back down.
+  if (newLevel < user.level) {
+    await prisma.user.update({ where: { id: user.id }, data: { lastSeen: new Date() } });
+    return NextResponse.json({ ok: true, keptServer: true });
+  }
   // anti-cheat heuristic: flag implausible earning rates (the save still
   // applies — strikes only gate cash-outs, so honest play is uninterrupted)
   const minutes = Math.max(0.5, (Date.now() - user.lastSeen.getTime()) / 60_000);
@@ -41,7 +49,7 @@ export async function PUT(req: Request) {
     where: { id: user.id },
     data: {
       save: json,
-      level: Number.isInteger(body.level) ? body.level : 1,
+      level: newLevel,
       acorns: newAcorns,
       homeTier: Number.isInteger(body.homeTier) ? body.homeTier : 0,
       houseLevel: Number.isInteger(body.houseLevel) ? body.houseLevel : 1,
