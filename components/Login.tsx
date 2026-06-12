@@ -213,8 +213,8 @@ export default function Login() {
   return (
     <div className="intro-overlay">
       <div className="intro-panel">
-        <div className="intro-emblem">🌲🍄🪓</div>
-        <h1 className="intro-title">WILDWOOD</h1>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/wildwood-logo.png" alt="WILDWOOD" className="intro-logo" />
         <p className="intro-tagline">
           a forest that pays you back — forage, farm, fight the dead, cash out
         </p>

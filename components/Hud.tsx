@@ -1873,6 +1873,8 @@ export default function Hud() {
     <div className="hud">
       {/* top-left: location + time + night timer */}
       <div className="top-left">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/wildwood-logo.png" alt="Wildwood" className="hud-logo" />
         <div className="pill strong">📍 {s.zone}</div>
         <ClockPill />
         <OnlinePill />

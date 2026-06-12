@@ -6,7 +6,8 @@ const Game = dynamic(() => import("@/components/Game"), {
   ssr: false,
   loading: () => (
     <div className="loading-screen">
-      <div className="loading-title">WILDWOOD</div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/wildwood-logo.png" alt="WILDWOOD" className="loading-logo" />
       <div className="loading-sub">waking the forest…</div>
     </div>
   ),
