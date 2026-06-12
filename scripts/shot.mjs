@@ -15,8 +15,8 @@ await page.waitForTimeout(wait);
 
 // START=1 logs in through the intro screen (menu -> Play -> name -> customize -> enter)
 if (process.env.START) {
-  await page.waitForSelector(".intro-btn.primary", { timeout: 30000 }).catch(() => {});
-  await page.click(".intro-btn.primary").catch(() => {}); // ▶ Play
+  await page.waitForSelector(".intro-block.guest", { timeout: 30000 }).catch(() => {});
+  await page.click(".intro-block.guest").catch(() => {}); // 🎮 Guest Mode
   await page.waitForTimeout(400);
   await page.fill(".login-input", process.env.NAME ?? "Tester").catch(() => {});
   await page.click(".intro-btn.primary").catch(() => {}); // Next — customize

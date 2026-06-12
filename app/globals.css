@@ -72,15 +72,107 @@ body {
   z-index: 50;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding-left: 7vw;
-  background: linear-gradient(100deg, rgba(10, 18, 8, 0.82) 0%, rgba(10, 18, 8, 0.45) 45%, rgba(10, 18, 8, 0.05) 75%);
+  background: radial-gradient(ellipse at 50% 45%, rgba(10, 18, 8, 0.55) 0%, rgba(10, 18, 8, 0.85) 100%);
 }
 
 .intro-panel {
-  width: 360px;
+  width: min(560px, 92vw);
+  text-align: center;
   animation: card-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+
+.intro-panel .intro-features {
+  justify-content: center;
+}
+
+/* the menu blocks */
+.intro-blocks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.intro-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 18px 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(243, 234, 210, 0.16);
+  background: rgba(20, 30, 16, 0.72);
+  color: #f3ead2;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  backdrop-filter: blur(4px);
+  transition: transform 0.12s, background 0.12s, border-color 0.12s;
+}
+
+.intro-block:hover {
+  transform: translateY(-2px);
+  background: rgba(34, 50, 26, 0.85);
+  border-color: rgba(243, 234, 210, 0.35);
+}
+
+.intro-block:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.intro-block .block-icon {
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.intro-block .block-title {
+  font-weight: 800;
+  font-size: 15.5px;
+  letter-spacing: 0.4px;
+}
+
+.intro-block .block-sub {
+  font-size: 11px;
+  opacity: 0.65;
+}
+
+.intro-block.phantom {
+  border-color: rgba(171, 159, 242, 0.45);
+  background: rgba(60, 48, 110, 0.55);
+}
+
+.intro-block.phantom:hover {
+  background: rgba(76, 62, 134, 0.7);
+}
+
+.intro-block.guest {
+  border-color: rgba(155, 208, 106, 0.5);
+  background: rgba(52, 84, 34, 0.62);
+}
+
+.intro-block.guest:hover {
+  background: rgba(66, 104, 44, 0.8);
+}
+
+.intro-block.coin {
+  border-color: rgba(232, 181, 58, 0.45);
+  background: rgba(92, 70, 18, 0.5);
+}
+
+.intro-block.coin:hover {
+  background: rgba(112, 86, 24, 0.66);
+}
+
+.intro-block.x {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(12, 12, 14, 0.7);
+}
+
+.intro-block.x:hover {
+  background: rgba(28, 28, 32, 0.85);
 }
 
 .intro-emblem {

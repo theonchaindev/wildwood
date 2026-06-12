@@ -9,8 +9,8 @@ async function startPlayer(name) {
   const page = await context.newPage();
   await page.goto(url, { waitUntil: "networkidle" }).catch(() => {});
   await page.waitForTimeout(9000);
-  await page.waitForSelector(".intro-btn.primary", { timeout: 30000 });
-  await page.click(".intro-btn.primary"); // Play
+  await page.waitForSelector(".intro-block.guest", { timeout: 30000 });
+  await page.click(".intro-block.guest"); // Guest Mode
   await page.waitForTimeout(400);
   await page.fill(".login-input", name);
   await page.click(".intro-btn.primary"); // customize

@@ -137,6 +137,10 @@ export default function Login() {
   const setSpectator = useGame((s) => s.setSpectator);
   const { progress, active } = useProgress();
   const [mode, setMode] = useState<Mode>("menu");
+  const [mint, setMint] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/token").then((r) => r.json()).then((d) => setMint(d.mint ?? null)).catch(() => {});
+  }, []);
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -235,21 +239,52 @@ export default function Login() {
         )}
 
         {ready && mode === "menu" && (
-          <div className="intro-actions">
-            <button className="intro-btn primary" onClick={() => setMode("guest")}>
-              ▶ Play
-            </button>
-            <button className="intro-btn" onClick={() => setMode("online")}>
-              🌐 Online account
-            </button>
-            <button className="intro-btn phantom" onClick={enterPhantom} disabled={busy}>
-              {busy ? "Connecting…" : "👻 Connect Phantom"}
-            </button>
-            <button className="intro-btn ghosted" onClick={() => setSpectator(true)}>
-              👁 Spectate
-            </button>
+          <>
+            <div className="intro-blocks">
+              <button className="intro-block" onClick={() => setMode("online")}>
+                <span className="block-icon">🌐</span>
+                <span className="block-title">Login</span>
+                <span className="block-sub">cloud saves · trading</span>
+              </button>
+              <button className="intro-block phantom" onClick={enterPhantom} disabled={busy}>
+                <span className="block-icon">👻</span>
+                <span className="block-title">{busy ? "Connecting…" : "Connect Wallet"}</span>
+                <span className="block-sub">Phantom · play to earn</span>
+              </button>
+              <button className="intro-block ghosted" onClick={() => setSpectator(true)}>
+                <span className="block-icon">👀</span>
+                <span className="block-title">Spectate</span>
+                <span className="block-sub">watch the forest live</span>
+              </button>
+              <button className="intro-block guest" onClick={() => setMode("guest")}>
+                <span className="block-icon">🎮</span>
+                <span className="block-title">Guest Mode</span>
+                <span className="block-sub">jump straight in</span>
+              </button>
+              <a
+                className="intro-block coin"
+                href={mint ? `https://explorer.solana.com/address/${mint}?cluster=devnet` : undefined}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => { if (!mint) e.preventDefault(); }}
+              >
+                <span className="block-icon">🪙</span>
+                <span className="block-title">$ACORN</span>
+                <span className="block-sub">{mint ? "view the coin ↗" : "CA coming soon"}</span>
+              </a>
+              <a
+                className="intro-block x"
+                href="https://x.com/wildwoodgame"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span className="block-icon">𝕏</span>
+                <span className="block-title">Follow</span>
+                <span className="block-sub">news & drops</span>
+              </a>
+            </div>
             {error && <p className="login-error">{error}</p>}
-          </div>
+          </>
         )}
 
         {ready && mode === "guest" && (
