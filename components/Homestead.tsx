@@ -330,20 +330,20 @@ function PenSpot({ idx }: { idx: number }) {
     s.setOpenPen(idx);
   });
 
-  // fence square 4.6 × 4
+  // fence square 4.2 × 3.6
   const posts: [number, number][] = [];
-  for (let px = -2.3; px <= 2.3; px += 1.15) {
-    posts.push([px, -2], [px, 2]);
+  for (let px = -2.1; px <= 2.1; px += 1.05) {
+    posts.push([px, -1.8], [px, 1.8]);
   }
-  for (let pz = -1; pz <= 1; pz += 1) {
-    posts.push([-2.3, pz], [2.3, pz]);
+  for (let pz = -0.9; pz <= 0.9; pz += 0.9) {
+    posts.push([-2.1, pz], [2.1, pz]);
   }
 
   return (
     <group position={[x, 0, z]} onClick={click} {...hoverCursor()}>
       {/* dirt pad */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} receiveShadow>
-        <planeGeometry args={[4.6, 4]} />
+        <planeGeometry args={[4.2, 3.6]} />
         <meshStandardMaterial color={pen ? "#9b8456" : "#85975c"} roughness={1} />
       </mesh>
       {posts.map(([px, pz], i) => (
@@ -353,25 +353,25 @@ function PenSpot({ idx }: { idx: number }) {
         </mesh>
       ))}
       {/* rails */}
-      {[[-2, 0, 4.6, 0.08], [2, 0, 4.6, 0.08]].map(([rz, rx, w], i) => (
-        <mesh key={"r" + i} position={[0, 0.45, rz as number]} castShadow>
-          <boxGeometry args={[w as number, 0.07, 0.07]} />
+      {[-1.8, 1.8].map((rz, i) => (
+        <mesh key={"r" + i} position={[0, 0.45, rz]} castShadow>
+          <boxGeometry args={[4.2, 0.07, 0.07]} />
           <meshStandardMaterial color="#8a6a3f" roughness={1} />
         </mesh>
       ))}
-      <mesh position={[-2.3, 0.45, 0]} castShadow>
-        <boxGeometry args={[0.07, 0.07, 4]} />
+      <mesh position={[-2.1, 0.45, 0]} castShadow>
+        <boxGeometry args={[0.07, 0.07, 3.6]} />
         <meshStandardMaterial color="#8a6a3f" roughness={1} />
       </mesh>
-      <mesh position={[2.3, 0.45, 0]} castShadow>
-        <boxGeometry args={[0.07, 0.07, 4]} />
+      <mesh position={[2.1, 0.45, 0]} castShadow>
+        <boxGeometry args={[0.07, 0.07, 3.6]} />
         <meshStandardMaterial color="#8a6a3f" roughness={1} />
       </mesh>
 
       {pen ? (
         <>
           {Array.from({ length: pen.count }).map((_, i) => (
-            <group key={i} position={[-1.4 + (i % 2) * 1.6, 0, -0.9 + Math.floor(i / 2) * 1.6]}>
+            <group key={i} position={[-1.2 + (i % 2) * 1.5, 0, -0.8 + Math.floor(i / 2) * 1.5]}>
               <PenAnimalIdle kind={pen.animal} seed={idx * 4 + i} />
             </group>
           ))}
@@ -650,11 +650,11 @@ function VisitPen({ idx, animal, count }: { idx: number; animal: string; count: 
   return (
     <group position={[x, 0, z]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} receiveShadow>
-        <planeGeometry args={[4.6, 4]} />
+        <planeGeometry args={[4.2, 3.6]} />
         <meshStandardMaterial color="#9b8456" roughness={1} />
       </mesh>
       {Array.from({ length: Math.min(count, 4) }).map((_, i) => (
-        <group key={i} position={[-1.4 + (i % 2) * 1.6, 0, -0.9 + Math.floor(i / 2) * 1.6]}>
+        <group key={i} position={[-1.2 + (i % 2) * 1.5, 0, -0.8 + Math.floor(i / 2) * 1.5]}>
           <PenAnimalIdle kind={animal} seed={idx * 4 + i} />
         </group>
       ))}

@@ -402,11 +402,12 @@ export const ANIMAL_SPAWNS: AnimalSpawn[] = [
 
 // ---- homestead animal pens (unlocked by land tier) ----
 
+// kept clear of the farm tile grid (x −10.1…5.6, z −4.2…4.6)
 export const PEN_SPOTS: [number, number][] = [
-  [-9, -5],
-  [-13, 1],
+  [-9, -6.6],
+  [-12.8, 1],
   [12, 4],
-  [-13, -8],
+  [-13.6, -9],
 ];
 
 export function pensAllowed(tier: number) {
