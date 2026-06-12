@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma, requireDb } from "@/lib/server/db";
 import { getSessionUser } from "@/lib/server/auth";
 
+// GET responses must never be cached at build time
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const dbErr = requireDb();
   if (dbErr) return dbErr;

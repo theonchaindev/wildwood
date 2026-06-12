@@ -5,6 +5,9 @@ import bs58 from "bs58";
 import { prisma, requireDb } from "@/lib/server/db";
 import { createSession } from "@/lib/server/auth";
 
+// GET responses must never be cached at build time
+export const dynamic = "force-dynamic";
+
 const SECRET = new TextEncoder().encode(process.env.WW_JWT_SECRET ?? "wildwood-dev");
 
 // GET: issue a short-lived nonce the wallet must sign
