@@ -191,11 +191,12 @@ body {
 }
 
 .intro-tagline {
-  margin-top: 12px;
+  margin: 12px auto 0;
   font-size: 14px;
   color: #cfd8bd;
   line-height: 1.5;
-  max-width: 320px;
+  max-width: 380px;
+  text-align: center;
 }
 
 .intro-features {
@@ -1999,4 +2000,26 @@ body {
   filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.35));
   pointer-events: none;
   user-select: none;
+}
+
+
+/* small links under the menu blocks */
+.intro-links {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 14px;
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.intro-links a {
+  color: #e8d9a8;
+  text-decoration: none;
+  opacity: 0.85;
+}
+
+.intro-links a:hover {
+  opacity: 1;
+  text-decoration: underline;
 }

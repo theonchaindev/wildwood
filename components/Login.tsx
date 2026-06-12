@@ -261,26 +261,18 @@ export default function Login() {
                 <span className="block-title">Guest Mode</span>
                 <span className="block-sub">jump straight in</span>
               </button>
+            </div>
+            <div className="intro-links">
               <a
-                className="intro-block coin"
                 href={mint ? `https://explorer.solana.com/address/${mint}?cluster=devnet` : undefined}
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => { if (!mint) e.preventDefault(); }}
               >
-                <span className="block-icon">🪙</span>
-                <span className="block-title">$ACORN</span>
-                <span className="block-sub">{mint ? "view the coin ↗" : "CA coming soon"}</span>
+                🪙 {mint ? "$ACORN ↗" : "$ACORN — CA soon"}
               </a>
-              <a
-                className="intro-block x"
-                href="https://x.com/wildwoodgame"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span className="block-icon">𝕏</span>
-                <span className="block-title">Follow</span>
-                <span className="block-sub">news & drops</span>
+              <a href="https://x.com/wildwoodgame" target="_blank" rel="noreferrer">
+                𝕏 Follow ↗
               </a>
             </div>
             {error && <p className="login-error">{error}</p>}
