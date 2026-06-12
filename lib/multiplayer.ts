@@ -98,6 +98,9 @@ async function sync() {
         rot: live.rot,
         location: s.location === "forest" ? "forest" : "away",
         level: s.level,
+        acorns: Math.floor(s.acorns),
+        homeTier: s.homeTier,
+        houseLevel: s.houseLevel,
         look: JSON.stringify({ appearance: s.appearance, shirt: s.shirt, hat: s.hat }),
       }),
     });

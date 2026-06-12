@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const dbErr = requireDb();
   if (dbErr) return dbErr;
   const body = await req.json().catch(() => ({}));
-  const { id, name, x, z, rot, location, level, look } = body;
+  const { id, name, x, z, rot, location, level, look, acorns, homeTier, houseLevel } = body;
   if (typeof id !== "string" || id.length < 8 || id.length > 64) {
     return NextResponse.json({ error: "Bad client id" }, { status: 400 });
   }
@@ -23,6 +23,9 @@ export async function POST(req: Request) {
     rot: typeof rot === "number" && isFinite(rot) ? rot : 0,
     location: location === "forest" ? "forest" : "away",
     level: Number.isInteger(level) ? level : 1,
+    acorns: Number.isInteger(acorns) ? acorns : 0,
+    homeTier: Number.isInteger(homeTier) ? homeTier : 0,
+    houseLevel: Number.isInteger(houseLevel) ? houseLevel : 1,
     look: typeof look === "string" ? look.slice(0, 600) : "{}",
   };
   const [, players] = await Promise.all([

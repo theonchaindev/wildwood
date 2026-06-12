@@ -7,22 +7,27 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const dbErr = requireDb();
   if (dbErr) return dbErr;
-  const [players, estates, online] = await Promise.all([
-    prisma.user.findMany({
-      orderBy: [{ level: "desc" }, { acorns: "desc" }],
-      take: 10,
-      select: { name: true, level: true, acorns: true },
-    }),
-    prisma.user.findMany({
-      where: { homeTier: { gt: 0 } },
-      orderBy: [{ homeTier: "desc" }, { houseLevel: "desc" }, { level: "desc" }],
-      take: 10,
-      select: { name: true, homeTier: true, houseLevel: true },
-    }),
-    // true count: live heartbeats from playing browsers (guests included)
-    prisma.presence.count({
-      where: { lastSeen: { gt: new Date(Date.now() - 60_000) } },
-    }),
-  ]);
-  return NextResponse.json({ players, estates, online });
+  // the board only ranks players in the game RIGHT NOW (heartbeat <60s old)
+  const active = await prisma.presence.findMany({
+    where: { lastSeen: { gt: new Date(Date.now() - 60_000) }, name: { not: "" } },
+    orderBy: { lastSeen: "desc" },
+    select: { name: true, level: true, acorns: true, homeTier: true, houseLevel: true },
+  });
+  // a player with two tabs open is still one player
+  const byName = new Map<string, (typeof active)[number]>();
+  for (const a of active) {
+    const cur = byName.get(a.name);
+    if (!cur || a.level > cur.level) byName.set(a.name, a);
+  }
+  const everyone = Array.from(byName.values());
+  const players = everyone
+    .sort((a, b) => b.level - a.level || b.acorns - a.acorns)
+    .slice(0, 10)
+    .map(({ name, level, acorns }) => ({ name, level, acorns }));
+  const estates = everyone
+    .filter((a) => a.homeTier > 0)
+    .sort((a, b) => b.homeTier - a.homeTier || b.houseLevel - a.houseLevel || b.level - a.level)
+    .slice(0, 10)
+    .map(({ name, homeTier, houseLevel }) => ({ name, homeTier, houseLevel }));
+  return NextResponse.json({ players, estates, online: everyone.length });
 }
