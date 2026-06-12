@@ -13,6 +13,11 @@ import HitPop from "./HitPop";
 const RESPAWN_MS = 120_000;
 const BOAR_DMG = 6;
 
+const WILD_HP: Record<string, number> = { chicken: 10, boar: 25, rabbit: 8, deer: 22 };
+// shy animals run away when approached; boars stand their ground
+const SHY: Record<string, boolean> = { chicken: true, rabbit: true, deer: true, boar: false };
+const FLEE_SPEED: Record<string, number> = { chicken: 2.4, rabbit: 3.2, deer: 3.6, boar: 2.4 };
+
 function initAnimals() {
   if (animals.length) return;
   for (const s of ANIMAL_SPAWNS) {
@@ -23,8 +28,8 @@ function initAnimals() {
       homeZ: s.pos[1],
       x: s.pos[0],
       z: s.pos[1],
-      hp: s.kind === "chicken" ? 10 : 25,
-      maxHp: s.kind === "chicken" ? 10 : 25,
+      hp: WILD_HP[s.kind],
+      maxHp: WILD_HP[s.kind],
       rot: Math.random() * Math.PI * 2,
       state: "wander",
       stateUntil: 0,
@@ -125,6 +130,79 @@ function BoarMesh() {
   );
 }
 
+function RabbitMesh() {
+  return (
+    <>
+      <mesh position={[0, 0.16, 0]} castShadow>
+        <boxGeometry args={[0.2, 0.18, 0.3]} />
+        <meshStandardMaterial color="#cfc8ba" roughness={1} />
+      </mesh>
+      <mesh position={[0, 0.26, 0.15]} castShadow>
+        <boxGeometry args={[0.14, 0.14, 0.14]} />
+        <meshStandardMaterial color="#cfc8ba" roughness={1} />
+      </mesh>
+      {/* ears */}
+      <mesh position={[-0.04, 0.42, 0.13]} rotation={[0.15, 0, -0.1]}>
+        <boxGeometry args={[0.04, 0.18, 0.04]} />
+        <meshStandardMaterial color="#bdb5a5" roughness={1} />
+      </mesh>
+      <mesh position={[0.04, 0.42, 0.13]} rotation={[0.15, 0, 0.1]}>
+        <boxGeometry args={[0.04, 0.18, 0.04]} />
+        <meshStandardMaterial color="#bdb5a5" roughness={1} />
+      </mesh>
+      {/* tail */}
+      <mesh position={[0, 0.18, -0.17]}>
+        <sphereGeometry args={[0.05, 5, 4]} />
+        <meshStandardMaterial color="#f2efe6" roughness={1} />
+      </mesh>
+    </>
+  );
+}
+
+function DeerMesh() {
+  return (
+    <>
+      <mesh position={[0, 0.55, 0]} castShadow>
+        <boxGeometry args={[0.36, 0.36, 0.75]} />
+        <meshStandardMaterial color="#a8825a" roughness={1} />
+      </mesh>
+      {/* neck + head */}
+      <mesh position={[0, 0.82, 0.4]} rotation={[0.5, 0, 0]} castShadow>
+        <boxGeometry args={[0.14, 0.36, 0.14]} />
+        <meshStandardMaterial color="#a8825a" roughness={1} />
+      </mesh>
+      <mesh position={[0, 1, 0.52]} castShadow>
+        <boxGeometry args={[0.18, 0.16, 0.26]} />
+        <meshStandardMaterial color="#9a7448" roughness={1} />
+      </mesh>
+      {/* antlers */}
+      <mesh position={[-0.08, 1.16, 0.46]} rotation={[0, 0, -0.4]}>
+        <boxGeometry args={[0.04, 0.22, 0.04]} />
+        <meshStandardMaterial color="#6b5436" roughness={1} />
+      </mesh>
+      <mesh position={[0.08, 1.16, 0.46]} rotation={[0, 0, 0.4]}>
+        <boxGeometry args={[0.04, 0.22, 0.04]} />
+        <meshStandardMaterial color="#6b5436" roughness={1} />
+      </mesh>
+      <mesh position={[-0.14, 1.22, 0.46]} rotation={[0, 0, -1.1]}>
+        <boxGeometry args={[0.03, 0.12, 0.03]} />
+        <meshStandardMaterial color="#6b5436" roughness={1} />
+      </mesh>
+      <mesh position={[0.14, 1.22, 0.46]} rotation={[0, 0, 1.1]}>
+        <boxGeometry args={[0.03, 0.12, 0.03]} />
+        <meshStandardMaterial color="#6b5436" roughness={1} />
+      </mesh>
+      {/* slender legs */}
+      {[[-0.12, 0.28], [0.12, 0.28], [-0.12, -0.28], [0.12, -0.28]].map(([x, z], i) => (
+        <mesh key={i} position={[x, 0.19, z]}>
+          <boxGeometry args={[0.07, 0.38, 0.07]} />
+          <meshStandardMaterial color="#8a6a44" roughness={1} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
 function AnimalMesh({ a }: { a: Animal }) {
   const ref = useRef<THREE.Group>(null);
   const barRef = useRef<HTMLDivElement>(null);
@@ -163,10 +241,10 @@ function AnimalMesh({ a }: { a: Animal }) {
           document.body.style.cursor = "";
         }}
       >
-        {a.kind === "chicken" ? <ChickenMesh /> : <BoarMesh />}
+        {a.kind === "chicken" ? <ChickenMesh /> : a.kind === "rabbit" ? <RabbitMesh /> : a.kind === "deer" ? <DeerMesh /> : <BoarMesh />}
       </group>
       {a.hp < a.maxHp && (
-        <Html position={[0, a.kind === "chicken" ? 1 : 1.3, 0]} center distanceFactor={26} zIndexRange={[15, 0]}>
+        <Html position={[0, a.kind === "chicken" || a.kind === "rabbit" ? 1 : 1.4, 0]} center distanceFactor={26} zIndexRange={[15, 0]}>
           <div className="zombie-hp">
             <div className="zombie-hp-fill animal" ref={barRef} />
           </div>
@@ -177,7 +255,7 @@ function AnimalMesh({ a }: { a: Animal }) {
           at={myHit.at}
           text={myHit.crit ? `💥 −${myHit.amount}` : `−${myHit.amount}`}
           crit={myHit.crit}
-          position={[0.3, a.kind === "chicken" ? 1.2 : 1.5, 0]}
+          position={[0.3, a.kind === "chicken" || a.kind === "rabbit" ? 1.2 : 1.6, 0]}
         />
       )}
     </group>
@@ -247,7 +325,7 @@ export default function Animals() {
         if (now > a.stateUntil) a.state = "wander";
         else {
           // slower than the player walks, so a hunt can actually end
-          const speed = 2.4;
+          const speed = FLEE_SPEED[a.kind];
           const nx = a.x - (dxp / (distP || 1)) * speed * dt;
           const nz = a.z - (dzp / (distP || 1)) * speed * dt;
           [a.x, a.z] = resolveMovement(a.x, a.z, nx, nz, state.choppedAt);
@@ -256,10 +334,11 @@ export default function Animals() {
         }
       }
 
-      // wander near home; chickens shy away from a close player (unless hunted)
-      if (a.kind === "chicken" && distP < 2 && state.animalTargetId !== a.id) {
+      // wander near home; shy animals scatter when approached (unless hunted)
+      const shyRange = a.kind === "deer" ? 4 : 2;
+      if (SHY[a.kind] && distP < shyRange && state.animalTargetId !== a.id) {
         a.state = "flee";
-        a.stateUntil = now + 900;
+        a.stateUntil = now + (a.kind === "deer" ? 1500 : 900);
         continue;
       }
       a.think -= dt;
@@ -301,7 +380,7 @@ export function onAnimalHit(a: Animal) {
     useGame.getState().animalKilled(a.kind);
     return;
   }
-  if (a.kind === "chicken") {
+  if (SHY[a.kind]) {
     // brief stun so follow-up swings connect
     a.state = "stun";
     a.stateUntil = Date.now() + 700;

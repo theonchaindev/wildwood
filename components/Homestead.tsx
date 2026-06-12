@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { useFrame, ThreeEvent } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
-import { useGame, SEEDS, BUILDABLES, COOP_COST, Structure } from "@/lib/store";
+import { useGame, SEEDS, BUILDABLES, PEN_DEFS, Structure } from "@/lib/store";
 import { live, daylight, moveTarget } from "@/lib/runtime";
 import { Model } from "@/lib/assets";
 import {
   HOME_TIERS, HOME_GATE_POS, HOME_CHEST_POS, HOME_FURNACE_POS,
-  HOME_EXTEND_POS, HOME_CABIN_POS, HOME_COOP_POS, homeTilePos, homeTileKey,
+  HOME_EXTEND_POS, HOME_CABIN_POS, PEN_SPOTS, pensAllowed, homeTilePos, homeTileKey,
 } from "@/lib/world";
 
 function near(px: number, pz: number, r = 4) {
@@ -208,73 +208,184 @@ function Cabin() {
   );
 }
 
-function Coop() {
-  const coop = useGame((s) => s.coop);
+const PEN_ANIMAL_MESH: Record<string, JSX.Element> = {
+  chicken: (
+    <>
+      <mesh position={[0, 0.18, 0]} castShadow>
+        <boxGeometry args={[0.2, 0.18, 0.28]} />
+        <meshStandardMaterial color="#f2efe6" roughness={1} />
+      </mesh>
+      <mesh position={[0, 0.34, 0.12]}>
+        <boxGeometry args={[0.1, 0.12, 0.1]} />
+        <meshStandardMaterial color="#f2efe6" roughness={1} />
+      </mesh>
+      <mesh position={[0, 0.42, 0.12]}>
+        <boxGeometry args={[0.03, 0.05, 0.06]} />
+        <meshStandardMaterial color="#d8453a" roughness={1} />
+      </mesh>
+    </>
+  ),
+  sheep: (
+    <>
+      <mesh position={[0, 0.35, 0]} castShadow>
+        <boxGeometry args={[0.45, 0.38, 0.6]} />
+        <meshStandardMaterial color="#ece8dd" roughness={1} />
+      </mesh>
+      <mesh position={[0, 0.42, 0.38]} castShadow>
+        <boxGeometry args={[0.22, 0.22, 0.2]} />
+        <meshStandardMaterial color="#3a342c" roughness={1} />
+      </mesh>
+      {[[-0.14, 0.22], [0.14, 0.22], [-0.14, -0.22], [0.14, -0.22]].map(([x, z], i) => (
+        <mesh key={i} position={[x, 0.09, z]}>
+          <boxGeometry args={[0.08, 0.18, 0.08]} />
+          <meshStandardMaterial color="#3a342c" roughness={1} />
+        </mesh>
+      ))}
+    </>
+  ),
+  pig: (
+    <>
+      <mesh position={[0, 0.28, 0]} castShadow>
+        <boxGeometry args={[0.4, 0.32, 0.6]} />
+        <meshStandardMaterial color="#e8a8a0" roughness={1} />
+      </mesh>
+      <mesh position={[0, 0.3, 0.36]} castShadow>
+        <boxGeometry args={[0.24, 0.22, 0.16]} />
+        <meshStandardMaterial color="#e8a8a0" roughness={1} />
+      </mesh>
+      <mesh position={[0, 0.28, 0.46]}>
+        <boxGeometry args={[0.12, 0.1, 0.05]} />
+        <meshStandardMaterial color="#d68d84" roughness={1} />
+      </mesh>
+      {[[-0.12, 0.2], [0.12, 0.2], [-0.12, -0.2], [0.12, -0.2]].map(([x, z], i) => (
+        <mesh key={i} position={[x, 0.07, z]}>
+          <boxGeometry args={[0.08, 0.14, 0.08]} />
+          <meshStandardMaterial color="#d68d84" roughness={1} />
+        </mesh>
+      ))}
+    </>
+  ),
+  cow: (
+    <>
+      <mesh position={[0, 0.42, 0]} castShadow>
+        <boxGeometry args={[0.5, 0.42, 0.8]} />
+        <meshStandardMaterial color="#e8e0d2" roughness={1} />
+      </mesh>
+      <mesh position={[0.1, 0.5, 0.15]} castShadow>
+        <boxGeometry args={[0.22, 0.2, 0.3]} />
+        <meshStandardMaterial color="#5a4434" roughness={1} />
+      </mesh>
+      <mesh position={[0, 0.5, 0.5]} castShadow>
+        <boxGeometry args={[0.26, 0.26, 0.24]} />
+        <meshStandardMaterial color="#e8e0d2" roughness={1} />
+      </mesh>
+      <mesh position={[-0.1, 0.66, 0.5]} rotation={[0, 0, 0.5]}>
+        <boxGeometry args={[0.12, 0.04, 0.04]} />
+        <meshStandardMaterial color="#d9c8a8" roughness={1} />
+      </mesh>
+      <mesh position={[0.1, 0.66, 0.5]} rotation={[0, 0, -0.5]}>
+        <boxGeometry args={[0.12, 0.04, 0.04]} />
+        <meshStandardMaterial color="#d9c8a8" roughness={1} />
+      </mesh>
+      {[[-0.16, 0.28], [0.16, 0.28], [-0.16, -0.28], [0.16, -0.28]].map(([x, z], i) => (
+        <mesh key={i} position={[x, 0.1, z]}>
+          <boxGeometry args={[0.1, 0.2, 0.1]} />
+          <meshStandardMaterial color="#e8e0d2" roughness={1} />
+        </mesh>
+      ))}
+    </>
+  ),
+};
+
+function PenAnimalIdle({ kind, seed }: { kind: string; seed: number }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    if (ref.current) {
+      const t = clock.elapsedTime + seed * 2.3;
+      ref.current.position.y = Math.abs(Math.sin(t * (kind === "chicken" ? 6 : 3))) * 0.03;
+      ref.current.rotation.y = seed * 1.8 + Math.sin(t * 0.4) * 0.5;
+    }
+  });
+  return <group ref={ref}>{PEN_ANIMAL_MESH[kind]}</group>;
+}
+
+function PenSpot({ idx }: { idx: number }) {
+  const pen = useGame((s) => s.pens[idx]);
+  const [x, z] = PEN_SPOTS[idx];
+  const def = pen ? PEN_DEFS[pen.animal] : null;
+  // periodic re-render so the "ready" badge appears
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => tick((n) => n + 1), 5000);
+    return () => clearInterval(iv);
+  }, []);
+  const pending = useGame.getState().penPending(idx);
+
   const click = stopAnd(() => {
     const s = useGame.getState();
-    if (!near(HOME_COOP_POS[0], HOME_COOP_POS[2], 4)) {
-      s.addToast("Walk closer to the coop");
+    if (!near(x, z, 4.5)) {
+      s.addToast("Walk closer to the pen");
       return;
     }
-    s.setOpenPanel("coop");
+    s.setOpenPen(idx);
   });
-  if (!coop.owned) {
-    return (
-      <group position={HOME_COOP_POS} onClick={click} {...hoverCursor()}>
-        <mesh position={[0, 0.5, 0]} castShadow>
-          <cylinderGeometry args={[0.05, 0.06, 1, 6]} />
-          <meshStandardMaterial color="#5e4426" roughness={1} />
-        </mesh>
-        <mesh position={[0, 1.05, 0]} castShadow>
-          <boxGeometry args={[1.1, 0.6, 0.08]} />
-          <meshStandardMaterial color="#a8854a" roughness={1} />
-        </mesh>
-        <Html position={[0, 1.9, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
-          <div className="world-label">🐔 Build coop — {COOP_COST.acorns} 🌰 + {COOP_COST.wood} 🪵</div>
-        </Html>
-      </group>
-    );
+
+  // fence square 4.6 × 4
+  const posts: [number, number][] = [];
+  for (let px = -2.3; px <= 2.3; px += 1.15) {
+    posts.push([px, -2], [px, 2]);
   }
+  for (let pz = -1; pz <= 1; pz += 1) {
+    posts.push([-2.3, pz], [2.3, pz]);
+  }
+
   return (
-    <group position={HOME_COOP_POS} onClick={click} {...hoverCursor()}>
-      {/* hut */}
-      <mesh position={[0, 0.7, 0]} castShadow>
-        <boxGeometry args={[1.8, 1.2, 1.4]} />
-        <meshStandardMaterial color="#a8854a" roughness={1} />
+    <group position={[x, 0, z]} onClick={click} {...hoverCursor()}>
+      {/* dirt pad */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} receiveShadow>
+        <planeGeometry args={[4.6, 4]} />
+        <meshStandardMaterial color={pen ? "#9b8456" : "#85975c"} roughness={1} />
       </mesh>
-      <mesh position={[0, 1.45, 0]} rotation={[0, 0, Math.PI / 4]} castShadow>
-        <boxGeometry args={[1.5, 1.5, 1.6]} />
-        <meshStandardMaterial color="#75582f" roughness={1} />
-      </mesh>
-      {/* door hole + ramp */}
-      <mesh position={[0, 0.45, 0.71]}>
-        <boxGeometry args={[0.4, 0.5, 0.03]} />
-        <meshStandardMaterial color="#3a2c18" roughness={1} />
-      </mesh>
-      <mesh position={[0, 0.18, 1.15]} rotation={[0.5, 0, 0]}>
-        <boxGeometry args={[0.45, 0.04, 0.9]} />
+      {posts.map(([px, pz], i) => (
+        <mesh key={i} position={[px, 0.3, pz]} castShadow>
+          <boxGeometry args={[0.1, 0.6, 0.1]} />
+          <meshStandardMaterial color="#75582f" roughness={1} />
+        </mesh>
+      ))}
+      {/* rails */}
+      {[[-2, 0, 4.6, 0.08], [2, 0, 4.6, 0.08]].map(([rz, rx, w], i) => (
+        <mesh key={"r" + i} position={[0, 0.45, rz as number]} castShadow>
+          <boxGeometry args={[w as number, 0.07, 0.07]} />
+          <meshStandardMaterial color="#8a6a3f" roughness={1} />
+        </mesh>
+      ))}
+      <mesh position={[-2.3, 0.45, 0]} castShadow>
+        <boxGeometry args={[0.07, 0.07, 4]} />
         <meshStandardMaterial color="#8a6a3f" roughness={1} />
       </mesh>
-      {/* hens pecking about */}
-      {Array.from({ length: coop.hens }).map((_, i) => (
-        <group key={i} position={[1.4 + (i % 2) * 0.8, 0, 0.8 + Math.floor(i / 2) * 0.9]} rotation={[0, i * 1.8, 0]}>
-          <mesh position={[0, 0.18, 0]} castShadow>
-            <boxGeometry args={[0.2, 0.18, 0.28]} />
-            <meshStandardMaterial color="#f2efe6" roughness={1} />
-          </mesh>
-          <mesh position={[0, 0.34, 0.12]}>
-            <boxGeometry args={[0.1, 0.12, 0.1]} />
-            <meshStandardMaterial color="#f2efe6" roughness={1} />
-          </mesh>
-          <mesh position={[0, 0.42, 0.12]}>
-            <boxGeometry args={[0.03, 0.05, 0.06]} />
-            <meshStandardMaterial color="#d8453a" roughness={1} />
-          </mesh>
-        </group>
-      ))}
-      <Html position={[0, 2.5, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
-        <div className="world-label small">🐔 Coop · {coop.hens} hen{coop.hens > 1 ? "s" : ""}</div>
-      </Html>
+      <mesh position={[2.3, 0.45, 0]} castShadow>
+        <boxGeometry args={[0.07, 0.07, 4]} />
+        <meshStandardMaterial color="#8a6a3f" roughness={1} />
+      </mesh>
+
+      {pen ? (
+        <>
+          {Array.from({ length: pen.count }).map((_, i) => (
+            <group key={i} position={[-1.4 + (i % 2) * 1.6, 0, -0.9 + Math.floor(i / 2) * 1.6]}>
+              <PenAnimalIdle kind={pen.animal} seed={idx * 4 + i} />
+            </group>
+          ))}
+          <Html position={[0, 2, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
+            <div className="world-label small">
+              {def!.icon} ×{pen.count}{pending > 0 ? ` · ${def!.productIcon} ${pending} ready!` : ""}
+            </div>
+          </Html>
+        </>
+      ) : (
+        <Html position={[0, 1.6, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
+          <div className="world-label">🚧 Empty pen — pick an animal</div>
+        </Html>
+      )}
     </group>
   );
 }
@@ -512,7 +623,11 @@ export default function Homestead() {
       {!visiting && <Furnace />}
       <ExitGate />
       {!visiting && <ExtendSign />}
-      {visiting ? <VisitCoop hens={visitData!.coop?.owned ? visitData!.coop.hens : 0} /> : <Coop />}
+      {visiting
+        ? Object.entries(visitData!.pens ?? {}).map(([i, p]: [string, any]) =>
+            Number(i) < PEN_SPOTS.length ? <VisitPen key={i} idx={Number(i)} animal={p.animal} count={p.count} /> : null
+          )
+        : PEN_SPOTS.slice(0, pensAllowed(homeTier)).map((_, i) => <PenSpot key={i} idx={i} />)}
       {!visiting && <SleepingDog />}
 
       {structures.map((st) => (
@@ -530,24 +645,17 @@ export default function Homestead() {
   );
 }
 
-function VisitCoop({ hens }: { hens: number }) {
-  if (hens < 1) return null;
+function VisitPen({ idx, animal, count }: { idx: number; animal: string; count: number }) {
+  const [x, z] = PEN_SPOTS[idx];
   return (
-    <group position={HOME_COOP_POS}>
-      <mesh position={[0, 0.7, 0]} castShadow>
-        <boxGeometry args={[1.8, 1.2, 1.4]} />
-        <meshStandardMaterial color="#a8854a" roughness={1} />
+    <group position={[x, 0, z]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} receiveShadow>
+        <planeGeometry args={[4.6, 4]} />
+        <meshStandardMaterial color="#9b8456" roughness={1} />
       </mesh>
-      <mesh position={[0, 1.45, 0]} rotation={[0, 0, Math.PI / 4]} castShadow>
-        <boxGeometry args={[1.5, 1.5, 1.6]} />
-        <meshStandardMaterial color="#75582f" roughness={1} />
-      </mesh>
-      {Array.from({ length: hens }).map((_, i) => (
-        <group key={i} position={[1.4 + (i % 2) * 0.8, 0, 0.8 + Math.floor(i / 2) * 0.9]} rotation={[0, i * 1.8, 0]}>
-          <mesh position={[0, 0.18, 0]} castShadow>
-            <boxGeometry args={[0.2, 0.18, 0.28]} />
-            <meshStandardMaterial color="#f2efe6" roughness={1} />
-          </mesh>
+      {Array.from({ length: Math.min(count, 4) }).map((_, i) => (
+        <group key={i} position={[-1.4 + (i % 2) * 1.6, 0, -0.9 + Math.floor(i / 2) * 1.6]}>
+          <PenAnimalIdle kind={animal} seed={idx * 4 + i} />
         </group>
       ))}
     </group>

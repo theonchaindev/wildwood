@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   useGame, AXES, WEAPONS, ARMOR, SHIRTS, HATS, MEDS, SEEDS, FOODS, RECIPES,
   SELL_PRICES, COMBAT, AxeTier, WeaponTier, ArmorTier, ROD_COST, DOG_COST,
-  BUILDABLES, HEN_COST, MAX_HENS, EGG_INTERVAL_MS, COOP_COST,
+  BUILDABLES, PEN_DEFS, PEN_BUILD_COST, MAX_PER_PEN, PenAnimal,
   PICKAXE_COST, HELD_TORCH_COST,
   COLLECTIBLE_RESPAWN_MS, PACK_CAP, chestCapFor, rankFor, dayOffers,
 } from "@/lib/store";
@@ -48,6 +48,13 @@ const ITEM_ICONS: Record<string, string> = {
   Egg: "🥚",
   "Fried Egg": "🍳",
   Stone: "🪨",
+  Wool: "🧶",
+  "Raw Steak": "🥩",
+  "Cooked Steak": "🍖",
+  "Raw Rabbit": "🥩",
+  "Cooked Rabbit": "🍖",
+  "Raw Venison": "🥩",
+  "Cooked Venison": "🍖",
 };
 
 const BUILDING_LABELS = Object.fromEntries(BUILDINGS.map((b) => [b.id, b.label]));
@@ -805,64 +812,87 @@ function HomeOfferModal() {
   );
 }
 
-function CoopModal() {
+function PenModal() {
   const s = useGame();
-  const pending = s.pendingEggs();
+  const idx = s.openPen!;
+  const pen = s.pens[idx];
   const [, tick] = useState(0);
   useEffect(() => {
     const iv = setInterval(() => tick((n) => n + 1), 3000);
     return () => clearInterval(iv);
   }, []);
+  const close = () => s.setOpenPen(null);
   return (
-    <div className="modal-backdrop" onClick={() => s.setOpenPanel(null)}>
+    <div className="modal-backdrop" onClick={close}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <span className="modal-title">🐔 Chicken Coop</span>
-          <span className="modal-acorns">🌰 {s.acorns}</span>
+          <span className="modal-title">{pen ? `${PEN_DEFS[pen.animal].icon} ${PEN_DEFS[pen.animal].label}` : "🚧 Empty Pen"}</span>
+          <span className="modal-acorns">🌰 {s.acorns} · 🪵 {s.inventory.Wood ?? 0}</span>
         </div>
-        {!s.coop.owned ? (
+        {!pen ? (
           <>
             <div className="plot-pitch">
-              Hens lay eggs while you&apos;re off adventuring — collect them, fry
-              them, eat or sell them.
+              Choose what lives here — they produce on their own, even while
+              you&apos;re off adventuring. Fencing costs {PEN_BUILD_COST.acorns} 🌰 + {PEN_BUILD_COST.wood} 🪵.
             </div>
-            <div className="help-grid" style={{ marginTop: 10 }}>
-              <span>🥚</span><span>Each hen lays an egg every {Math.round(EGG_INTERVAL_MS / 60000)} min (stores up to 8)</span>
-              <span>🐔</span><span>Comes with 1 hen — add up to {MAX_HENS} ({HEN_COST} 🌰 each)</span>
-              <span>🍳</span><span>Fry eggs in your furnace for a proper meal</span>
-            </div>
-            <button
-              className="btn block"
-              disabled={s.acorns < COOP_COST.acorns || (s.inventory.Wood ?? 0) < COOP_COST.wood}
-              onClick={s.buyCoop}
-            >
-              Build for {COOP_COST.acorns} 🌰 + {COOP_COST.wood} 🪵
-            </button>
+            <div className="shop-section">Pick your animal</div>
+            {(Object.keys(PEN_DEFS) as PenAnimal[]).map((kind) => {
+              const def = PEN_DEFS[kind];
+              const total = PEN_BUILD_COST.acorns + def.animalCost;
+              return (
+                <ShopRow
+                  key={kind}
+                  icon={def.icon}
+                  name={def.label}
+                  blurb={<>{def.blurb} · {def.productIcon} {def.product} every {Math.round(def.intervalMs / 60000)} min each</>}
+                  right={
+                    <button
+                      className="btn small"
+                      disabled={s.acorns < total || (s.inventory.Wood ?? 0) < PEN_BUILD_COST.wood}
+                      onClick={() => s.buildPen(idx, kind)}
+                    >
+                      🌰 {total}
+                    </button>
+                  }
+                />
+              );
+            })}
           </>
         ) : (
           <>
-            <div className="shop-section">Your flock — {s.coop.hens}/{MAX_HENS} hens</div>
-            <ShopRow
-              icon="🥚"
-              name={pending > 0 ? `${pending} egg${pending > 1 ? "s" : ""} ready` : "No eggs yet"}
-              blurb={`Each hen lays one every ${Math.round(EGG_INTERVAL_MS / 60000)} min`}
-              right={
-                <button className="btn small" disabled={pending < 1} onClick={s.collectEggs}>
-                  Collect
-                </button>
-              }
-            />
-            {s.coop.hens < MAX_HENS && (
-              <ShopRow
-                icon="🐔"
-                name="Add a hen"
-                blurb="More hens, more eggs"
-                right={<BuyBtn cost={HEN_COST} onClick={s.buyHen} />}
-              />
-            )}
+            {(() => {
+              const def = PEN_DEFS[pen.animal];
+              const pending = s.penPending(idx);
+              return (
+                <>
+                  <div className="shop-section">Your {def.label.toLowerCase()} — {pen.count}/{MAX_PER_PEN}</div>
+                  <ShopRow
+                    icon={def.productIcon}
+                    name={pending > 0 ? `${pending} ${def.product} ready` : `No ${def.product} yet`}
+                    blurb={<>Each {def.icon} produces one every {Math.round(def.intervalMs / 60000)} min</>}
+                    right={
+                      <button className="btn small" disabled={pending < 1} onClick={() => s.collectPen(idx)}>
+                        Collect
+                      </button>
+                    }
+                  />
+                  {pen.count < MAX_PER_PEN && (
+                    <ShopRow
+                      icon={def.icon}
+                      name={`Add a ${def.label.toLowerCase().replace(/s$/, "")}`}
+                      blurb="More animals, more produce"
+                      right={<BuyBtn cost={def.animalCost} onClick={() => s.addPenAnimal(idx)} />}
+                    />
+                  )}
+                  <div className="shop-note">
+                    Want a different animal here? Extend your land for more pens — each one is its own choice.
+                  </div>
+                </>
+              );
+            })()}
           </>
         )}
-        <button className="btn block ghost" onClick={() => s.setOpenPanel(null)}>Close</button>
+        <button className="btn block ghost" onClick={close}>Close</button>
       </div>
     </div>
   );
@@ -1153,8 +1183,8 @@ export default function Hud() {
               ? s.homeTier > 0 ? "🏡 Enter your Homestead" : "🪧 Land for Sale"
               : s.nearInteract.kind === "homegate"
               ? "🌲 Back to the Forest"
-              : s.nearInteract.kind === "coop"
-              ? "🐔 Chicken Coop"
+              : s.nearInteract.kind === "pen"
+              ? (s.pens[s.nearInteract.idx] ? `${PEN_DEFS[s.pens[s.nearInteract.idx].animal].icon} Animal Pen` : "🚧 Empty Pen")
               : "📐 Extend your land"}
           </button>
         )}
@@ -1233,7 +1263,7 @@ export default function Hud() {
       {s.openShop && <ShopModal />}
       {s.openPanel === "chest" && <ChestModal />}
       {s.openPanel === "furnace" && <FurnaceModal />}
-      {s.openPanel === "coop" && <CoopModal />}
+      {s.openPen !== null && <PenModal />}
       {showBuild && <BuildModal onClose={() => setShowBuild(false)} />}
       {showLb && <LeaderboardModal onClose={() => setShowLb(false)} />}
       {s.homeOffer && <HomeOfferModal />}

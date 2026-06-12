@@ -10,7 +10,8 @@ import { sfx } from "@/lib/sound";
 import {
   COLLECTIBLES, CAMPFIRE_POS, BUILDINGS, GLADE_RADIUS, RIVER_X, RIVER_WIDTH,
   TREES, ROCKS, HOME_PORTAL_POS, HOME_GATE_POS, HOME_CHEST_POS, HOME_FURNACE_POS,
-  HOME_EXTEND_POS, HOME_COOP_POS, HOME_TIERS, zoneAt, resolveMovement, resolveHomeMovement, bridgeY,
+  HOME_EXTEND_POS, PEN_SPOTS, pensAllowed, HOME_TIERS, zoneAt, resolveMovement,
+  resolveHomeMovement, bridgeY,
 } from "@/lib/world";
 import HitPop from "./HitPop";
 import CharacterModel, { Motion } from "./CharacterModel";
@@ -108,7 +109,7 @@ export default function Player() {
             else s.setHomeOffer("buy");
           } else if (i.kind === "homegate") s.travel("forest");
           else if (i.kind === "extend") s.setHomeOffer("extend");
-          else if (i.kind === "coop") s.setOpenPanel("coop");
+          else if (i.kind === "pen") s.setOpenPen(i.idx);
         }
       }
       if (k === "f") {
@@ -439,10 +440,14 @@ export default function Player() {
             [HOME_CHEST_POS[0], HOME_CHEST_POS[2], { kind: "chest" }],
             [HOME_FURNACE_POS[0], HOME_FURNACE_POS[2], { kind: "furnace" }],
             [HOME_GATE_POS[0], HOME_GATE_POS[2], { kind: "homegate" }],
-            [HOME_COOP_POS[0], HOME_COOP_POS[2], { kind: "coop" }],
           ];
-      if (!visiting && state.homeTier < HOME_TIERS.length) {
-        spots.push([HOME_EXTEND_POS[0], HOME_EXTEND_POS[2], { kind: "extend" }]);
+      if (!visiting) {
+        PEN_SPOTS.slice(0, pensAllowed(state.homeTier)).forEach(([px2, pz2], idx) => {
+          spots.push([px2, pz2, { kind: "pen", idx }]);
+        });
+        if (state.homeTier < HOME_TIERS.length) {
+          spots.push([HOME_EXTEND_POS[0], HOME_EXTEND_POS[2], { kind: "extend" }]);
+        }
       }
       for (const [sx, sz, interact] of spots) {
         const d = Math.hypot(px - sx, pz - sz);

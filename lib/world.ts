@@ -364,9 +364,11 @@ export function resolveHomeMovement(
 
 // ---- animals ----
 
+export type WildKind = "chicken" | "boar" | "rabbit" | "deer";
+
 export type AnimalSpawn = {
   id: string;
-  kind: "chicken" | "boar";
+  kind: WildKind;
   pos: [number, number];
 };
 
@@ -385,7 +387,31 @@ export const ANIMAL_SPAWNS: AnimalSpawn[] = [
   { id: "bo-1", kind: "boar", pos: [16, -28] },
   { id: "bo-2", kind: "boar", pos: [-30, 34] },
   { id: "bo-3", kind: "boar", pos: [44, -16] },
+  // rabbits around the meadow + glade fringes
+  { id: "ra-0", kind: "rabbit", pos: [-6, 18] },
+  { id: "ra-1", kind: "rabbit", pos: [10, 24] },
+  { id: "ra-2", kind: "rabbit", pos: [-16, 6] },
+  { id: "ra-3", kind: "rabbit", pos: [18, -12] },
+  { id: "ra-4", kind: "rabbit", pos: [-12, 30] },
+  // deer in the deep forest + far bank
+  { id: "de-0", kind: "deer", pos: [-34, -20] },
+  { id: "de-1", kind: "deer", pos: [24, -34] },
+  { id: "de-2", kind: "deer", pos: [-38, 26] },
+  { id: "de-3", kind: "deer", pos: [48, 12] },
 ];
+
+// ---- homestead animal pens (unlocked by land tier) ----
+
+export const PEN_SPOTS: [number, number][] = [
+  [-9, -5],
+  [-13, 1],
+  [12, 4],
+  [-13, -8],
+];
+
+export function pensAllowed(tier: number) {
+  return tier >= 3 ? 4 : tier === 2 ? 2 : tier === 1 ? 1 : 0;
+}
 
 // ---- movement / collision ----
 

@@ -76,7 +76,7 @@ export const zombieSeq = { n: 0 };
 
 export type Animal = {
   id: string;
-  kind: "chicken" | "boar";
+  kind: "chicken" | "boar" | "rabbit" | "deer";
   homeX: number;
   homeZ: number;
   x: number;

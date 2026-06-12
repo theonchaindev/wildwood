@@ -13,7 +13,7 @@ export type Interact =
   | { kind: "portal" } // forest gate into the homestead
   | { kind: "homegate" } // homestead gate back to the forest
   | { kind: "extend" } // homestead extension sign
-  | { kind: "coop" }; // chicken coop (or its build spot)
+  | { kind: "pen"; idx: number }; // farm animal pen (or its empty spot)
 
 export type Quest = {
   id: string;
@@ -110,6 +110,13 @@ export const SELL_PRICES: Record<string, number> = {
   Egg: 5,
   "Fried Egg": 12,
   Stone: 5,
+  Wool: 14,
+  "Raw Steak": 15,
+  "Cooked Steak": 30,
+  "Raw Rabbit": 5,
+  "Cooked Rabbit": 12,
+  "Raw Venison": 12,
+  "Cooked Venison": 24,
 };
 
 export const COLLECTIBLE_RESPAWN_MS = 90_000;
@@ -140,6 +147,9 @@ export const RECIPES: Record<string, string> = {
   Carp: "Cooked Fish",
   Trout: "Cooked Fish",
   Egg: "Fried Egg",
+  "Raw Steak": "Cooked Steak",
+  "Raw Rabbit": "Cooked Rabbit",
+  "Raw Venison": "Cooked Venison",
 };
 
 // eating: hp/energy/hunger restored, and the infection risk of eating it raw
@@ -155,16 +165,36 @@ export const FOODS: Record<string, { hp: number; energy: number; hunger: number;
   "Fried Egg": { hp: 15, energy: 10, hunger: 20 },
   "Orange Mushroom": { hp: 5, energy: 5, hunger: 8 },
   "Purple Mushroom": { hp: 5, energy: 5, hunger: 8 },
+  "Raw Steak": { hp: 6, energy: 5, hunger: 10, infect: 0.2 },
+  "Cooked Steak": { hp: 35, energy: 15, hunger: 40 },
+  "Raw Rabbit": { hp: 4, energy: 4, hunger: 6, infect: 0.3 },
+  "Cooked Rabbit": { hp: 14, energy: 8, hunger: 18 },
+  "Raw Venison": { hp: 5, energy: 5, hunger: 8, infect: 0.2 },
+  "Cooked Venison": { hp: 28, energy: 12, hunger: 35 },
 };
 
 // ---- homestead extras ----
 
 export const DOG_COST = 200;
-export const COOP_COST = { acorns: 150, wood: 10 };
-export const HEN_COST = 40;
-export const MAX_HENS = 4;
-export const EGG_INTERVAL_MS = 240_000; // one egg per hen every 4 minutes
-export const EGG_STORE_CAP = 8;
+
+// ---- farm pens: pick an animal per pen, they produce while you play ----
+
+export type PenAnimal = "chicken" | "sheep" | "pig" | "cow";
+export type Pen = { animal: PenAnimal; count: number; lastCollect: number };
+
+export const PEN_BUILD_COST = { acorns: 100, wood: 8 };
+export const MAX_PER_PEN = 4;
+export const PEN_STORE_CAP = 8; // max uncollected produce per animal pen
+
+export const PEN_DEFS: Record<PenAnimal, {
+  label: string; icon: string; animalCost: number; product: string;
+  productIcon: string; intervalMs: number; blurb: string;
+}> = {
+  chicken: { label: "Chickens", icon: "🐔", animalCost: 40, product: "Egg", productIcon: "🥚", intervalMs: 240_000, blurb: "Lay eggs — fry them or sell them" },
+  sheep: { label: "Sheep", icon: "🐑", animalCost: 80, product: "Wool", productIcon: "🧶", intervalMs: 360_000, blurb: "Grow wool, sheared automatically" },
+  pig: { label: "Pigs", icon: "🐖", animalCost: 100, product: "Raw Pork", productIcon: "🥓", intervalMs: 480_000, blurb: "Provide pork for the furnace" },
+  cow: { label: "Cows", icon: "🐄", animalCost: 150, product: "Raw Steak", productIcon: "🥩", intervalMs: 600_000, blurb: "The best meat in the forest" },
+};
 
 export type Structure = { id: number; type: string; x: number; z: number };
 
@@ -198,9 +228,11 @@ export const DEFAULT_APPEARANCE: Appearance = {
   accessory: "none",
 };
 
-export const ANIMAL_DROPS: Record<"chicken" | "boar", { label: string; min: number; max: number; xp: number }> = {
+export const ANIMAL_DROPS: Record<"chicken" | "boar" | "rabbit" | "deer", { label: string; min: number; max: number; xp: number }> = {
   chicken: { label: "Raw Chicken", min: 1, max: 2, xp: 12 },
   boar: { label: "Raw Pork", min: 2, max: 3, xp: 18 },
+  rabbit: { label: "Raw Rabbit", min: 1, max: 1, xp: 10 },
+  deer: { label: "Raw Venison", min: 2, max: 3, xp: 20 },
 };
 
 const FISH_TABLE: { label: string; weight: number }[] = [
@@ -332,12 +364,12 @@ type GameState = {
     homeTier: number;
     structures: Structure[];
     farm: Record<string, { seed: string; at: number }>;
-    coop: { owned: boolean; hens: number };
+    pens: Record<string, Pen>;
   } | null;
   chest: Record<string, number>;
   farm: Record<string, { seed: string; at: number }>;
   dog: boolean;
-  coop: { owned: boolean; hens: number; lastEggAt: number };
+  pens: Record<string, Pen>; // key = pen spot index
   structures: Structure[];
   buildMode: string | null; // buildable key, or "remove"
 
@@ -348,7 +380,8 @@ type GameState = {
   nearInteract: Interact | null;
   nearWater: boolean;
   openShop: ShopId | null;
-  openPanel: "chest" | "furnace" | "coop" | null;
+  openPanel: "chest" | "furnace" | null;
+  openPen: number | null;
   homeOffer: "buy" | "extend" | null;
   showQuests: boolean;
   showHelp: boolean;
@@ -378,17 +411,17 @@ type GameState = {
   setAttackTarget: (id: number | null) => void;
   setAnimalTarget: (id: string | null) => void;
   zombieKilled: () => void;
-  animalKilled: (kind: "chicken" | "boar") => void;
+  animalKilled: (kind: "chicken" | "boar" | "rabbit" | "deer") => void;
   hurt: (dmg: number, canInfect?: boolean) => void;
   buyHomestead: () => void;
   extendHomestead: () => void;
   travel: (to: "forest" | "home") => void;
   startVisit: (data: GameState["visitData"]) => void;
   buyDog: () => void;
-  buyCoop: () => void;
-  buyHen: () => void;
-  pendingEggs: () => number;
-  collectEggs: () => void;
+  buildPen: (idx: number, animal: PenAnimal) => void;
+  addPenAnimal: (idx: number) => void;
+  penPending: (idx: number) => number;
+  collectPen: (idx: number) => void;
   setBuildMode: (mode: string | null) => void;
   placeStructure: (x: number, z: number) => void;
   removeStructure: (id: number) => void;
@@ -415,7 +448,8 @@ type GameState = {
   setNearWater: (near: boolean) => void;
   tick: (dtSeconds: number, moving: boolean, nearCamp: boolean, sprinting: boolean, working: boolean) => void;
   setOpenShop: (id: ShopId | null) => void;
-  setOpenPanel: (p: "chest" | "furnace" | "coop" | null) => void;
+  setOpenPanel: (p: "chest" | "furnace" | null) => void;
+  setOpenPen: (idx: number | null) => void;
   setHomeOffer: (o: "buy" | "extend" | null) => void;
   toggleQuests: () => void;
   toggleHelp: () => void;
@@ -483,7 +517,7 @@ export const useGame = create<GameState>()(
       chest: {},
       farm: {},
       dog: false,
-      coop: { owned: false, hens: 0, lastEggAt: 0 },
+      pens: {},
       structures: [],
       buildMode: null,
 
@@ -495,6 +529,7 @@ export const useGame = create<GameState>()(
       nearWater: false,
       openShop: null,
       openPanel: null,
+      openPen: null,
       homeOffer: null,
       showQuests: false,
       showHelp: false,
@@ -690,7 +725,8 @@ export const useGame = create<GameState>()(
         const n = drop.min + Math.floor(Math.random() * (drop.max - drop.min + 1));
         const got = s.gainItem(drop.label, n);
         set({ animalTargetId: null });
-        s.addToast(`${kind === "chicken" ? "🐔" : "🐗"} +${got} ${drop.label} · +${drop.xp} XP`);
+        const icon = { chicken: "🐔", boar: "🐗", rabbit: "🐇", deer: "🦌" }[kind];
+        s.addToast(`${icon} +${got} ${drop.label} · +${drop.xp} XP`);
         sfx.coin();
         s.addXp(drop.xp);
       },
@@ -727,59 +763,70 @@ export const useGame = create<GameState>()(
         s.setBanner("🐕 You adopted a dog! He'll fight by your side");
       },
 
-      buyCoop: () => {
+      buildPen: (idx, animal) => {
         const s = get();
-        if (s.coop.owned || s.homeTier < 1) return;
-        if ((s.inventory.Wood ?? 0) < COOP_COST.wood) {
-          s.addToast(`You need ${COOP_COST.wood} Wood to build the coop 🪵`);
+        if (s.pens[idx] || s.homeTier < 1) return;
+        const def = PEN_DEFS[animal];
+        const totalAcorns = PEN_BUILD_COST.acorns + def.animalCost;
+        if ((s.inventory.Wood ?? 0) < PEN_BUILD_COST.wood) {
+          s.addToast(`You need ${PEN_BUILD_COST.wood} Wood for the fencing 🪵`);
           sfx.error();
           return;
         }
-        if (!spend(s, COOP_COST.acorns)) return;
+        if (!spend(s, totalAcorns)) return;
         const inv = { ...s.inventory };
-        if (inv.Wood - COOP_COST.wood <= 0) delete inv.Wood;
-        else inv.Wood -= COOP_COST.wood;
+        if (inv.Wood - PEN_BUILD_COST.wood <= 0) delete inv.Wood;
+        else inv.Wood -= PEN_BUILD_COST.wood;
         set({
-          acorns: s.acorns - COOP_COST.acorns,
+          acorns: s.acorns - totalAcorns,
           inventory: inv,
-          coop: { owned: true, hens: 1, lastEggAt: Date.now() },
+          pens: { ...s.pens, [idx]: { animal, count: 1, lastCollect: Date.now() } },
         });
         sfx.buy();
-        s.setBanner("🐔 Coop built — your first hen moved in!");
+        s.setBanner(`${def.icon} ${def.label} moved onto your farm!`);
       },
 
-      buyHen: () => {
+      addPenAnimal: (idx) => {
         const s = get();
-        if (!s.coop.owned || s.coop.hens >= MAX_HENS) return;
-        if (!spend(s, HEN_COST)) return;
-        // bank the eggs laid so far, then restart the clock with more hens
-        const pending = get().pendingEggs();
-        if (pending > 0) get().collectEggs();
+        const pen = s.pens[idx];
+        if (!pen || pen.count >= MAX_PER_PEN) return;
+        const def = PEN_DEFS[pen.animal];
+        if (!spend(s, def.animalCost)) return;
+        // bank what's been produced so far, then restart the clock
+        if (get().penPending(idx) > 0) get().collectPen(idx);
+        const cur = get().pens[idx];
         set({
-          acorns: get().acorns - HEN_COST,
-          coop: { ...get().coop, hens: get().coop.hens + 1, lastEggAt: Date.now() },
+          acorns: get().acorns - def.animalCost,
+          pens: { ...get().pens, [idx]: { ...cur, count: cur.count + 1, lastCollect: Date.now() } },
         });
         sfx.buy();
-        get().addToast(`🐔 A new hen joins the coop (${get().coop.hens}/${MAX_HENS})`);
+        get().addToast(`${def.icon} +1 (${cur.count + 1}/${MAX_PER_PEN})`);
       },
 
-      pendingEggs: () => {
-        const c = get().coop;
-        if (!c.owned || c.hens < 1) return 0;
-        return Math.min(EGG_STORE_CAP, Math.floor(((Date.now() - c.lastEggAt) / EGG_INTERVAL_MS) * c.hens));
+      penPending: (idx) => {
+        const pen = get().pens[idx];
+        if (!pen || pen.count < 1) return 0;
+        const def = PEN_DEFS[pen.animal];
+        return Math.min(
+          PEN_STORE_CAP,
+          Math.floor(((Date.now() - pen.lastCollect) / def.intervalMs) * pen.count)
+        );
       },
 
-      collectEggs: () => {
+      collectPen: (idx) => {
         const s = get();
-        const n = s.pendingEggs();
+        const pen = s.pens[idx];
+        if (!pen) return;
+        const def = PEN_DEFS[pen.animal];
+        const n = s.penPending(idx);
         if (n < 1) {
-          s.addToast("No eggs yet — check back later 🥚");
+          s.addToast(`Nothing ready yet — check back later ${def.productIcon}`);
           return;
         }
-        const got = s.gainItem("Egg", n);
+        const got = s.gainItem(def.product, n);
         if (got < 1) return;
-        set({ coop: { ...get().coop, lastEggAt: Date.now() } });
-        s.addToast(`🥚 Collected ${got} Egg${got > 1 ? "s" : ""}`);
+        set({ pens: { ...get().pens, [idx]: { ...pen, lastCollect: Date.now() } } });
+        s.addToast(`${def.productIcon} Collected ${got} ${def.product} · +${4 * got} XP`);
         sfx.pickup();
         s.addXp(4 * got);
       },
@@ -1329,7 +1376,11 @@ export const useGame = create<GameState>()(
       },
       setOpenPanel: (p) => {
         sfx.ui();
-        set({ openPanel: p, openShop: null, homeOffer: null, showQuests: false, showHelp: false });
+        set({ openPanel: p, openPen: null, openShop: null, homeOffer: null, showQuests: false, showHelp: false });
+      },
+      setOpenPen: (idx) => {
+        sfx.ui();
+        set({ openPen: idx, openPanel: null, openShop: null, homeOffer: null, showQuests: false, showHelp: false });
       },
       setHomeOffer: (o) => {
         sfx.ui();
@@ -1349,7 +1400,7 @@ export const useGame = create<GameState>()(
         set({ muted });
       },
       closeModals: () =>
-        set({ openShop: null, openPanel: null, homeOffer: null, buildMode: null, showQuests: false, showHelp: false }),
+        set({ openShop: null, openPanel: null, openPen: null, homeOffer: null, buildMode: null, showQuests: false, showHelp: false }),
     }),
     {
       name: "wildwood-save-v7",
@@ -1382,7 +1433,7 @@ export const useGame = create<GameState>()(
         chest: s.chest,
         farm: s.farm,
         dog: s.dog,
-        coop: s.coop,
+        pens: s.pens,
         structures: s.structures,
       }),
       onRehydrateStorage: () => (state) => {

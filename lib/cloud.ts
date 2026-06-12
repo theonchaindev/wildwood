@@ -48,7 +48,7 @@ export function saveData() {
     chest: s.chest,
     farm: s.farm,
     dog: s.dog,
-    coop: s.coop,
+    pens: s.pens,
     structures: s.structures,
   };
 }
@@ -222,7 +222,7 @@ export async function fetchVisit(name: string) {
     homeTier: number;
     structures: any[];
     farm: Record<string, { seed: string; at: number }>;
-    coop: { owned: boolean; hens: number };
+    pens: Record<string, { animal: string; count: number }>;
     level: number;
   }>(`/api/visit/${encodeURIComponent(name)}`);
 }

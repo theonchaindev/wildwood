@@ -21,7 +21,7 @@ export async function GET(_req: Request, { params }: { params: { name: string } 
     homeTier: save.homeTier,
     structures: save.structures ?? [],
     farm: save.farm ?? {},
-    coop: save.coop ?? { owned: false, hens: 0 },
+    pens: save.pens ?? {},
     level: save.level ?? 1,
   });
 }
