@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { Model, useCompositeModel } from "@/lib/assets";
 import {
   DECOR, COLLECTIBLES, RIVER_X, RIVER_WIDTH, CAMPFIRE_POS, BUILDINGS,
-  HOME_PORTAL_POS, HOME_TIERS,
+  HOME_PORTAL_POS, HOME_TIERS, CAVE_ENTRANCE_POS,
 } from "@/lib/world";
 import { useGame, COLLECTIBLE_RESPAWN_MS } from "@/lib/store";
 import { moveTarget, daylight, lastWater } from "@/lib/runtime";
@@ -389,6 +389,7 @@ export default function World() {
       <Dog />
       <GhostPlayers />
       <HomePortal />
+      <CaveEntrance />
 
       {/* signposts for the points of interest */}
       <group position={[-6, 0, -26]}>
@@ -399,6 +400,60 @@ export default function World() {
       </group>
 
       <Collectibles />
+    </group>
+  );
+}
+
+function CaveEntrance() {
+  const click = (e: any) => {
+    e.stopPropagation();
+    const s = useGame.getState();
+    if (s.nearInteract?.kind === "cave") {
+      s.enterCave();
+    } else {
+      s.addToast("Walk up to the mine entrance");
+      moveTarget.x = CAVE_ENTRANCE_POS[0];
+      moveTarget.z = CAVE_ENTRANCE_POS[2] + 2;
+      moveTarget.active = true;
+    }
+  };
+  return (
+    <group
+      position={CAVE_ENTRANCE_POS}
+      onClick={click}
+      onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; }}
+      onPointerOut={() => { document.body.style.cursor = ""; }}
+    >
+      {/* rocky outcrop with a dark mouth */}
+      <mesh position={[0, 1.6, -1]} castShadow>
+        <dodecahedronGeometry args={[3, 0]} />
+        <meshStandardMaterial color="#6e675e" roughness={1} />
+      </mesh>
+      <mesh position={[-2.4, 0.9, -0.4]} castShadow>
+        <dodecahedronGeometry args={[1.4, 0]} />
+        <meshStandardMaterial color="#5f584f" roughness={1} />
+      </mesh>
+      <mesh position={[2.3, 1, -0.6]} castShadow>
+        <dodecahedronGeometry args={[1.6, 0]} />
+        <meshStandardMaterial color="#665f55" roughness={1} />
+      </mesh>
+      {/* the mouth */}
+      <mesh position={[0, 1, 1.62]}>
+        <planeGeometry args={[2, 2]} />
+        <meshBasicMaterial color="#0c0a08" />
+      </mesh>
+      {/* timber frame */}
+      {[-1.1, 1.1].map((x) => (
+        <mesh key={x} position={[x, 1, 1.7]} castShadow>
+          <boxGeometry args={[0.18, 2, 0.18]} />
+          <meshStandardMaterial color="#5e4426" roughness={1} />
+        </mesh>
+      ))}
+      <mesh position={[0, 2.05, 1.7]} castShadow>
+        <boxGeometry args={[2.5, 0.2, 0.2]} />
+        <meshStandardMaterial color="#5e4426" roughness={1} />
+      </mesh>
+      <WorldLabel text="⛏️ The Old Mine" y={4} />
     </group>
   );
 }

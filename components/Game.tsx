@@ -6,6 +6,7 @@ import * as THREE from "three";
 import World from "./World";
 import Homestead from "./Homestead";
 import Interior from "./Interior";
+import Cave from "./Cave";
 import Player from "./Player";
 import Hud from "./Hud";
 import Login from "./Login";
@@ -20,6 +21,7 @@ const SKY_DAY = new THREE.Color("#7fae5e");
 const SKY_NIGHT = new THREE.Color("#0d1422");
 const SKY_BLOOD = new THREE.Color("#2a0d10");
 const SKY_INTERIOR = new THREE.Color("#221a10");
+const SKY_CAVE = new THREE.Color("#0b0a0c");
 const SKY_RAIN = new THREE.Color("#5e7261");
 
 // each season nudges the sunlight: warm gold autumns, pale blue winters
@@ -69,8 +71,10 @@ function DayNight() {
     }
     if (raining) sky.current.lerp(SKY_RAIN, 0.55 * d);
     sun.current.multiply(SEASON_TINT[seasonFor(clock.day).name]);
-    // indoors the world falls away into warm darkness
-    if (useGame.getState().location === "interior") sky.current.copy(SKY_INTERIOR);
+    // indoors (and underground) the world falls away into darkness
+    const loc = useGame.getState().location;
+    if (loc === "interior") sky.current.copy(SKY_INTERIOR);
+    if (loc === "cave") sky.current.copy(SKY_CAVE);
 
     if (scene.background instanceof THREE.Color) scene.background.copy(sky.current);
     else scene.background = sky.current.clone();
@@ -209,7 +213,7 @@ export default function Game() {
         <fog attach="fog" args={["#7fae5e", 60, 130]} />
         <DayNight />
         <Suspense fallback={null}>
-          {location === "forest" ? <World /> : location === "interior" ? <Interior /> : <Homestead />}
+          {location === "forest" ? <World /> : location === "interior" ? <Interior /> : location === "cave" ? <Cave /> : <Homestead />}
           <Player />
           <Rain />
         </Suspense>

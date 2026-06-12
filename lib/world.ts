@@ -238,6 +238,9 @@ for (const [x, z] of MOUNTAINS) {
   COLLIDERS.push({ x, z, r: size * 0.62 });
 }
 
+// the Old Mine's rocky outcrop (the mouth itself stays approachable)
+COLLIDERS.push({ x: -28, z: -27.4, r: 2.6 });
+
 // daffodils sprinkled around the glade as decoration (not collectible)
 for (let i = 0; i < 8; i++) {
   const a = rand(0, Math.PI * 2);
@@ -316,6 +319,7 @@ export const HOME_FURNACE_POS: [number, number, number] = [9, 0, -1.5];
 export const HOME_EXTEND_POS: [number, number, number] = [9, 0, 5.5]; // extension sign, in the east utility column
 export const HOME_CABIN_POS: [number, number, number] = [0, 0, -6.5];
 export const HOME_WELL_POS: [number, number, number] = [9, 0, 2]; // continues the utility column
+export const HOME_BENCH_POS: [number, number, number] = [6.8, 0, -6.2]; // crafting bench beside the chest
 export const HOME_POND_POS: [number, number, number] = [19, 0, 8];
 export const POND_R = 3.2;
 export const HOME_WINDMILL_POS: [number, number, number] = [-22, 0, -12];
@@ -398,6 +402,7 @@ function homeColliders(tier: number, houseLevel: number) {
   const c = [
     { x: HOME_CHEST_POS[0], z: HOME_CHEST_POS[2], r: 0.9 },
     { x: HOME_FURNACE_POS[0], z: HOME_FURNACE_POS[2], r: 1.0 },
+    { x: HOME_BENCH_POS[0], z: HOME_BENCH_POS[2], r: 0.8 },
     { x: HOME_CABIN_POS[0], z: HOME_CABIN_POS[2], r: 2.2 + houseLevel * 0.25 },
   ];
   if (t.well) c.push({ x: HOME_WELL_POS[0], z: HOME_WELL_POS[2], r: 0.75 });
@@ -426,6 +431,104 @@ export function resolveHomeMovement(
   }
   nx = Math.max(-t.halfW + 0.5, Math.min(t.halfW - 0.5, nx));
   nz = Math.max(-t.halfD + 0.5, Math.min(t.halfD - 0.5, nz));
+  return [nx, nz];
+}
+
+// ---- the Old Mine: a dark cave instance, entered in Darkwood ----
+
+export const CAVE_ENTRANCE_POS: [number, number, number] = [-28, 0, -26];
+export const CAVE_HW = 21;
+export const CAVE_HD = 14;
+
+export type CaveOre = {
+  id: string;
+  kind: "stone" | "coal" | "diamond";
+  pos: [number, number, number];
+  r: number;
+  size: number;
+};
+
+export const CAVE_ORES: CaveOre[] = [];
+export const STALAGMITES: { x: number; z: number; h: number; r: number }[] = [];
+
+{
+  const caveRng = mulberry32(4242);
+  const cRand = (min: number, max: number) => min + caveRng() * (max - min);
+  const clearOf = (x: number, z: number) =>
+    Math.hypot(x - 0, z - (CAVE_HD - 2)) > 3.5 && // entrance area stays open
+    CAVE_ORES.every((o) => Math.hypot(o.pos[0] - x, o.pos[2] - z) > 2.6) &&
+    STALAGMITES.every((s) => Math.hypot(s.x - x, s.z - z) > 2.4);
+
+  const place = (kind: CaveOre["kind"], n: number, size: [number, number]) => {
+    let placed = 0;
+    for (let tries = 0; tries < 200 && placed < n; tries++) {
+      const x = cRand(-CAVE_HW + 2, CAVE_HW - 2);
+      const z = cRand(-CAVE_HD + 2, CAVE_HD - 2);
+      if (!clearOf(x, z)) continue;
+      const s = cRand(size[0], size[1]);
+      CAVE_ORES.push({
+        id: `ore-${kind}-${placed}`,
+        kind,
+        pos: [x, 0, z],
+        r: s * 0.55 + 0.25,
+        size: s,
+      });
+      placed++;
+    }
+  };
+  // plain stone is plentiful, coal is common, diamonds are a lucky day
+  place("stone", 8, [0.8, 1.3]);
+  place("coal", 10, [0.9, 1.4]);
+  place("diamond", 2, [0.7, 0.9]);
+
+  for (let i = 0; i < 9; i++) {
+    for (let tries = 0; tries < 60; tries++) {
+      const x = cRand(-CAVE_HW + 1.5, CAVE_HW - 1.5);
+      const z = cRand(-CAVE_HD + 1.5, CAVE_HD - 1.5);
+      if (!clearOf(x, z)) continue;
+      STALAGMITES.push({ x, z, h: cRand(1.2, 3.2), r: cRand(0.4, 0.8) });
+      break;
+    }
+  }
+}
+
+export const ORE_RESPAWN_MS: Record<CaveOre["kind"], number> = {
+  stone: 150_000,
+  coal: 180_000,
+  diamond: 600_000, // diamonds make you wait
+};
+
+export function resolveCaveMovement(
+  px: number, pz: number, nxIn: number, nzIn: number,
+  mined: Record<string, number> = {}
+): [number, number] {
+  let nx = nxIn;
+  let nz = nzIn;
+  for (const s of STALAGMITES) {
+    const r = s.r + 0.35;
+    const dx = nx - s.x;
+    const dz = nz - s.z;
+    const d2 = dx * dx + dz * dz;
+    if (d2 < r * r && d2 > 1e-9) {
+      const d = Math.sqrt(d2);
+      nx = s.x + (dx / d) * r;
+      nz = s.z + (dz / d) * r;
+    }
+  }
+  for (const o of CAVE_ORES) {
+    if (mined[o.id]) continue;
+    const r = o.r + 0.35;
+    const dx = nx - o.pos[0];
+    const dz = nz - o.pos[2];
+    const d2 = dx * dx + dz * dz;
+    if (d2 < r * r && d2 > 1e-9) {
+      const d = Math.sqrt(d2);
+      nx = o.pos[0] + (dx / d) * r;
+      nz = o.pos[2] + (dz / d) * r;
+    }
+  }
+  nx = Math.max(-CAVE_HW + 0.5, Math.min(CAVE_HW - 0.5, nx));
+  nz = Math.max(-CAVE_HD + 0.5, Math.min(CAVE_HD - 0.5, nz));
   return [nx, nz];
 }
 

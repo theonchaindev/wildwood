@@ -74,6 +74,7 @@ export function saveData() {
     dogXp: s.dogXp,
     cat: s.cat,
     catLastPet: s.catLastPet,
+    horse: s.horse,
     pens: s.pens,
     orchard: s.orchard,
     hives: s.hives,

@@ -7,7 +7,7 @@ import {
   BUILDABLES, PEN_DEFS, PEN_BUILD_COST, MAX_PER_PEN, PenAnimal,
   PICKAXE_COST, HELD_TORCH_COST, HOUSE_LEVELS, RENT_AMOUNT, RENT_INTERVAL_MS,
   SKILLS, SkillKey, MAX_SKILL_RANK, ACHIEVEMENTS, dailyQuestsFor,
-  DECOR_ITEMS, MAX_DECOR, CAT_COST,
+  DECOR_ITEMS, MAX_DECOR, CAT_COST, HORSE_COST, CRAFT_RECIPES,
   COLLECTIBLE_RESPAWN_MS, PACK_CAP, chestCapFor, rankFor, dayOffers,
 } from "@/lib/store";
 import {
@@ -62,6 +62,10 @@ const ITEM_ICONS: Record<string, string> = {
   "Cooked Venison": "🍖",
   Apple: "🍎",
   Honey: "🍯",
+  Coal: "⚫",
+  Diamond: "💎",
+  "Honey Apple": "🍏",
+  "Forest Stew": "🍲",
 };
 
 const BUILDING_LABELS = Object.fromEntries(BUILDINGS.map((b) => [b.id, b.label]));
@@ -326,6 +330,12 @@ function TraderShop() {
         blurb="Lives on your Haven. Pet her once a day for a little present"
         right={s.cat ? <span className="shop-owned">Adopted</span> : <BuyBtn cost={CAT_COST} onClick={s.buyCat} />}
       />
+      <ShopRow
+        icon="🐴"
+        name="Horse"
+        blurb="Press H to ride — covers ground nearly twice as fast"
+        right={s.horse ? <span className="shop-owned">Stabled</span> : <BuyBtn cost={HORSE_COST} onClick={s.buyHorse} />}
+      />
       <div className="shop-section">Seeds — plant on your own plot</div>
       {Object.entries(SEEDS).map(([label, def]) => (
         <ShopRow
@@ -366,7 +376,7 @@ function ArmouryShop() {
       {wOrder.map((tier) => {
         const def = WEAPONS[tier];
         const c = COMBAT[tier];
-        const owned = s.weapon && wOrder.indexOf(s.weapon) >= wOrder.indexOf(tier);
+        const owned = s.weapon === "diamond" || (s.weapon && wOrder.indexOf(s.weapon) >= wOrder.indexOf(tier));
         return (
           <ShopRow
             key={tier}
@@ -865,7 +875,7 @@ function FurnaceModal() {
           <span className="modal-acorns">🪵 {wood}</span>
         </div>
         <div className="shop-note" style={{ marginTop: 0 }}>
-          Each cook burns 1 Wood. Cooked food heals more — and won&apos;t infect you.
+          Each cook burns 1 Coal (or 1 Wood). Cooked food heals more — and won&apos;t infect you.
         </div>
         <div className="shop-section">Cook</div>
         {cookable.length === 0 && (
@@ -908,7 +918,7 @@ function HomeOfferModal() {
       ["🌱", `${tier.tiles} farm tiles — plant seeds, harvest crops`],
       ["🐔", "1 animal pen — produce while you adventure"],
       ["📦", `Chest holds ${tier.chestCap} items`],
-      ["🔥", "Furnace — cook meat & fish (1 Wood per cook)"],
+      ["🔥", "Furnace — cook meat & fish (1 Coal or Wood per cook)"],
       ["🛖", "A cabin to call home — and no zombies, ever"],
     );
   } else if (current) {
@@ -962,6 +972,54 @@ function HomeOfferModal() {
           {buying ? `Buy for ${tier.price} 🌰` : `Extend for ${tier.price} 🌰`}
         </button>
         <button className="btn block ghost" onClick={() => s.setHomeOffer(null)}>Not now</button>
+      </div>
+    </div>
+  );
+}
+
+function BenchModal() {
+  const s = useGame();
+  const close = () => s.setOpenPanel(null);
+  return (
+    <div className="modal-backdrop" onClick={close}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <span className="modal-title">🛠️ Crafting Bench</span>
+          <span className="modal-acorns">🎒 {s.packCount()}/{PACK_CAP}</span>
+        </div>
+        <div className="plot-pitch">Turn raw materials into something better:</div>
+        {CRAFT_RECIPES.map((r) => {
+          const canCraft = Object.entries(r.inputs).every(([item, n]) => (s.inventory[item] ?? 0) >= n);
+          const ownedWeapon = r.weapon && s.weapon === r.weapon;
+          return (
+            <ShopRow
+              key={r.id}
+              icon={r.icon}
+              name={r.label}
+              blurb={
+                <>
+                  {r.blurb}
+                  <br />
+                  {Object.entries(r.inputs).map(([item, n]) => (
+                    <span key={item} style={{ opacity: (s.inventory[item] ?? 0) >= n ? 1 : 0.45, marginRight: 6 }}>
+                      {ITEM_ICONS[item] ?? "📦"} {n} {item}
+                    </span>
+                  ))}
+                </>
+              }
+              right={
+                ownedWeapon ? (
+                  <span className="shop-owned">Forged</span>
+                ) : (
+                  <button className="btn small" disabled={!canCraft} onClick={() => s.craftItem(r.id)}>
+                    Craft
+                  </button>
+                )
+              }
+            />
+          );
+        })}
+        <button className="btn block" onClick={close}>Close</button>
       </div>
     </div>
   );
@@ -1822,7 +1880,9 @@ export default function Hud() {
               } else if (i.kind === "hive") {
                 if (s.hives[i.idx]) s.collectHive(i.idx);
                 else s.buildHive(i.idx);
-              }
+              } else if (i.kind === "cave") s.enterCave();
+              else if (i.kind === "caveexit") s.exitCave();
+              else if (i.kind === "bench") s.setOpenPanel("bench");
             }}
           >
             Press <b>E</b> —{" "}
@@ -1846,6 +1906,12 @@ export default function Hud() {
               ? "📜 Estate Deeds"
               : s.nearInteract.kind === "exitdoor"
               ? "🚪 Step outside"
+              : s.nearInteract.kind === "cave"
+              ? "⛏️ Enter the Old Mine"
+              : s.nearInteract.kind === "caveexit"
+              ? "🌲 Back to Darkwood"
+              : s.nearInteract.kind === "bench"
+              ? "🛠️ Crafting Bench"
               : s.nearInteract.kind === "well"
               ? "💧 Draw water"
               : s.nearInteract.kind === "orchard"
@@ -1953,6 +2019,7 @@ export default function Hud() {
       {s.openPanel === "chest" && <ChestModal />}
       {s.openPanel === "furnace" && <FurnaceModal />}
       {s.openPanel === "house" && <HouseModal />}
+      {s.openPanel === "bench" && <BenchModal />}
       {s.openPen !== null && <PenModal />}
       {showBuild && <BuildModal onClose={() => setShowBuild(false)} />}
       {showLb && <LeaderboardModal onClose={() => setShowLb(false)} />}

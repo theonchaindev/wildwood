@@ -6,6 +6,7 @@ import { sfx } from "./sound";
 import { teleport, live, isBloodMoonNight, isNight, isRaining, clock, DAY_LENGTH_S } from "./runtime";
 import {
   CAMPFIRE_POS, ShopId, HOME_TIERS, HOME_PORTAL_POS, HOME_CABIN_POS,
+  CAVE_ENTRANCE_POS, CAVE_HD,
   homeGateZ, homeTierDef, interiorDims,
 } from "./world";
 
@@ -23,7 +24,10 @@ export type Interact =
   | { kind: "hive"; idx: number }
   | { kind: "bed" } // indoors
   | { kind: "desk" }
-  | { kind: "exitdoor" };
+  | { kind: "exitdoor" }
+  | { kind: "cave" } // the mine entrance in Darkwood
+  | { kind: "caveexit" }
+  | { kind: "bench" }; // crafting bench at the Haven
 
 export type Quest = {
   id: string;
@@ -39,7 +43,7 @@ export type Quest = {
 export type Toast = { id: number; text: string };
 
 export type AxeTier = "rusty" | "golden";
-export type WeaponTier = "club" | "spear" | "sword";
+export type WeaponTier = "club" | "spear" | "sword" | "diamond";
 export type ArmorTier = "leather" | "iron";
 
 export const AXES: Record<AxeTier, { label: string; cost: number; chopTime: number; yield: number; blurb: string }> = {
@@ -51,6 +55,8 @@ export const WEAPONS: Record<WeaponTier, { label: string; icon: string; cost: nu
   club: { label: "Wooden Club", icon: "🏏", cost: 40, dmg: 16, blurb: "Heavy knockback — keeps them off you" },
   spear: { label: "Hunting Spear", icon: "🔱", cost: 120, dmg: 26, blurb: "Long reach — strike before they close in" },
   sword: { label: "Iron Sword", icon: "⚔️", cost: 250, dmg: 38, blurb: "Fast swings, 20% critical hits" },
+  // not for sale — crafted at the Haven bench from mine diamonds
+  diamond: { label: "Diamond Sword", icon: "💠", cost: 0, dmg: 55, blurb: "Forged from the deep — craft it at your bench" },
 };
 
 export type CombatProfile = {
@@ -68,6 +74,7 @@ export const COMBAT: Record<"fists" | "axe" | WeaponTier, CombatProfile> = {
   club: { label: "Wooden Club", dmg: 16, swing: 0.6, reach: 1.9, knockback: 1.5, crit: 0.05 },
   spear: { label: "Hunting Spear", dmg: 26, swing: 0.55, reach: 2.9, knockback: 0.7, crit: 0.1 },
   sword: { label: "Iron Sword", dmg: 38, swing: 0.45, reach: 2.0, knockback: 0.5, crit: 0.2 },
+  diamond: { label: "Diamond Sword", dmg: 55, swing: 0.4, reach: 2.1, knockback: 0.6, crit: 0.25 },
 };
 
 export const ARMOR: Record<ArmorTier, { label: string; icon: string; cost: number; reduce: number; blurb: string }> = {
@@ -129,6 +136,10 @@ export const SELL_PRICES: Record<string, number> = {
   "Cooked Venison": 24,
   Apple: 9,
   Honey: 25,
+  Coal: 8,
+  Diamond: 400,
+  "Honey Apple": 40,
+  "Forest Stew": 55,
 };
 
 export const COLLECTIBLE_RESPAWN_MS = 90_000;
@@ -152,7 +163,7 @@ export const SEEDS: Record<string, { cost: number; growMs: number; yieldLabel: s
   "Pumpkin Seeds": { cost: 15, growMs: 120_000, yieldLabel: "Pumpkin", yieldN: 1 },
 };
 
-// what cooking turns things into (each cook burns 1 Wood)
+// what cooking turns things into (each cook burns 1 Coal, or 1 Wood)
 export const RECIPES: Record<string, string> = {
   "Raw Chicken": "Cooked Chicken",
   "Raw Pork": "Cooked Pork",
@@ -186,7 +197,44 @@ export const FOODS: Record<string, { hp: number; energy: number; hunger: number;
   "Cooked Venison": { hp: 28, energy: 12, hunger: 35 },
   Apple: { hp: 10, energy: 8, hunger: 14 },
   Honey: { hp: 18, energy: 20, hunger: 18 },
+  "Honey Apple": { hp: 30, energy: 25, hunger: 30 },
+  "Forest Stew": { hp: 40, energy: 20, hunger: 50 },
 };
+
+// ---- the crafting bench at the Haven ----
+
+export type CraftRecipe = {
+  id: string;
+  icon: string;
+  label: string;
+  blurb: string;
+  inputs: Record<string, number>;
+  output?: { label: string; n: number };
+  weapon?: WeaponTier; // recipes that forge equipment instead of items
+};
+
+export const CRAFT_RECIPES: CraftRecipe[] = [
+  {
+    id: "bandage", icon: "🩹", label: "Bandages ×2", blurb: "Field dressing from wool and clean water",
+    inputs: { Wool: 1, Water: 1 }, output: { label: "Bandage", n: 2 },
+  },
+  {
+    id: "honeyapple", icon: "🍎", label: "Honey Apple", blurb: "A sticky-sweet energy boost",
+    inputs: { Apple: 1, Honey: 1 }, output: { label: "Honey Apple", n: 1 },
+  },
+  {
+    id: "stew", icon: "🍲", label: "Forest Stew", blurb: "The most filling meal in the wood",
+    inputs: { Carrot: 2, Pumpkin: 1, Water: 1 }, output: { label: "Forest Stew", n: 1 },
+  },
+  {
+    id: "torchpack", icon: "🕯️", label: "Wood bundle ×6", blurb: "Split coal heat into burnable wood",
+    inputs: { Coal: 2, Stone: 1 }, output: { label: "Wood", n: 6 },
+  },
+  {
+    id: "dsword", icon: "💠", label: "Diamond Sword", blurb: "55 dmg · 25% crits — the deep pays off",
+    inputs: { Diamond: 2, Wood: 5, Coal: 5 }, weapon: "diamond",
+  },
+];
 
 // ---- skills: spend points earned at each level-up ----
 
@@ -237,6 +285,9 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "sell-2", icon: "💰", title: "Merchant Prince", desc: "Earn 10,000 acorns from sales", stat: "acornsEarned", goal: 10000, acorns: 500, xp: 300 },
   { id: "produce-1", icon: "🥚", title: "Farmhand", desc: "Collect 50 farm produce", stat: "produceCollected", goal: 50, acorns: 100, xp: 100 },
   { id: "produce-2", icon: "🥚", title: "Land Baron", desc: "Collect 250 farm produce", stat: "produceCollected", goal: 250, acorns: 400, xp: 250 },
+  { id: "coal-1", icon: "⚫", title: "Coal Face", desc: "Mine 25 coal in the Old Mine", stat: "coalMined", goal: 25, acorns: 120, xp: 120 },
+  { id: "diamond-1", icon: "💎", title: "Diamond in the Rough", desc: "Unearth a diamond", stat: "diamondsFound", goal: 1, acorns: 200, xp: 200 },
+  { id: "craft-1", icon: "🛠️", title: "Tinkerer", desc: "Craft 10 things at your bench", stat: "itemsCrafted", goal: 10, acorns: 100, xp: 100 },
   { id: "deeds-10", icon: "🏡", title: "Lord of the Wildwood", desc: "Hold all 10 land deeds", stat: "deeds", goal: 10, acorns: 1000, xp: 500 },
   { id: "house-5", icon: "🏰", title: "Manor Born", desc: "Build the Wildwood Manor", stat: "housePeak", goal: 5, acorns: 500, xp: 300 },
 ];
@@ -318,6 +369,7 @@ export const MAX_DECOR = 25;
 
 export const DOG_COST = 200;
 export const CAT_COST = 250;
+export const HORSE_COST = 600;
 
 // the cat brings a present once per game day if you remember to pet her
 const CAT_GIFTS = ["Egg", "Apple", "Carrot", "Stone", "Wood", "Carp", "Orange Mushroom"];
@@ -484,7 +536,7 @@ const QUESTS: Quest[] = [
   { id: "night-watch", title: "Night Watch", desc: "Zombies rise after dark. Put 3 of them back in the ground — click one to attack.", goal: 3, progress: 0, done: false, xp: 150, acorns: 50 },
   { id: "buy-plot", title: "Land Owner", desc: "Buy your own Haven at the 🏡 gate near camp — your private land, away from the forest.", goal: 1, progress: 0, done: false, xp: 120, acorns: 0 },
   { id: "harvest", title: "Green Thumb", desc: "Buy seeds at The Den, plant them on your Haven, and harvest 3 crops.", goal: 3, progress: 0, done: false, xp: 100, acorns: 30 },
-  { id: "cook", title: "Home Cooking", desc: "Hunt an animal and cook its meat in your Haven furnace (each cook burns 1 Wood).", goal: 1, progress: 0, done: false, xp: 100, acorns: 25 },
+  { id: "cook", title: "Home Cooking", desc: "Hunt an animal and cook its meat in your Haven furnace (fuelled by coal or wood).", goal: 1, progress: 0, done: false, xp: 100, acorns: 25 },
 ];
 
 let toastId = 0;
@@ -533,7 +585,7 @@ type GameState = {
   homeTier: number; // 0 = no land owned
   houseLevel: number; // index+1 into HOUSE_LEVELS
   lastRentAt: number;
-  location: "forest" | "home" | "visit" | "interior";
+  location: "forest" | "home" | "visit" | "interior" | "cave";
   savedForestPos: { x: number; z: number } | null;
   account: { name: string; wallet?: string } | null;
   visitData: {
@@ -553,6 +605,8 @@ type GameState = {
   dogXp: number;
   cat: boolean;
   catLastPet: number;
+  horse: boolean;
+  mounted: boolean;
   pens: Record<string, Pen>; // key = pen spot index
   orchard: Record<string, OrchardTree>; // key = orchard spot index
   hives: Record<string, Hive>; // key = hive spot index
@@ -576,7 +630,7 @@ type GameState = {
   nearInteract: Interact | null;
   nearWater: boolean;
   openShop: ShopId | null;
-  openPanel: "chest" | "furnace" | "house" | null;
+  openPanel: "chest" | "furnace" | "house" | "bench" | null;
   openPen: number | null;
   homeOffer: "buy" | "extend" | null;
   showQuests: boolean;
@@ -633,6 +687,11 @@ type GameState = {
   travel: (to: "forest" | "home") => void;
   enterHouse: () => void;
   exitHouse: () => void;
+  enterCave: () => void;
+  exitCave: () => void;
+  craftItem: (id: string) => void;
+  buyHorse: () => void;
+  toggleMount: () => void;
   startVisit: (data: GameState["visitData"]) => void;
   buyDog: () => void;
   buildPen: (idx: number, animal: PenAnimal) => void;
@@ -677,7 +736,7 @@ type GameState = {
   setNearWater: (near: boolean) => void;
   tick: (dtSeconds: number, moving: boolean, nearCamp: boolean, sprinting: boolean, working: boolean) => void;
   setOpenShop: (id: ShopId | null) => void;
-  setOpenPanel: (p: "chest" | "furnace" | "house" | null) => void;
+  setOpenPanel: (p: "chest" | "furnace" | "house" | "bench" | null) => void;
   setOpenPen: (idx: number | null) => void;
   setHomeOffer: (o: "buy" | "extend" | null) => void;
   toggleQuests: () => void;
@@ -751,6 +810,8 @@ export const useGame = create<GameState>()(
       dogXp: 0,
       cat: false,
       catLastPet: 0,
+      horse: false,
+      mounted: false,
       pens: {},
       orchard: {},
       hives: {},
@@ -1040,15 +1101,32 @@ export const useGame = create<GameState>()(
       mineComplete: (rockId) => {
         const s = get();
         if (s.minedAt[rockId]) return;
-        const yieldN = s.pickaxe ? PICK_STONE_YIELD : HAND_STONE_YIELD;
-        const got = s.gainItem("Stone", yieldN);
         set({
-          minedAt: { ...get().minedAt, [rockId]: Date.now() },
+          minedAt: { ...s.minedAt, [rockId]: Date.now() },
           mineTargetId: null,
         });
         sfx.treeFall();
-        if (got > 0) s.addToast(`+${got} Stone · +15 XP`);
-        s.addXp(15);
+        if (rockId.startsWith("ore-diamond")) {
+          const got = s.gainItem("Diamond", 1);
+          if (got > 0) {
+            get().setBanner("💎 A DIAMOND! Straight from the deep");
+            s.addToast("+1 Diamond · +100 XP");
+            sfx.levelUp();
+          }
+          s.addXp(100);
+          get().bumpStat("diamondsFound");
+        } else if (rockId.startsWith("ore-coal")) {
+          const n = (s.pickaxe ? 3 : 2) + (Math.random() < 0.5 ? 1 : 0);
+          const got = s.gainItem("Coal", n);
+          if (got > 0) s.addToast(`+${got} Coal · +20 XP`);
+          s.addXp(20);
+          get().bumpStat("coalMined", n);
+        } else {
+          const yieldN = s.pickaxe ? PICK_STONE_YIELD : HAND_STONE_YIELD;
+          const got = s.gainItem("Stone", yieldN);
+          if (got > 0) s.addToast(`+${got} Stone · +15 XP`);
+          s.addXp(15);
+        }
         get().bumpStat("rocksMined");
       },
 
@@ -1502,6 +1580,91 @@ export const useGame = create<GameState>()(
         sfx.ui();
       },
 
+      enterCave: () => {
+        const s = get();
+        if (s.location !== "forest") return;
+        set({
+          location: "cave",
+          zone: "⛏️ The Old Mine",
+          savedForestPos: { x: live.x, z: live.z },
+          mounted: false, // no horses underground
+          chopTargetId: null,
+          mineTargetId: null,
+          attackTargetId: null,
+          animalTargetId: null,
+          fishingState: "idle",
+        });
+        teleport.x = 0;
+        teleport.z = CAVE_HD - 2;
+        teleport.pending = true;
+        sfx.questDone();
+      },
+
+      exitCave: () => {
+        const s = get();
+        if (s.location !== "cave") return;
+        set({ location: "forest", zone: "Darkwood", mineTargetId: null });
+        teleport.x = CAVE_ENTRANCE_POS[0];
+        teleport.z = CAVE_ENTRANCE_POS[2] + 2.2;
+        teleport.pending = true;
+        sfx.ui();
+      },
+
+      craftItem: (id) => {
+        const s = get();
+        const recipe = CRAFT_RECIPES.find((r) => r.id === id);
+        if (!recipe) return;
+        for (const [item, n] of Object.entries(recipe.inputs)) {
+          if ((s.inventory[item] ?? 0) < n) {
+            s.addToast(`Needs ${n} ${item}`);
+            sfx.error();
+            return;
+          }
+        }
+        if (recipe.weapon && s.weapon === recipe.weapon) {
+          s.addToast("You already wield it!");
+          return;
+        }
+        const inv = { ...s.inventory };
+        for (const [item, n] of Object.entries(recipe.inputs)) {
+          if (inv[item] - n <= 0) delete inv[item];
+          else inv[item] -= n;
+        }
+        set({ inventory: inv });
+        if (recipe.weapon) {
+          set({ weapon: recipe.weapon });
+          get().setBanner(`💠 You forged the ${WEAPONS[recipe.weapon].label}!`);
+          sfx.levelUp();
+        } else if (recipe.output) {
+          get().gainItem(recipe.output.label, recipe.output.n);
+          get().addToast(`🛠️ Crafted ${recipe.output.n} ${recipe.output.label} · +10 XP`);
+          sfx.pickup();
+        }
+        get().addXp(10);
+        get().bumpStat("itemsCrafted");
+      },
+
+      buyHorse: () => {
+        const s = get();
+        if (s.horse) return;
+        if (!spend(s, HORSE_COST)) return;
+        set({ acorns: s.acorns - HORSE_COST, horse: true });
+        sfx.buy();
+        s.setBanner("🐴 A horse of your own! Press H to ride");
+      },
+
+      toggleMount: () => {
+        const s = get();
+        if (!s.horse) return;
+        if (s.location === "interior" || s.location === "cave") {
+          s.addToast("No room to ride in here!");
+          return;
+        }
+        set({ mounted: !s.mounted });
+        sfx.ui();
+        if (!s.mounted) s.addToast("🐴 Mounted up — H to dismount");
+      },
+
       enterHouse: () => {
         const s = get();
         const visiting = s.location === "visit" && !!s.visitData;
@@ -1663,13 +1826,15 @@ export const useGame = create<GameState>()(
         const cooked = RECIPES[rawLabel];
         if (!cooked) return;
         if ((s.inventory[rawLabel] ?? 0) < 1) return;
-        if ((s.inventory.Wood ?? 0) < 1) {
-          s.addToast("You need 1 Wood for fuel 🪵");
+        // coal from the mine burns first; wood as a fallback
+        const fuel = (s.inventory.Coal ?? 0) >= 1 ? "Coal" : "Wood";
+        if ((s.inventory[fuel] ?? 0) < 1) {
+          s.addToast("You need 1 Coal or 1 Wood for fuel ⚫🪵");
           sfx.error();
           return;
         }
         const inv = { ...s.inventory };
-        for (const used of [rawLabel, "Wood"]) {
+        for (const used of [rawLabel, fuel]) {
           if (inv[used] <= 1) delete inv[used];
           else inv[used] -= 1;
         }
@@ -1775,6 +1940,7 @@ export const useGame = create<GameState>()(
 
       buyWeapon: (tier) => {
         const s = get();
+        if (s.weapon === "diamond") return; // nothing The Forge sells beats it
         const order: WeaponTier[] = ["club", "spear", "sword"];
         if (s.weapon && order.indexOf(s.weapon) >= order.indexOf(tier)) return;
         const def = WEAPONS[tier];
@@ -2110,6 +2276,7 @@ export const useGame = create<GameState>()(
         dogXp: s.dogXp,
         cat: s.cat,
         catLastPet: s.catLastPet,
+        horse: s.horse,
         pens: s.pens,
         orchard: s.orchard,
         hives: s.hives,

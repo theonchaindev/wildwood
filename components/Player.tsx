@@ -14,6 +14,7 @@ import {
   ORCHARD_SPOTS, HIVE_SPOTS, PEN_SPOTS, pensAllowed, HOME_TIERS, homeTierDef,
   homeGateZ, zoneAt, resolveMovement, resolveHomeMovement, bridgeY,
   interiorDims, interiorLayout, resolveInteriorMovement,
+  CAVE_ORES, CAVE_HD, CAVE_ENTRANCE_POS, resolveCaveMovement, HOME_BENCH_POS,
 } from "@/lib/world";
 import HitPop from "./HitPop";
 import CharacterModel, { Motion } from "./CharacterModel";
@@ -28,6 +29,7 @@ const INTERIOR_CAM_OFFSET = new THREE.Vector3(6.5, 8.5, 6.5);
 
 const TREE_MAP = new Map(TREES.map((t) => [t.id, t]));
 const ROCK_MAP = new Map(ROCKS.map((r) => [r.id, r]));
+const ORE_MAP = new Map(CAVE_ORES.map((o) => [o.id, { id: o.id, pos: o.pos, r: o.r }]));
 
 function HeldTorch() {
   const lightRef = useRef<THREE.PointLight>(null);
@@ -53,6 +55,74 @@ function HeldTorch() {
         <meshBasicMaterial color="#ffc23d" />
       </mesh>
       <pointLight ref={lightRef} position={[0, 0.45, 0]} color="#ffb04a" distance={9} decay={2} />
+    </group>
+  );
+}
+
+function HorseMesh({ motion }: { motion: Motion }) {
+  const legRefs = useRef<(THREE.Mesh | null)[]>([null, null, null, null]);
+  const headRef = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    legRefs.current.forEach((leg, i) => {
+      if (!leg) return;
+      leg.rotation.x = motion.moving ? Math.sin(motion.phase + (i % 2 === 0 ? 0 : Math.PI)) * 0.55 : 0;
+    });
+    if (headRef.current) {
+      headRef.current.rotation.x = motion.moving
+        ? Math.sin(motion.phase * 0.5) * 0.06
+        : Math.sin(clock.elapsedTime * 0.8) * 0.05;
+    }
+  });
+  return (
+    <group>
+      {/* body */}
+      <mesh position={[0, 0.78, 0]} castShadow>
+        <boxGeometry args={[0.55, 0.5, 1.35]} />
+        <meshStandardMaterial color="#7a4f2a" roughness={1} />
+      </mesh>
+      {/* neck + head */}
+      <group ref={headRef} position={[0, 1.05, 0.62]}>
+        <mesh position={[0, 0.22, 0.1]} rotation={[0.5, 0, 0]} castShadow>
+          <boxGeometry args={[0.26, 0.6, 0.3]} />
+          <meshStandardMaterial color="#6e4624" roughness={1} />
+        </mesh>
+        <mesh position={[0, 0.52, 0.35]} castShadow>
+          <boxGeometry args={[0.24, 0.26, 0.5]} />
+          <meshStandardMaterial color="#7a4f2a" roughness={1} />
+        </mesh>
+        {[-0.07, 0.07].map((x) => (
+          <mesh key={x} position={[x, 0.7, 0.2]}>
+            <coneGeometry args={[0.045, 0.12, 4]} />
+            <meshStandardMaterial color="#6e4624" roughness={1} />
+          </mesh>
+        ))}
+        <mesh position={[0, 0.42, 0.02]} castShadow>
+          <boxGeometry args={[0.1, 0.5, 0.18]} />
+          <meshStandardMaterial color="#3d2a16" roughness={1} />
+        </mesh>
+      </group>
+      {/* tail */}
+      <mesh position={[0, 0.78, -0.75]} rotation={[0.5, 0, 0]} castShadow>
+        <boxGeometry args={[0.1, 0.5, 0.12]} />
+        <meshStandardMaterial color="#3d2a16" roughness={1} />
+      </mesh>
+      {/* saddle */}
+      <mesh position={[0, 1.06, -0.05]} castShadow>
+        <boxGeometry args={[0.5, 0.1, 0.5]} />
+        <meshStandardMaterial color="#9c2f2f" roughness={1} />
+      </mesh>
+      {/* legs */}
+      {([[-0.18, 0.5], [0.18, 0.5], [-0.18, -0.5], [0.18, -0.5]] as const).map(([x, z], i) => (
+        <mesh
+          key={i}
+          ref={(el) => { legRefs.current[i] = el; }}
+          position={[x, 0.28, z]}
+          castShadow
+        >
+          <boxGeometry args={[0.13, 0.56, 0.13]} />
+          <meshStandardMaterial color="#6e4624" roughness={1} />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -124,11 +194,16 @@ export default function Player() {
           } else if (i.kind === "hive") {
             if (s.hives[i.idx]) s.collectHive(i.idx);
             else s.buildHive(i.idx);
-          }
+          } else if (i.kind === "cave") s.enterCave();
+          else if (i.kind === "caveexit") s.exitCave();
+          else if (i.kind === "bench") s.setOpenPanel("bench");
         }
       }
       if (k === "i" || k === "b") {
         useGame.getState().toggleInventory();
+      }
+      if (k === "h") {
+        useGame.getState().toggleMount();
       }
       if (k === "f") {
         const s = useGame.getState();
@@ -235,8 +310,9 @@ export default function Player() {
       );
     };
 
-    const atHome = state.location !== "forest"; // own homestead, visiting or indoors
+    const atHome = state.location !== "forest"; // own Haven, visiting, indoors or underground
     const atInterior = state.location === "interior";
+    const atCave = state.location === "cave";
 
     // --- zombie attack target: walk to it, then swing ---
     let attacking = false;
@@ -353,7 +429,9 @@ export default function Player() {
 
     // --- mining target: walk to rock, then mine ---
     let mining = false;
-    const mineRock = state.mineTargetId ? ROCK_MAP.get(state.mineTargetId) : null;
+    const mineRock = state.mineTargetId
+      ? ROCK_MAP.get(state.mineTargetId) ?? ORE_MAP.get(state.mineTargetId)
+      : null;
     if (mineRock && !keyboardMove && !attacking && !targetZombie && !targetAnimal && !chopping) {
       if (state.minedAt[mineRock.id]) {
         state.setMineTarget(null);
@@ -401,7 +479,11 @@ export default function Player() {
     if (moving && state.fishingState !== "idle") state.setFishingState("idle");
     const tired = state.energy <= 0;
     const sprinting = moving && !!k["shift"] && state.energy > 5;
-    const speed = tired ? 3.2 : sprinting ? 9.5 : 6.5;
+    // working hands need solid ground — the horse waits while you act
+    if (state.mounted && (chopping || mining || attacking || state.fishingState !== "idle")) {
+      useGame.setState({ mounted: false });
+    }
+    const speed = tired ? 3.2 : state.mounted ? 11 : sprinting ? 9.5 : 6.5;
 
     if (moving) {
       const nx = g.position.x + dir.x * speed * dt;
@@ -410,7 +492,9 @@ export default function Player() {
         state.location === "visit" ? state.visitData?.homeTier ?? 1 : state.homeTier;
       const homeHouseHere =
         state.location === "visit" ? state.visitData?.houseLevel ?? 1 : state.houseLevel;
-      const [rx, rz] = atInterior
+      const [rx, rz] = atCave
+        ? resolveCaveMovement(g.position.x, g.position.z, nx, nz, state.minedAt)
+        : atInterior
         ? resolveInteriorMovement(g.position.x, g.position.z, nx, nz, homeHouseHere)
         : atHome
         ? resolveHomeMovement(g.position.x, g.position.z, nx, nz, homeTierHere, homeHouseHere)
@@ -463,6 +547,14 @@ export default function Player() {
     const px = g.position.x;
     const pz = g.position.z;
 
+    if (atCave) {
+      state.tick(stepDt, moving, false, sprinting, mining);
+      state.setNearWater(false);
+      const exitD = Math.hypot(px - 0, pz - CAVE_HD);
+      state.setNearInteract(exitD < 3.4 ? { kind: "caveexit" } : null);
+      return;
+    }
+
     if (atInterior) {
       // home sweet home: resting indoors slowly restores you, like the campfire
       state.tick(stepDt, moving, true, sprinting, false);
@@ -513,6 +605,7 @@ export default function Player() {
         : [
             [HOME_CHEST_POS[0], HOME_CHEST_POS[2], { kind: "chest" }],
             [HOME_FURNACE_POS[0], HOME_FURNACE_POS[2], { kind: "furnace" }],
+            [HOME_BENCH_POS[0], HOME_BENCH_POS[2], { kind: "bench" }],
             [HOME_CABIN_POS[0], HOME_CABIN_POS[2] + 2, { kind: "house" }],
             [0, gateZ, { kind: "homegate" }],
           ];
@@ -564,6 +657,11 @@ export default function Player() {
       nearestD = portalD;
       nearest = { kind: "portal" };
     }
+    const caveD = Math.hypot(px - CAVE_ENTRANCE_POS[0], pz - (CAVE_ENTRANCE_POS[2] + 1.6));
+    if (caveD < nearestD) {
+      nearestD = caveD;
+      nearest = { kind: "cave" };
+    }
     state.setNearInteract(nearest);
 
     const distRiver = Math.abs(px - RIVER_X);
@@ -593,10 +691,14 @@ export default function Player() {
   });
 
   const showRodInHand = fishingState !== "idle";
+  const mounted = useGame((s) => s.mounted);
 
   return (
     <group ref={group}>
-      <CharacterModel appearance={appearance} shirt={shirt} hat={hat} armor={armor} motion={motion} />
+      {mounted && <HorseMesh motion={motion} />}
+      <group position={[0, mounted ? 0.62 : 0, 0]}>
+        <CharacterModel appearance={appearance} shirt={shirt} hat={hat} armor={armor} motion={motion} />
+      </group>
 
       {/* right hand: axe (or pickaxe while mining), or the rod while fishing */}
       <group ref={toolRef} position={[0.42, 0.65, 0.14]}>

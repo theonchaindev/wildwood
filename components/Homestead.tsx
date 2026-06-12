@@ -11,7 +11,7 @@ import {
 import { live, daylight, moveTarget, isNight } from "@/lib/runtime";
 import { Model } from "@/lib/assets";
 import {
-  HOME_TIERS, HOME_CHEST_POS, HOME_FURNACE_POS,
+  HOME_TIERS, HOME_CHEST_POS, HOME_FURNACE_POS, HOME_BENCH_POS,
   HOME_EXTEND_POS, HOME_CABIN_POS, HOME_WELL_POS, HOME_POND_POS, POND_R,
   HOME_WINDMILL_POS, HOME_SCARECROW_POS, ORCHARD_SPOTS, HIVE_SPOTS,
   PEN_SPOTS, pensAllowed, homeTilePos, homeTileKey, homeGateZ, homeTierDef,
@@ -154,6 +154,49 @@ function Furnace() {
       </mesh>
       <Html position={[0, 2, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
         <div className="world-label small">🔥 Furnace</div>
+      </Html>
+    </group>
+  );
+}
+
+function CraftingBench() {
+  const click = stopAnd(() => {
+    const s = useGame.getState();
+    if (near(HOME_BENCH_POS[0], HOME_BENCH_POS[2])) s.setOpenPanel("bench");
+    else s.addToast("Walk closer to the bench");
+  });
+  return (
+    <group position={HOME_BENCH_POS} rotation={[0, 0.5, 0]} onClick={click} {...hoverCursor()}>
+      {/* worktop */}
+      <mesh position={[0, 0.78, 0]} castShadow>
+        <boxGeometry args={[1.5, 0.1, 0.8]} />
+        <meshStandardMaterial color="#8a6a3f" roughness={1} />
+      </mesh>
+      {[[-0.62, -0.3], [0.62, -0.3], [-0.62, 0.3], [0.62, 0.3]].map(([x, z], i) => (
+        <mesh key={i} position={[x, 0.38, z]}>
+          <boxGeometry args={[0.1, 0.76, 0.1]} />
+          <meshStandardMaterial color="#5e4426" roughness={1} />
+        </mesh>
+      ))}
+      {/* vice + hammer + plans */}
+      <mesh position={[-0.5, 0.92, 0]} castShadow>
+        <boxGeometry args={[0.2, 0.18, 0.2]} />
+        <meshStandardMaterial color="#6a6258" metalness={0.4} roughness={0.5} />
+      </mesh>
+      <mesh position={[0.25, 0.86, 0.1]} rotation={[0, 0.7, Math.PI / 2]} castShadow>
+        <cylinderGeometry args={[0.03, 0.03, 0.32, 5]} />
+        <meshStandardMaterial color="#6b4e2a" roughness={1} />
+      </mesh>
+      <mesh position={[0.32, 0.86, 0.1]} castShadow>
+        <boxGeometry args={[0.12, 0.08, 0.1]} />
+        <meshStandardMaterial color="#8a8f95" metalness={0.5} roughness={0.4} />
+      </mesh>
+      <mesh position={[0.1, 0.845, -0.22]} rotation={[0, -0.3, 0]}>
+        <boxGeometry args={[0.4, 0.015, 0.3]} />
+        <meshStandardMaterial color="#f2ecda" roughness={1} />
+      </mesh>
+      <Html position={[0, 1.7, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
+        <div className="world-label small">🛠️ Crafting Bench</div>
       </Html>
     </group>
   );
@@ -1095,6 +1138,7 @@ export default function Homestead() {
       <House level={houseLevel} visiting={visiting} />
       {!visiting && <Chest />}
       {!visiting && <Furnace />}
+      {!visiting && <CraftingBench />}
       {tier.well && <Well />}
       {tier.pond && <Pond />}
       {tier.windmill && <Windmill />}
