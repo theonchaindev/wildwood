@@ -6,21 +6,26 @@ import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
 
-let sharedMaterial: THREE.MeshStandardMaterial | null = null;
+// one shared material per texture atlas (nature palette, furniture pack, …)
+const materialCache: Record<string, THREE.MeshStandardMaterial> = {};
 
-export function usePaletteMaterial() {
-  const tex = useTexture("/models/PP_Color_Palette.png");
+export function useAtlasMaterial(path = "/models/PP_Color_Palette.png") {
+  const tex = useTexture(path);
   return useMemo(() => {
-    if (!sharedMaterial) {
+    if (!materialCache[path]) {
       tex.colorSpace = THREE.SRGBColorSpace;
-      sharedMaterial = new THREE.MeshStandardMaterial({
+      materialCache[path] = new THREE.MeshStandardMaterial({
         map: tex,
         roughness: 0.85,
         metalness: 0,
       });
     }
-    return sharedMaterial;
-  }, [tex]);
+    return materialCache[path];
+  }, [tex, path]);
+}
+
+export function usePaletteMaterial() {
+  return useAtlasMaterial();
 }
 
 /**
@@ -34,10 +39,11 @@ export function useModel(
   file: string,
   size: number,
   by: "y" | "xz" = "y",
-  align: "bottom" | "flush" = "bottom"
+  align: "bottom" | "flush" = "bottom",
+  tex?: string
 ) {
   const fbx = useLoader(FBXLoader, `/models/${file}.fbx`);
-  const material = usePaletteMaterial();
+  const material = useAtlasMaterial(tex);
 
   return useMemo(() => {
     const obj = fbx.clone(true);
@@ -111,11 +117,12 @@ type ModelProps = {
   align?: "bottom" | "flush";
   position: [number, number, number];
   rotationY?: number;
+  tex?: string;
 };
 
 /** One placed instance of a normalized model (geometry/material shared via clone). */
-export function Model({ file, size, by = "y", align = "bottom", position, rotationY = 0 }: ModelProps) {
-  const proto = useModel(file, size, by, align);
+export function Model({ file, size, by = "y", align = "bottom", position, rotationY = 0, tex }: ModelProps) {
+  const proto = useModel(file, size, by, align, tex);
   const instance = useMemo(() => proto.clone(true), [proto]);
   return (
     <primitive

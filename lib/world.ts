@@ -440,7 +440,12 @@ export function interiorLayout(houseLevel: number) {
     bed: [-hw + 1.4, -hd + 1.3] as [number, number],
     table: lv >= 2 ? ([0.3, 0.2] as [number, number]) : null,
     fireplace: lv >= 3 ? ([hw * 0.4, -hd + 0.55] as [number, number]) : null,
-    shelf: lv >= 4 ? ([-hw + 0.55, 0.8] as [number, number]) : null,
+    lounge: lv >= 3 ? ([-hw + 1.2, hd - 1.7] as [number, number]) : null,
+    kitchen: lv >= 4 ? ([-2.1, -hd + 0.75] as [number, number]) : null,
+    closet: lv >= 4 ? ([-hw + 0.6, 0.9] as [number, number]) : null,
+    dresser: lv >= 4 ? ([-hw + 0.6, -1.3] as [number, number]) : null,
+    games: lv >= 5 ? ([3.2, 1.4] as [number, number]) : null,
+    music: lv >= 5 ? ([hw - 0.9, 0.2] as [number, number]) : null,
     desk: [hw - 1.1, -hd + 1.1] as [number, number],
     chest: [hw - 0.9, hd - 1.5] as [number, number],
     door: [0, hd] as [number, number],
@@ -459,7 +464,12 @@ export function resolveInteriorMovement(
   ];
   if (lay.table) colliders.push({ x: lay.table[0], z: lay.table[1], r: 0.85 });
   if (lay.fireplace) colliders.push({ x: lay.fireplace[0], z: lay.fireplace[1], r: 0.8 });
-  if (lay.shelf) colliders.push({ x: lay.shelf[0], z: lay.shelf[1], r: 0.6 });
+  if (lay.lounge) colliders.push({ x: lay.lounge[0], z: lay.lounge[1], r: 0.95 });
+  if (lay.kitchen) colliders.push({ x: lay.kitchen[0], z: lay.kitchen[1], r: 1.1 });
+  if (lay.closet) colliders.push({ x: lay.closet[0], z: lay.closet[1], r: 0.6 });
+  if (lay.dresser) colliders.push({ x: lay.dresser[0], z: lay.dresser[1], r: 0.55 });
+  if (lay.games) colliders.push({ x: lay.games[0], z: lay.games[1], r: 1.15 });
+  if (lay.music) colliders.push({ x: lay.music[0], z: lay.music[1], r: 0.7 });
   let nx = nxIn;
   let nz = nzIn;
   for (const c of colliders) {

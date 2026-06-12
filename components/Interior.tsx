@@ -1,8 +1,8 @@
 "use client";
 
 // Inside the player's house — its own instance, like the homestead.
-// Placeholder furniture built from primitives; each piece is a component so
-// it can be swapped for models when the interior asset pack lands.
+// Furniture comes from the interior asset pack (public/models/furniture),
+// textured by its own atlas; the room grows and fills up with house level.
 
 import { useRef } from "react";
 import { useFrame, ThreeEvent } from "@react-three/fiber";
@@ -11,6 +11,31 @@ import * as THREE from "three";
 import { useGame, HOUSE_LEVELS } from "@/lib/store";
 import { live, moveTarget, isNight } from "@/lib/runtime";
 import { interiorDims, interiorLayout } from "@/lib/world";
+import { Model } from "@/lib/assets";
+
+const FTEX = "/models/furniture/Textures.png";
+
+type FurnProps = {
+  file: string;
+  size: number;
+  by?: "y" | "xz";
+  position: [number, number, number];
+  rotationY?: number;
+};
+
+/** One piece from the furniture pack. */
+function Furn({ file, size, by = "y", position, rotationY = 0 }: FurnProps) {
+  return (
+    <Model
+      file={`furniture/${file}`}
+      tex={FTEX}
+      size={size}
+      by={by}
+      position={position}
+      rotationY={rotationY}
+    />
+  );
+}
 
 function near(px: number, pz: number, r = 3) {
   return Math.hypot(live.x - px, live.z - pz) < r;
@@ -35,8 +60,7 @@ function hoverCursor() {
   };
 }
 
-function Bed({ pos, lv }: { pos: [number, number]; lv: number }) {
-  const blanket = lv >= 5 ? "#8a3c5a" : lv >= 3 ? "#4a6d8a" : "#6d8a4a";
+function Bed({ pos }: { pos: [number, number] }) {
   const click = stopAnd(() => {
     const s = useGame.getState();
     if (!near(pos[0], pos[1])) {
@@ -47,30 +71,7 @@ function Bed({ pos, lv }: { pos: [number, number]; lv: number }) {
   });
   return (
     <group position={[pos[0], 0, pos[1]]} onClick={click} {...hoverCursor()}>
-      {/* frame */}
-      <mesh position={[0, 0.22, 0]} castShadow>
-        <boxGeometry args={[1.3, 0.3, 2]} />
-        <meshStandardMaterial color="#6a4a2c" roughness={1} />
-      </mesh>
-      {/* mattress + blanket */}
-      <mesh position={[0, 0.42, 0.12]} castShadow>
-        <boxGeometry args={[1.18, 0.16, 1.7]} />
-        <meshStandardMaterial color="#e8e0cc" roughness={1} />
-      </mesh>
-      <mesh position={[0, 0.46, 0.35]} castShadow>
-        <boxGeometry args={[1.2, 0.12, 1.15]} />
-        <meshStandardMaterial color={blanket} roughness={1} />
-      </mesh>
-      {/* pillow */}
-      <mesh position={[0, 0.52, -0.7]} castShadow>
-        <boxGeometry args={[0.8, 0.14, 0.45]} />
-        <meshStandardMaterial color="#f2efe6" roughness={1} />
-      </mesh>
-      {/* headboard */}
-      <mesh position={[0, 0.65, -0.98]} castShadow>
-        <boxGeometry args={[1.3, 0.85, 0.08]} />
-        <meshStandardMaterial color="#5e4426" roughness={1} />
-      </mesh>
+      <Furn file="bed_001" size={2.2} by="xz" position={[0, 0, 0]} rotationY={Math.PI} />
       <Html position={[0, 1.5, 0]} center distanceFactor={16} zIndexRange={[10, 0]}>
         <div className="world-label small">🛏️ Bed{isNight() ? " — sleep till dawn" : ""}</div>
       </Html>
@@ -78,40 +79,14 @@ function Bed({ pos, lv }: { pos: [number, number]; lv: number }) {
   );
 }
 
-function Table({ pos }: { pos: [number, number] }) {
+function DiningSet({ pos }: { pos: [number, number] }) {
   return (
     <group position={[pos[0], 0, pos[1]]}>
-      <mesh position={[0, 0.62, 0]} castShadow>
-        <cylinderGeometry args={[0.75, 0.75, 0.08, 10]} />
-        <meshStandardMaterial color="#8a6a3f" roughness={1} />
-      </mesh>
-      <mesh position={[0, 0.3, 0]} castShadow>
-        <cylinderGeometry args={[0.09, 0.12, 0.6, 6]} />
-        <meshStandardMaterial color="#5e4426" roughness={1} />
-      </mesh>
-      {/* candle */}
-      <mesh position={[0.2, 0.74, 0.1]}>
-        <cylinderGeometry args={[0.04, 0.04, 0.16, 6]} />
-        <meshStandardMaterial color="#e8e0cc" roughness={1} />
-      </mesh>
-      <mesh position={[0.2, 0.86, 0.1]}>
-        <coneGeometry args={[0.035, 0.09, 6]} />
-        <meshBasicMaterial color="#ffc23d" />
-      </mesh>
-      <pointLight position={[0.2, 1, 0.1]} color="#ffb04a" intensity={0.5} distance={4} decay={2} />
-      {/* stools */}
-      {[[-1.05, 0.25], [0.95, -0.45]].map(([sx, sz], i) => (
-        <group key={i} position={[sx, 0, sz]}>
-          <mesh position={[0, 0.34, 0]} castShadow>
-            <cylinderGeometry args={[0.26, 0.26, 0.07, 8]} />
-            <meshStandardMaterial color="#75582f" roughness={1} />
-          </mesh>
-          <mesh position={[0, 0.16, 0]}>
-            <cylinderGeometry args={[0.06, 0.08, 0.32, 5]} />
-            <meshStandardMaterial color="#5e4426" roughness={1} />
-          </mesh>
-        </group>
-      ))}
+      <Furn file="kitchen_table_001" size={0.85} position={[0, 0, 0]} />
+      <Furn file="kitchen_chair_001" size={0.95} position={[-0.95, 0, 0.25]} rotationY={Math.PI / 2} />
+      <Furn file="kitchen_chair_001" size={0.95} position={[0.9, 0, -0.35]} rotationY={-Math.PI / 2 + 0.4} />
+      <Furn file="dish_001" size={0.3} by="xz" position={[-0.12, 0.85, 0.1]} />
+      <Furn file="drink_001" size={0.22} position={[0.25, 0.85, -0.15]} />
     </group>
   );
 }
@@ -151,24 +126,22 @@ function Fireplace({ pos }: { pos: [number, number] }) {
   );
 }
 
-function Bookshelf({ pos }: { pos: [number, number] }) {
-  const books = ["#a8453a", "#3f6d35", "#2e5d8a", "#c99a2e", "#6d4a8a", "#8a3c28"];
+function Lounge({ pos }: { pos: [number, number] }) {
   return (
-    <group position={[pos[0], 0, pos[1]]} rotation={[0, Math.PI / 2, 0]}>
-      <mesh position={[0, 0.95, 0]} castShadow>
-        <boxGeometry args={[1.6, 1.9, 0.45]} />
-        <meshStandardMaterial color="#5e4426" roughness={1} />
-      </mesh>
-      {[0.5, 1.05, 1.6].map((y, row) => (
-        <group key={y}>
-          {books.slice(0, 5).map((c, i) => (
-            <mesh key={i} position={[-0.55 + i * 0.27, y, 0.18]}>
-              <boxGeometry args={[0.16, 0.34, 0.12]} />
-              <meshStandardMaterial color={books[(i + row * 2) % books.length]} roughness={1} />
-            </mesh>
-          ))}
-        </group>
-      ))}
+    <group position={[pos[0], 0, pos[1]]}>
+      <Furn file="sofa_001" size={2} by="xz" position={[0, 0, 0]} rotationY={Math.PI / 2} />
+      <Furn file="coffee_table_001" size={0.5} position={[1.35, 0, 0]} />
+      <Furn file="toy_001" size={0.3} position={[1.3, 0, 0.9]} rotationY={0.8} />
+    </group>
+  );
+}
+
+function Kitchen({ pos }: { pos: [number, number] }) {
+  return (
+    <group position={[pos[0], 0, pos[1]]}>
+      <Furn file="fridge_001" size={1.9} position={[-0.75, 0, 0]} />
+      <Furn file="kitchen_sink_001" size={0.95} position={[0.55, 0, 0]} />
+      <Furn file="coffee_machine_001" size={0.35} position={[1.35, 0.95, 0]} rotationY={-0.4} />
     </group>
   );
 }
@@ -184,26 +157,17 @@ function Desk({ pos }: { pos: [number, number] }) {
   });
   return (
     <group position={[pos[0], 0, pos[1]]} rotation={[0, -Math.PI / 7, 0]} onClick={click} {...hoverCursor()}>
-      <mesh position={[0, 0.62, 0]} castShadow>
-        <boxGeometry args={[1.2, 0.08, 0.7]} />
-        <meshStandardMaterial color="#8a6a3f" roughness={1} />
-      </mesh>
-      {[[-0.5, -0.25], [0.5, -0.25], [-0.5, 0.25], [0.5, 0.25]].map(([lx, lz], i) => (
-        <mesh key={i} position={[lx, 0.3, lz]}>
-          <boxGeometry args={[0.08, 0.6, 0.08]} />
-          <meshStandardMaterial color="#5e4426" roughness={1} />
-        </mesh>
-      ))}
-      {/* the deed papers + quill */}
-      <mesh position={[-0.15, 0.675, 0]} rotation={[0, 0.25, 0]}>
+      <Furn file="office_table_001" size={0.85} position={[0, 0, 0]} />
+      {/* the deed papers */}
+      <mesh position={[-0.15, 0.88, 0]} rotation={[0, 0.25, 0]}>
         <boxGeometry args={[0.42, 0.02, 0.55]} />
         <meshStandardMaterial color="#f2ecda" roughness={1} />
       </mesh>
-      <mesh position={[0.35, 0.72, 0.1]} rotation={[0, 0, 0.7]}>
+      <mesh position={[0.3, 0.95, 0.1]} rotation={[0, 0, 0.7]}>
         <coneGeometry args={[0.03, 0.3, 5]} />
         <meshStandardMaterial color="#e8e0cc" roughness={1} />
       </mesh>
-      <Html position={[0, 1.4, 0]} center distanceFactor={16} zIndexRange={[10, 0]}>
+      <Html position={[0, 1.5, 0]} center distanceFactor={16} zIndexRange={[10, 0]}>
         <div className="world-label small">📜 Estate Deeds</div>
       </Html>
     </group>
@@ -271,7 +235,7 @@ function Chandelier() {
   );
 }
 
-function ExitDoor({ hd, lv }: { hd: number; lv: number }) {
+function ExitDoor({ hd }: { hd: number }) {
   const click = stopAnd(() => {
     const s = useGame.getState();
     if (near(0, hd, 3.2)) s.exitHouse();
@@ -279,14 +243,7 @@ function ExitDoor({ hd, lv }: { hd: number; lv: number }) {
   });
   return (
     <group position={[0, 0, hd]} onClick={click} {...hoverCursor()}>
-      <mesh position={[0, 1, -0.04]}>
-        <boxGeometry args={[1, 2, 0.1]} />
-        <meshStandardMaterial color="#4a3520" roughness={1} />
-      </mesh>
-      <mesh position={[0.32, 1, -0.12]}>
-        <sphereGeometry args={[0.06, 6, 5]} />
-        <meshStandardMaterial color="#d9a93f" metalness={0.5} roughness={0.4} />
-      </mesh>
+      <Furn file="door_001" size={2.1} position={[0, 0, -0.05]} />
       <Html position={[0, 2.5, 0]} center distanceFactor={16} zIndexRange={[10, 0]}>
         <div className="world-label">🚪 Step outside</div>
       </Html>
@@ -368,15 +325,29 @@ export default function Interior() {
         </mesh>
       ))}
 
-      {/* furniture */}
-      <Bed pos={lay.bed} lv={lv} />
-      {lay.table && <Table pos={lay.table} />}
+      {/* furniture from the pack */}
+      <Bed pos={lay.bed} />
+      {lay.table && <DiningSet pos={lay.table} />}
       {lay.fireplace && <Fireplace pos={lay.fireplace} />}
-      {lay.shelf && <Bookshelf pos={lay.shelf} />}
+      {lay.lounge && <Lounge pos={lay.lounge} />}
+      {lay.kitchen && <Kitchen pos={lay.kitchen} />}
+      {lay.closet && <Furn file="closet_001" size={2} position={[lay.closet[0], 0, lay.closet[1]]} rotationY={Math.PI / 2} />}
+      {lay.dresser && <Furn file="dresser_001" size={1.1} position={[lay.dresser[0], 0, lay.dresser[1]]} rotationY={Math.PI / 2} />}
+      {lay.games && <Furn file="air_hockey_001" size={2.2} by="xz" position={[lay.games[0], 0, lay.games[1]]} rotationY={0.5} />}
+      {lay.music && <Furn file="musical_instrument_001" size={1.4} position={[lay.music[0], 0, lay.music[1]]} rotationY={-Math.PI / 2} />}
       <Desk pos={lay.desk} />
       <InteriorChest pos={lay.chest} />
       {lv >= 5 && <Chandelier />}
-      <ExitDoor hd={hd} lv={lv} />
+      <ExitDoor hd={hd} />
+
+      {/* decor that arrives as the house grows */}
+      <group position={[-hw + 0.5, 0, -hd + 0.5]}>
+        <Furn file="lamp_001" size={1.5} position={[0, 0, 0]} />
+        <pointLight position={[0, 1.5, 0.2]} color="#ffd9a8" intensity={0.7} distance={6} decay={2} />
+      </group>
+      {lv >= 2 && <Furn file="flower_001" size={0.9} position={[hw - 0.6, 0, hd - 0.55]} />}
+      {lv >= 3 && <Furn file="lamp_002" size={0.45} position={[lay.desk[0] + 0.35, 0.88, lay.desk[1] + 0.25]} rotationY={2.4} />}
+      {lv >= 4 && <Furn file="box_001" size={0.6} position={[hw - 0.5, 0, hd - 2.6]} rotationY={0.4} />}
 
       {/* a warm hearth-glow so the room reads cosy even at night */}
       <ambientLight intensity={0.45} color="#ffe2b8" />
