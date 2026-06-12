@@ -4,13 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
-import { ghosts, onGhostsChange, Ghost } from "@/lib/multiplayer";
+import { ghosts, onGhostsChange, sampleAt, RENDER_DELAY_MS, Ghost } from "@/lib/multiplayer";
 import { DEFAULT_APPEARANCE, Appearance } from "@/lib/store";
-import CharacterModel from "./CharacterModel";
+import CharacterModel, { Motion } from "./CharacterModel";
 
 function GhostPlayer({ g }: { g: Ghost }) {
   const ref = useRef<THREE.Group>(null);
-  const walkPhase = useRef(0);
+  const motion = useRef<Motion>({ phase: 0, moving: false }).current;
 
   const appearance: Appearance = useMemo(
     () => ({ ...DEFAULT_APPEARANCE, ...(g.look.appearance as Appearance | undefined) }),
@@ -19,28 +19,19 @@ function GhostPlayer({ g }: { g: Ghost }) {
 
   useFrame((_, dt) => {
     const grp = ref.current;
-    if (!grp) return;
-    // glide toward the latest network position
-    const dx = g.tx - g.cx;
-    const dz = g.tz - g.cz;
-    const dist = Math.hypot(dx, dz);
-    if (dist > 25) {
-      // teleported (gate travel etc.) — snap
-      g.cx = g.tx;
-      g.cz = g.tz;
-    } else {
-      const k = Math.min(1, dt * 4);
-      g.cx += dx * k;
-      g.cz += dz * k;
-    }
-    g.crot = THREE.MathUtils.lerp(
-      g.crot,
-      g.crot + THREE.MathUtils.euclideanModulo(g.trot - g.crot + Math.PI, Math.PI * 2) - Math.PI,
-      Math.min(1, dt * 6)
-    );
-    const moving = dist > 0.25;
-    if (moving) walkPhase.current += dt * 10;
-    grp.position.set(g.cx, moving ? Math.abs(Math.sin(walkPhase.current)) * 0.08 : 0, g.cz);
+    if (!grp || g.samples.length === 0) return;
+    // render the buffered past so motion between updates is continuous
+    const s = sampleAt(g.samples, Date.now() - RENDER_DELAY_MS);
+    const stepDist = Math.hypot(s.x - g.cx, s.z - g.cz);
+    const speed = dt > 0 ? stepDist / dt : 0;
+    g.cx = s.x;
+    g.cz = s.z;
+    g.crot = s.rot;
+
+    motion.moving = speed > 0.6; // world units / second
+    if (motion.moving) motion.phase += dt * Math.min(14, 4 + speed * 1.4);
+
+    grp.position.set(g.cx, motion.moving ? Math.abs(Math.sin(motion.phase)) * 0.08 : 0, g.cz);
     grp.rotation.y = g.crot;
   });
 
@@ -50,6 +41,7 @@ function GhostPlayer({ g }: { g: Ghost }) {
         appearance={appearance}
         shirt={g.look.shirt ?? "green"}
         hat={g.look.hat ?? null}
+        motion={motion}
       />
       <Html position={[0, 2.05, 0]} center distanceFactor={26} zIndexRange={[9, 0]}>
         <div className="player-label ghost">{g.name || "Forager"} · Lv {g.level}</div>

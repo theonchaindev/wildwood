@@ -6,14 +6,15 @@ import { useProgress } from "@react-three/drei";
 import * as THREE from "three";
 import { useGame, SKIN_TONES, HAIR_COLORS, SHIRTS, Appearance } from "@/lib/store";
 import { loginCloud, registerCloud, connectWallet, chooseName, startSaveSync } from "@/lib/cloud";
-import CharacterModel from "./CharacterModel";
+import CharacterModel, { Motion } from "./CharacterModel";
 
 type Mode = "menu" | "guest" | "online" | "walletname" | "customize";
 
-function Turntable({ children }: { children: React.ReactNode }) {
+function Turntable({ children, motion }: { children: React.ReactNode; motion: Motion }) {
   const ref = useRef<THREE.Group>(null);
   useFrame((_, dt) => {
     if (ref.current) ref.current.rotation.y += dt * 0.9;
+    motion.phase += dt * 7; // walk in place to show off the animation
   });
   return <group ref={ref}>{children}</group>;
 }
@@ -21,15 +22,16 @@ function Turntable({ children }: { children: React.ReactNode }) {
 function PreviewCanvas() {
   const appearance = useGame((s) => s.appearance);
   const shirt = useGame((s) => s.shirt);
+  const motion = useRef<Motion>({ phase: 0, moving: true }).current;
   return (
     <div className="cust-preview">
       <Canvas camera={{ position: [0, 1.1, 2.6], fov: 35 }} dpr={[1, 2]}>
         <ambientLight intensity={0.8} color="#fff4e0" />
         <directionalLight position={[2, 4, 3]} intensity={1.6} color="#fff3d6" />
         <directionalLight position={[-3, 2, -2]} intensity={0.5} color="#b8d4e8" />
-        <Turntable>
+        <Turntable motion={motion}>
           <group position={[0, -0.82, 0]}>
-            <CharacterModel appearance={appearance} shirt={shirt} hat={null} />
+            <CharacterModel appearance={appearance} shirt={shirt} hat={null} motion={motion} />
           </group>
         </Turntable>
         {/* little grass disc to stand on */}

@@ -35,17 +35,27 @@ const bobSees = await bob.evaluate(() =>
 console.log("Alice sees:", JSON.stringify(aliceSees));
 console.log("Bob sees:", JSON.stringify(bobSees));
 
-// move Bob and confirm Alice sees the new position
+// Bob WALKS east; Alice samples his rendered position — smooth interpolation
+// should give many small steps, not one big jump
 await bob.evaluate(() => {
-  window.__teleport.x = 10;
-  window.__teleport.z = -10;
-  window.__teleport.pending = true;
+  window.__mt.x = 18;
+  window.__mt.z = 0;
+  window.__mt.active = true;
 });
-await alice.waitForTimeout(4000);
-const aliceSees2 = await alice.evaluate(() =>
-  window.__ghosts.map((g) => ({ name: g.name, x: Math.round(g.tx), z: Math.round(g.tz) }))
-);
-console.log("After Bob moved, Alice sees:", JSON.stringify(aliceSees2));
+const track = [];
+for (let i = 0; i < 16; i++) {
+  await alice.waitForTimeout(400);
+  const p = await alice.evaluate(() => {
+    const g = window.__ghosts[0];
+    return g ? { x: Math.round(g.cx * 10) / 10, z: Math.round(g.cz * 10) / 10 } : null;
+  });
+  if (p) track.push(p);
+}
+const steps = track.slice(1).map((p, i) => Math.hypot(p.x - track[i].x, p.z - track[i].z).toFixed(1));
+console.log("Bob's rendered path on Alice's screen:", JSON.stringify(track.map((p) => p.x)));
+console.log("step sizes:", steps.join(", "));
+const big = steps.filter((s) => Number(s) > 5).length;
+console.log(big === 0 ? "✓ smooth — no teleport-sized jumps" : `✗ ${big} jumpy steps`);
 
 await alice.screenshot({ path: "/tmp/ww-mp-alice.png" });
 await browser.close();

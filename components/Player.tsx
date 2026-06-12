@@ -13,7 +13,7 @@ import {
   HOME_EXTEND_POS, HOME_COOP_POS, HOME_TIERS, zoneAt, resolveMovement, resolveHomeMovement, bridgeY,
 } from "@/lib/world";
 import HitPop from "./HitPop";
-import CharacterModel from "./CharacterModel";
+import CharacterModel, { Motion } from "./CharacterModel";
 import { onAnimalHit } from "./Animals";
 
 // screen-relative WASD axes for the fixed isometric camera angle
@@ -88,6 +88,7 @@ export default function Player() {
   }, [hurtAt]);
 
   const appearance = useGame((s) => s.appearance);
+  const motion = useRef<Motion>({ phase: 0, moving: false }).current;
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -408,6 +409,8 @@ export default function Player() {
     live.z = g.position.z;
     live.rot = g.rotation.y;
     live.moving = moving;
+    motion.phase = walkPhase.current;
+    motion.moving = moving;
 
     // --- camera follow ---
     const desired = g.position.clone().add(CAM_OFFSET);
@@ -504,7 +507,7 @@ export default function Player() {
 
   return (
     <group ref={group}>
-      <CharacterModel appearance={appearance} shirt={shirt} hat={hat} armor={armor} />
+      <CharacterModel appearance={appearance} shirt={shirt} hat={hat} armor={armor} motion={motion} />
 
       {/* right hand: axe (or pickaxe while mining), or the rod while fishing */}
       <group ref={toolRef} position={[0.42, 0.65, 0.14]}>

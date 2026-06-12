@@ -1,33 +1,63 @@
 "use client";
 
+import { useRef } from "react";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { Appearance, SKIN_TONES, HAIR_COLORS, SHIRTS, ArmorTier } from "@/lib/store";
+
+/** Mutable walk-cycle state, written by whoever moves the character. */
+export type Motion = { phase: number; moving: boolean };
 
 type Props = {
   appearance: Appearance;
   shirt: string;
   hat: string | null;
   armor?: ArmorTier | null;
+  motion?: Motion;
 };
 
-/** The forager's body — shared between the in-game player and the creator preview. */
-export default function CharacterModel({ appearance, shirt, hat, armor = null }: Props) {
+/** The forager's body — shared between the player, other live players and the creator preview. */
+export default function CharacterModel({ appearance, shirt, hat, armor = null, motion }: Props) {
   const shirtColor = SHIRTS[shirt]?.color ?? "#3f6d35";
   const sleeveColor = new THREE.Color(shirtColor).multiplyScalar(0.85).getStyle();
   const skinColor = SKIN_TONES[appearance.skin] ?? SKIN_TONES[0];
   const hairColor = HAIR_COLORS[appearance.hairColor] ?? HAIR_COLORS[0];
 
+  const lLeg = useRef<THREE.Group>(null);
+  const rLeg = useRef<THREE.Group>(null);
+  const lArm = useRef<THREE.Group>(null);
+  const rArm = useRef<THREE.Group>(null);
+
+  useFrame((_, dt) => {
+    const swingTarget = motion?.moving ? Math.sin(motion.phase) * 0.6 : 0;
+    const ease = (ref: React.RefObject<THREE.Group>, target: number) => {
+      if (ref.current) {
+        ref.current.rotation.x = motion?.moving
+          ? target
+          : THREE.MathUtils.lerp(ref.current.rotation.x, 0, Math.min(1, dt * 10));
+      }
+    };
+    ease(lLeg, swingTarget);
+    ease(rLeg, -swingTarget);
+    ease(lArm, -swingTarget * 0.7);
+    ease(rArm, swingTarget * 0.7);
+  });
+
   return (
     <group>
-      {/* legs */}
-      <mesh position={[-0.12, 0.3, 0]} castShadow>
-        <boxGeometry args={[0.18, 0.6, 0.18]} />
-        <meshStandardMaterial color="#4a3b28" roughness={1} />
-      </mesh>
-      <mesh position={[0.12, 0.3, 0]} castShadow>
-        <boxGeometry args={[0.18, 0.6, 0.18]} />
-        <meshStandardMaterial color="#4a3b28" roughness={1} />
-      </mesh>
+      {/* legs, pivoting at the hip */}
+      <group ref={lLeg} position={[-0.12, 0.6, 0]}>
+        <mesh position={[0, -0.3, 0]} castShadow>
+          <boxGeometry args={[0.18, 0.6, 0.18]} />
+          <meshStandardMaterial color="#4a3b28" roughness={1} />
+        </mesh>
+      </group>
+      <group ref={rLeg} position={[0.12, 0.6, 0]}>
+        <mesh position={[0, -0.3, 0]} castShadow>
+          <boxGeometry args={[0.18, 0.6, 0.18]} />
+          <meshStandardMaterial color="#4a3b28" roughness={1} />
+        </mesh>
+      </group>
       {/* torso */}
       <mesh position={[0, 0.85, 0]} castShadow>
         <boxGeometry args={[0.52, 0.55, 0.3]} />
@@ -44,15 +74,19 @@ export default function CharacterModel({ appearance, shirt, hat, armor = null }:
           />
         </mesh>
       )}
-      {/* arms */}
-      <mesh position={[-0.34, 0.82, 0]} castShadow>
-        <boxGeometry args={[0.14, 0.5, 0.16]} />
-        <meshStandardMaterial color={sleeveColor} roughness={1} />
-      </mesh>
-      <mesh position={[0.34, 0.82, 0]} castShadow>
-        <boxGeometry args={[0.14, 0.5, 0.16]} />
-        <meshStandardMaterial color={sleeveColor} roughness={1} />
-      </mesh>
+      {/* arms, pivoting at the shoulder */}
+      <group ref={lArm} position={[-0.34, 1.07, 0]}>
+        <mesh position={[0, -0.25, 0]} castShadow>
+          <boxGeometry args={[0.14, 0.5, 0.16]} />
+          <meshStandardMaterial color={sleeveColor} roughness={1} />
+        </mesh>
+      </group>
+      <group ref={rArm} position={[0.34, 1.07, 0]}>
+        <mesh position={[0, -0.25, 0]} castShadow>
+          <boxGeometry args={[0.14, 0.5, 0.16]} />
+          <meshStandardMaterial color={sleeveColor} roughness={1} />
+        </mesh>
+      </group>
       {/* head */}
       <mesh position={[0, 1.32, 0]} castShadow>
         <boxGeometry args={[0.32, 0.32, 0.3]} />

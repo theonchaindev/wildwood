@@ -13,22 +13,48 @@ export type GhostLook = {
   hat?: string | null;
 };
 
+export type Sample = { x: number; z: number; rot: number; t: number };
+
 export type Ghost = {
   id: string;
   name: string;
   level: number;
   lookStr: string;
   look: GhostLook;
-  // network target
-  tx: number;
-  tz: number;
-  trot: number;
+  samples: Sample[]; // recent network positions, rendered ~1s in the past
   // interpolated current position (owned by the render loop)
   cx: number;
   cz: number;
   crot: number;
-  lastUpdate: number;
 };
+
+/** How far in the past remote players are rendered — buys smoothness. */
+export const RENDER_DELAY_MS = 1_000;
+
+function lerpAngle(a: number, b: number, k: number) {
+  const d = ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+  return a + d * k;
+}
+
+/** Position at `rt`, interpolated between buffered samples. */
+export function sampleAt(samples: Sample[], rt: number): Sample {
+  if (samples.length === 1 || rt <= samples[0].t) return samples[0];
+  for (let i = 0; i < samples.length - 1; i++) {
+    const a = samples[i];
+    const b = samples[i + 1];
+    if (rt <= b.t) {
+      if (Math.hypot(b.x - a.x, b.z - a.z) > 25) return b; // gate travel: snap
+      const k = (rt - a.t) / Math.max(1, b.t - a.t);
+      return {
+        x: a.x + (b.x - a.x) * k,
+        z: a.z + (b.z - a.z) * k,
+        rot: lerpAngle(a.rot, b.rot, k),
+        t: rt,
+      };
+    }
+  }
+  return samples[samples.length - 1];
+}
 
 export const ghosts: Ghost[] = [];
 
@@ -81,16 +107,16 @@ async function sync() {
 
     const seen = new Set<string>();
     let changed = false;
+    const now = Date.now();
     for (const p of data.players as any[]) {
       seen.add(p.id);
+      const sample: Sample = { x: p.x, z: p.z, rot: p.rot, t: now };
       const existing = ghosts.find((g) => g.id === p.id);
       if (existing) {
-        existing.tx = p.x;
-        existing.tz = p.z;
-        existing.trot = p.rot;
+        existing.samples.push(sample);
+        if (existing.samples.length > 6) existing.samples.shift();
         existing.name = p.name;
         existing.level = p.level;
-        existing.lastUpdate = Date.now();
         if (existing.lookStr !== p.look) {
           existing.lookStr = p.look;
           try { existing.look = JSON.parse(p.look); } catch { existing.look = {}; }
@@ -102,9 +128,8 @@ async function sync() {
         ghosts.push({
           id: p.id, name: p.name, level: p.level,
           lookStr: p.look, look,
-          tx: p.x, tz: p.z, trot: p.rot,
+          samples: [sample],
           cx: p.x, cz: p.z, crot: p.rot,
-          lastUpdate: Date.now(),
         });
         changed = true;
       }
@@ -127,5 +152,5 @@ async function sync() {
 export function startMultiplayer() {
   if (timer || typeof window === "undefined") return;
   sync();
-  timer = setInterval(sync, 1_100);
+  timer = setInterval(sync, 800);
 }
