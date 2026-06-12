@@ -45,10 +45,14 @@ export function saveData() {
     quests: s.quests,
     acceptedOffers: s.acceptedOffers,
     homeTier: s.homeTier,
+    houseLevel: s.houseLevel,
+    lastRentAt: s.lastRentAt,
     chest: s.chest,
     farm: s.farm,
     dog: s.dog,
     pens: s.pens,
+    orchard: s.orchard,
+    hives: s.hives,
     structures: s.structures,
   };
 }

@@ -4,12 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import { useFrame, ThreeEvent } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
-import { useGame, SEEDS, BUILDABLES, PEN_DEFS, Structure } from "@/lib/store";
-import { live, daylight, moveTarget } from "@/lib/runtime";
+import {
+  useGame, SEEDS, BUILDABLES, PEN_DEFS, Structure, HOUSE_LEVELS,
+  ORCHARD_COST, HIVE_COST, APPLE_GROW_MS, RENT_INTERVAL_MS,
+} from "@/lib/store";
+import { live, daylight, moveTarget, isNight } from "@/lib/runtime";
 import { Model } from "@/lib/assets";
 import {
-  HOME_TIERS, HOME_GATE_POS, HOME_CHEST_POS, HOME_FURNACE_POS,
-  HOME_EXTEND_POS, HOME_CABIN_POS, PEN_SPOTS, pensAllowed, homeTilePos, homeTileKey,
+  HOME_TIERS, HOME_CHEST_POS, HOME_FURNACE_POS,
+  HOME_EXTEND_POS, HOME_CABIN_POS, HOME_WELL_POS, HOME_POND_POS, POND_R,
+  HOME_WINDMILL_POS, HOME_SCARECROW_POS, ORCHARD_SPOTS, HIVE_SPOTS,
+  PEN_SPOTS, pensAllowed, homeTilePos, homeTileKey, homeGateZ, homeTierDef,
 } from "@/lib/world";
 
 function near(px: number, pz: number, r = 4) {
@@ -70,8 +75,8 @@ function FarmTile({ idx, readOnly }: { idx: number; readOnly?: boolean }) {
   let stage = 0;
   let ready = false;
   if (crop) {
-    const def = SEEDS[crop.seed];
-    const k = Math.min(1, (Date.now() - crop.at) / def.growMs);
+    const growMs = readOnly ? SEEDS[crop.seed].growMs : useGame.getState().growMsFor(crop.seed);
+    const k = Math.min(1, (Date.now() - crop.at) / growMs);
     stage = k;
     ready = k >= 1;
   }
@@ -181,28 +186,418 @@ function Chest() {
   );
 }
 
-function Cabin() {
+function House({ level, visiting }: { level: number; visiting: boolean }) {
+  const lv = Math.max(1, Math.min(level, HOUSE_LEVELS.length));
+  const def = HOUSE_LEVELS[lv - 1];
+  const w = 3.6 + (lv - 1) * 0.5;
+  const d = 2.8 + (lv - 1) * 0.3;
+  const wallH = 2 + (lv - 1) * 0.15;
+  const stone = lv >= 3;
+  const wall = lv >= 5 ? "#d8c9a8" : stone ? "#9c9183" : "#8a6a3f";
+  const roof = lv >= 5 ? "#7a4a2e" : "#5e4426";
+  const front = d / 2;
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => tick((n) => n + 1), 5000);
+    return () => clearInterval(iv);
+  }, []);
+  const s = useGame.getState();
+  const rentReady = !visiting && lv >= HOUSE_LEVELS.length && Date.now() - s.lastRentAt >= RENT_INTERVAL_MS;
+  const canSleep = !visiting && lv >= 2 && isNight();
+
+  const click = stopAnd(() => {
+    const st = useGame.getState();
+    if (visiting) {
+      st.addToast("Their door is locked 🏠");
+      return;
+    }
+    if (!near(HOME_CABIN_POS[0], HOME_CABIN_POS[2], 4.2 + lv * 0.3)) {
+      st.addToast("Walk up to your front door");
+      return;
+    }
+    st.setOpenPanel("house");
+  });
+
   return (
-    <group position={HOME_CABIN_POS}>
+    <group position={HOME_CABIN_POS} onClick={click} {...hoverCursor()}>
       {/* walls */}
-      <mesh position={[0, 1, 0]} castShadow>
-        <boxGeometry args={[3.6, 2, 2.8]} />
-        <meshStandardMaterial color="#8a6a3f" roughness={1} />
+      <mesh position={[0, wallH / 2, 0]} castShadow>
+        <boxGeometry args={[w, wallH, d]} />
+        <meshStandardMaterial color={wall} roughness={1} />
       </mesh>
+      {/* stone footing once the house is upgraded past timber */}
+      {stone && (
+        <mesh position={[0, 0.25, 0]} castShadow>
+          <boxGeometry args={[w + 0.15, 0.5, d + 0.15]} />
+          <meshStandardMaterial color="#7d7468" roughness={1} />
+        </mesh>
+      )}
       {/* roof */}
-      <mesh position={[0, 2.45, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
-        <coneGeometry args={[2.9, 1.3, 4]} />
-        <meshStandardMaterial color="#5e4426" roughness={1} />
+      <mesh position={[0, wallH + 0.6, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+        <coneGeometry args={[Math.max(w, d) * 0.82, 1.3 + lv * 0.1, 4]} />
+        <meshStandardMaterial color={roof} roughness={1} />
       </mesh>
+      {/* the Manor gets a second storey */}
+      {lv >= 5 && (
+        <group position={[0, wallH + 0.85, 0]}>
+          <mesh castShadow>
+            <boxGeometry args={[w * 0.55, 1.5, d * 0.65]} />
+            <meshStandardMaterial color={wall} roughness={1} />
+          </mesh>
+          <mesh position={[0, 1.3, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+            <coneGeometry args={[w * 0.5, 1.1, 4]} />
+            <meshStandardMaterial color={roof} roughness={1} />
+          </mesh>
+          <mesh position={[0, 0.2, d * 0.33]}>
+            <boxGeometry args={[0.5, 0.5, 0.04]} />
+            <meshStandardMaterial color="#ffe9b8" emissive="#d9a93f" emissiveIntensity={0.5} />
+          </mesh>
+        </group>
+      )}
+      {/* chimney from the Farmhouse up */}
+      {lv >= 3 && (
+        <mesh position={[w * 0.32, wallH + 1.1, -d * 0.2]} castShadow>
+          <boxGeometry args={[0.42, 1.2, 0.42]} />
+          <meshStandardMaterial color="#6a6258" roughness={1} />
+        </mesh>
+      )}
+      {/* porch from the Lodge up */}
+      {lv >= 4 && (
+        <group position={[0, 0, front + 0.7]}>
+          <mesh position={[0, 0.08, 0]} receiveShadow>
+            <boxGeometry args={[w * 0.55, 0.16, 1.4]} />
+            <meshStandardMaterial color="#75582f" roughness={1} />
+          </mesh>
+          {[-w * 0.24, w * 0.24].map((px) => (
+            <mesh key={px} position={[px, 1, 0.6]} castShadow>
+              <boxGeometry args={[0.12, 2, 0.12]} />
+              <meshStandardMaterial color="#5e4426" roughness={1} />
+            </mesh>
+          ))}
+          <mesh position={[0, 2.05, 0.3]} castShadow>
+            <boxGeometry args={[w * 0.55, 0.1, 1]} />
+            <meshStandardMaterial color={roof} roughness={1} />
+          </mesh>
+          <pointLight position={[0, 1.7, 0.4]} color="#ffb04a" intensity={0.8} distance={6} decay={2} />
+        </group>
+      )}
       {/* door */}
-      <mesh position={[0, 0.75, 1.42]}>
+      <mesh position={[0, 0.75, front + 0.02]}>
         <boxGeometry args={[0.8, 1.5, 0.06]} />
         <meshStandardMaterial color="#4a3520" roughness={1} />
       </mesh>
-      {/* window */}
-      <mesh position={[1.2, 1.2, 1.42]}>
-        <boxGeometry args={[0.6, 0.6, 0.04]} />
-        <meshStandardMaterial color="#cfe6f0" emissive="#7a96a8" emissiveIntensity={0.3} />
+      {/* windows along the front */}
+      {Array.from({ length: Math.min(lv, 3) }).map((_, i) => {
+        const n = Math.min(lv, 3);
+        const wx = (i - (n - 1) / 2) * (w / (n + 0.4));
+        if (Math.abs(wx) < 0.75) return null; // keep clear of the door
+        return (
+          <mesh key={i} position={[wx, 1.2, front + 0.02]}>
+            <boxGeometry args={[0.6, 0.6, 0.04]} />
+            <meshStandardMaterial color="#cfe6f0" emissive="#7a96a8" emissiveIntensity={0.3} />
+          </mesh>
+        );
+      })}
+      <Html position={[0, wallH + 2.6, 0]} center distanceFactor={32} zIndexRange={[10, 0]}>
+        <div className="world-label">
+          {def.icon} {def.name}
+          {rentReady ? " · 💰 rent ready!" : canSleep ? " · 🛏️ rest?" : ""}
+        </div>
+      </Html>
+    </group>
+  );
+}
+
+function Well() {
+  const click = stopAnd(() => {
+    const s = useGame.getState();
+    if (near(HOME_WELL_POS[0], HOME_WELL_POS[2])) s.collectWater();
+    else s.addToast("Walk closer to the well");
+  });
+  return (
+    <group position={HOME_WELL_POS} onClick={click} {...hoverCursor()}>
+      <mesh position={[0, 0.3, 0]} castShadow>
+        <cylinderGeometry args={[0.7, 0.75, 0.6, 10]} />
+        <meshStandardMaterial color="#8d857a" roughness={1} />
+      </mesh>
+      <mesh position={[0, 0.61, 0]}>
+        <cylinderGeometry args={[0.55, 0.55, 0.04, 10]} />
+        <meshStandardMaterial color="#2e4d63" roughness={0.4} />
+      </mesh>
+      {[-0.6, 0.6].map((px) => (
+        <mesh key={px} position={[px, 1.05, 0]} castShadow>
+          <boxGeometry args={[0.1, 1.5, 0.1]} />
+          <meshStandardMaterial color="#5e4426" roughness={1} />
+        </mesh>
+      ))}
+      <mesh position={[0, 1.9, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+        <coneGeometry args={[1, 0.55, 4]} />
+        <meshStandardMaterial color="#5e4426" roughness={1} />
+      </mesh>
+      <mesh position={[0, 1.35, 0]}>
+        <boxGeometry args={[0.26, 0.26, 0.26]} />
+        <meshStandardMaterial color="#75582f" roughness={1} />
+      </mesh>
+      <Html position={[0, 2.6, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
+        <div className="world-label small">💧 Well</div>
+      </Html>
+    </group>
+  );
+}
+
+function Pond() {
+  return (
+    <group position={[HOME_POND_POS[0], 0, HOME_POND_POS[2]]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]} receiveShadow>
+        <circleGeometry args={[POND_R + 0.7, 24]} />
+        <meshStandardMaterial color="#c9b88a" roughness={1} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
+        <circleGeometry args={[POND_R, 24]} />
+        <meshStandardMaterial color="#3f7fa8" roughness={0.25} />
+      </mesh>
+      {/* reeds and a couple of stones around the bank */}
+      {[[2.9, 1.2], [-2.6, 2], [1.5, -3], [-3.2, -1]].map(([x, z], i) => (
+        <group key={i} position={[x, 0, z]}>
+          {i % 2 === 0 ? (
+            <>
+              {[-0.12, 0, 0.12].map((ox) => (
+                <mesh key={ox} position={[ox, 0.35, 0]} castShadow>
+                  <cylinderGeometry args={[0.025, 0.035, 0.7, 4]} />
+                  <meshStandardMaterial color="#5f7d3c" roughness={1} />
+                </mesh>
+              ))}
+            </>
+          ) : (
+            <mesh position={[0, 0.16, 0]} castShadow>
+              <sphereGeometry args={[0.3, 6, 5]} />
+              <meshStandardMaterial color="#8d857a" roughness={1} />
+            </mesh>
+          )}
+        </group>
+      ))}
+      <Html position={[0, 1.6, 0]} center distanceFactor={32} zIndexRange={[9, 0]}>
+        <div className="world-label small">🎣 Your pond — press F to fish</div>
+      </Html>
+    </group>
+  );
+}
+
+function OrchardSpot({ idx, readOnly }: { idx: number; readOnly?: boolean }) {
+  const ownTree = useGame((s) => s.orchard[idx]);
+  const visitTree = useGame((s) => s.visitData?.orchard?.[idx]);
+  const tree = readOnly ? visitTree : ownTree;
+  const [x, z] = ORCHARD_SPOTS[idx];
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => tick((n) => n + 1), 5000);
+    return () => clearInterval(iv);
+  }, []);
+  const pending = readOnly ? 0 : useGame.getState().orchardPending(idx);
+  const k = tree ? Math.min(1, (Date.now() - tree.plantedAt) / APPLE_GROW_MS) : 0;
+
+  const click = stopAnd(() => {
+    const s = useGame.getState();
+    if (readOnly) {
+      s.addToast("A lovely orchard — but not yours 🍎");
+      return;
+    }
+    if (!near(x, z)) {
+      s.addToast("Walk closer to the orchard");
+      return;
+    }
+    if (!tree) s.plantOrchardTree(idx);
+    else s.collectOrchard(idx);
+  });
+
+  // apples dotted around the canopy when fruit is waiting
+  const apples: [number, number, number][] = [
+    [0.45, 1.75, 0.3], [-0.4, 1.6, 0.35], [0.15, 1.95, -0.45], [-0.3, 1.8, -0.3],
+  ];
+
+  return (
+    <group position={[x, 0, z]} onClick={click} {...hoverCursor()}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} receiveShadow>
+        <circleGeometry args={[1.1, 12]} />
+        <meshStandardMaterial color={tree ? "#6d5535" : "#85975c"} roughness={1} />
+      </mesh>
+      {!tree ? (
+        <Html position={[0, 1.2, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
+          <div className="world-label small">🌳 Plant apple tree · {ORCHARD_COST.acorns} 🌰 + {ORCHARD_COST.wood} 🪵</div>
+        </Html>
+      ) : (
+        <>
+          <mesh position={[0, 0.3 + k * 0.45, 0]} castShadow>
+            <cylinderGeometry args={[0.09 + k * 0.05, 0.13 + k * 0.06, 0.6 + k * 0.9, 6]} />
+            <meshStandardMaterial color="#6a4a2c" roughness={1} />
+          </mesh>
+          <mesh position={[0, 0.9 + k * 0.7, 0]} castShadow>
+            <sphereGeometry args={[0.35 + k * 0.65, 8, 6]} />
+            <meshStandardMaterial color={k >= 1 ? "#5fa052" : "#7eb96a"} roughness={1} />
+          </mesh>
+          {pending > 0 &&
+            apples.slice(0, Math.min(pending, 4)).map(([ax, ay, az], i) => (
+              <mesh key={i} position={[ax, ay, az]}>
+                <sphereGeometry args={[0.09, 6, 5]} />
+                <meshStandardMaterial color="#d8453a" roughness={0.6} />
+              </mesh>
+            ))}
+          <Html position={[0, 2.6, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
+            <div className="world-label small">
+              {k < 1 ? `🌱 Growing… ${Math.round(k * 100)}%` : pending > 0 ? `🍎 ${pending} ready!` : "🌳 Apple tree"}
+            </div>
+          </Html>
+        </>
+      )}
+    </group>
+  );
+}
+
+function HiveSpot({ idx, readOnly }: { idx: number; readOnly?: boolean }) {
+  const ownHive = useGame((s) => s.hives[idx]);
+  const visitHive = useGame((s) => s.visitData?.hives?.[idx]);
+  const hive = readOnly ? visitHive : ownHive;
+  const [x, z] = HIVE_SPOTS[idx];
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => tick((n) => n + 1), 5000);
+    return () => clearInterval(iv);
+  }, []);
+  const pending = readOnly ? 0 : useGame.getState().hivePending(idx);
+  const bee1 = useRef<THREE.Mesh>(null);
+  const bee2 = useRef<THREE.Mesh>(null);
+  useFrame(({ clock: c }) => {
+    if (!hive) return;
+    const t = c.elapsedTime;
+    if (bee1.current) bee1.current.position.set(Math.cos(t * 2.2) * 0.6, 1 + Math.sin(t * 3.1) * 0.15, Math.sin(t * 2.2) * 0.6);
+    if (bee2.current) bee2.current.position.set(Math.cos(t * 1.7 + 2) * 0.8, 1.15 + Math.sin(t * 2.6) * 0.12, Math.sin(t * 1.7 + 2) * 0.8);
+  });
+
+  const click = stopAnd(() => {
+    const s = useGame.getState();
+    if (readOnly) {
+      s.addToast("Their bees, their honey 🐝");
+      return;
+    }
+    if (!near(x, z)) {
+      s.addToast("Walk closer to the hive");
+      return;
+    }
+    if (!hive) s.buildHive(idx);
+    else s.collectHive(idx);
+  });
+
+  return (
+    <group position={[x, 0, z]} onClick={click} {...hoverCursor()}>
+      {!hive ? (
+        <>
+          <mesh position={[0, 0.25, 0]} castShadow>
+            <boxGeometry args={[0.12, 0.5, 0.12]} />
+            <meshStandardMaterial color="#75582f" roughness={1} />
+          </mesh>
+          <Html position={[0, 1.1, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
+            <div className="world-label small">🐝 Build beehive · {HIVE_COST.acorns} 🌰 + {HIVE_COST.wood} 🪵</div>
+          </Html>
+        </>
+      ) : (
+        <>
+          <mesh position={[0, 0.18, 0]} castShadow>
+            <boxGeometry args={[0.7, 0.36, 0.55]} />
+            <meshStandardMaterial color="#ece4d2" roughness={1} />
+          </mesh>
+          <mesh position={[0, 0.5, 0]} castShadow>
+            <boxGeometry args={[0.64, 0.28, 0.5]} />
+            <meshStandardMaterial color="#f2ecda" roughness={1} />
+          </mesh>
+          <mesh position={[0, 0.7, 0]} castShadow>
+            <boxGeometry args={[0.74, 0.1, 0.6]} />
+            <meshStandardMaterial color="#9c8454" roughness={1} />
+          </mesh>
+          <mesh position={[0, 0.14, 0.28]}>
+            <boxGeometry args={[0.2, 0.06, 0.02]} />
+            <meshStandardMaterial color="#2c2618" roughness={1} />
+          </mesh>
+          <mesh ref={bee1}>
+            <sphereGeometry args={[0.045, 5, 4]} />
+            <meshBasicMaterial color="#e8c63d" />
+          </mesh>
+          <mesh ref={bee2}>
+            <sphereGeometry args={[0.04, 5, 4]} />
+            <meshBasicMaterial color="#e8c63d" />
+          </mesh>
+          <Html position={[0, 1.5, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
+            <div className="world-label small">{pending > 0 ? `🍯 ${pending} ready!` : "🐝 Beehive"}</div>
+          </Html>
+        </>
+      )}
+    </group>
+  );
+}
+
+function Windmill() {
+  const blades = useRef<THREE.Group>(null);
+  useFrame((_, dt) => {
+    if (blades.current) blades.current.rotation.z += dt * 0.7;
+  });
+  return (
+    <group position={HOME_WINDMILL_POS}>
+      <mesh position={[0, 2.4, 0]} castShadow>
+        <cylinderGeometry args={[0.95, 1.45, 4.8, 8]} />
+        <meshStandardMaterial color="#9c9183" roughness={1} />
+      </mesh>
+      <mesh position={[0, 5.1, 0]} castShadow>
+        <coneGeometry args={[1.15, 1.2, 8]} />
+        <meshStandardMaterial color="#7a4a2e" roughness={1} />
+      </mesh>
+      <mesh position={[0, 1.1, 1.42]}>
+        <boxGeometry args={[0.7, 1.3, 0.06]} />
+        <meshStandardMaterial color="#4a3520" roughness={1} />
+      </mesh>
+      <group ref={blades} position={[0, 4.5, 1.25]}>
+        {[0, Math.PI / 2].map((rot) => (
+          <group key={rot} rotation={[0, 0, rot]}>
+            {[1, -1].map((dir) => (
+              <mesh key={dir} position={[dir * 1.5, 0, 0]} castShadow>
+                <boxGeometry args={[2.6, 0.55, 0.05]} />
+                <meshStandardMaterial color="#e8e0cc" roughness={1} side={THREE.DoubleSide} />
+              </mesh>
+            ))}
+          </group>
+        ))}
+        <mesh>
+          <sphereGeometry args={[0.18, 6, 5]} />
+          <meshStandardMaterial color="#5e4426" roughness={1} />
+        </mesh>
+      </group>
+      <Html position={[0, 6.4, 0]} center distanceFactor={36} zIndexRange={[9, 0]}>
+        <div className="world-label small">🌬️ The Old Windmill</div>
+      </Html>
+    </group>
+  );
+}
+
+function Scarecrow() {
+  return (
+    <group position={HOME_SCARECROW_POS} rotation={[0, 0.6, 0]}>
+      <mesh position={[0, 0.8, 0]} castShadow>
+        <cylinderGeometry args={[0.05, 0.06, 1.6, 5]} />
+        <meshStandardMaterial color="#5e4426" roughness={1} />
+      </mesh>
+      <mesh position={[0, 1.15, 0]} castShadow>
+        <boxGeometry args={[1.1, 0.08, 0.08]} />
+        <meshStandardMaterial color="#5e4426" roughness={1} />
+      </mesh>
+      <mesh position={[0, 1.05, 0]} castShadow>
+        <boxGeometry args={[0.5, 0.55, 0.3]} />
+        <meshStandardMaterial color="#a8854a" roughness={1} />
+      </mesh>
+      <mesh position={[0, 1.55, 0]} castShadow>
+        <sphereGeometry args={[0.2, 7, 6]} />
+        <meshStandardMaterial color="#d9c08a" roughness={1} />
+      </mesh>
+      <mesh position={[0, 1.78, 0]} castShadow>
+        <coneGeometry args={[0.28, 0.3, 7]} />
+        <meshStandardMaterial color="#c9a84c" roughness={1} />
       </mesh>
     </group>
   );
@@ -494,14 +889,15 @@ function SleepingDog() {
   );
 }
 
-function ExitGate() {
+function ExitGate({ tier }: { tier: number }) {
+  const gateZ = homeGateZ(tier);
   const click = stopAnd(() => {
     const s = useGame.getState();
-    if (near(HOME_GATE_POS[0], HOME_GATE_POS[2], 4.5)) s.travel("forest");
+    if (near(0, gateZ, 4.5)) s.travel("forest");
     else s.addToast("Walk to the gate to leave");
   });
   return (
-    <group position={HOME_GATE_POS} onClick={click} {...hoverCursor()}>
+    <group position={[0, 0, gateZ]} onClick={click} {...hoverCursor()}>
       {[-1.2, 1.2].map((x) => (
         <mesh key={x} position={[x, 1.1, 0]} castShadow>
           <cylinderGeometry args={[0.12, 0.14, 2.2, 6]} />
@@ -539,7 +935,7 @@ function ExtendSign() {
         <meshStandardMaterial color="#a8854a" roughness={1} />
       </mesh>
       <Html position={[0, 1.9, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
-        <div className="world-label">📐 Extend land — {next.price} 🌰</div>
+        <div className="world-label">📐 {next.name} — {next.price} 🌰</div>
       </Html>
     </group>
   );
@@ -548,14 +944,16 @@ function ExtendSign() {
 export default function Homestead() {
   const ownName = useGame((s) => s.name);
   const ownTier = useGame((s) => s.homeTier);
+  const ownHouse = useGame((s) => s.houseLevel);
   const ownStructures = useGame((s) => s.structures);
   const visitData = useGame((s) => s.visitData);
   const visiting = useGame((s) => s.location === "visit") && !!visitData;
 
   const name = visiting ? visitData!.name : ownName;
   const homeTier = visiting ? visitData!.homeTier : ownTier;
+  const houseLevel = visiting ? visitData!.houseLevel ?? 1 : ownHouse;
   const structures = visiting ? visitData!.structures : ownStructures;
-  const tier = HOME_TIERS[Math.max(0, Math.min(homeTier, HOME_TIERS.length) - 1)];
+  const tier = homeTierDef(homeTier);
 
   // fence posts around the current bounds, gap at the gate (south middle)
   const posts: [number, number][] = [];
@@ -579,6 +977,10 @@ export default function Homestead() {
         s.addToast("Build inside your fence");
         return;
       }
+      if (tier.pond && Math.hypot(x - HOME_POND_POS[0], z - HOME_POND_POS[2]) < POND_R + 1) {
+        s.addToast("Not in the pond!");
+        return;
+      }
       s.placeStructure(x, z);
       return;
     }
@@ -587,11 +989,22 @@ export default function Homestead() {
     moveTarget.active = true;
   };
 
+  // decorative treeline ringing the land, pushed out as the fence moves
+  const treeline: [number, number][] = [];
+  const treeN = 10 + homeTier * 2;
+  for (let i = 0; i < treeN; i++) {
+    const a = (i / treeN) * Math.PI * 2 + 0.3;
+    treeline.push([
+      Math.cos(a) * (tier.halfW + 7 + (i % 3) * 2.5),
+      Math.sin(a) * (tier.halfD + 6 + ((i + 1) % 3) * 2.5),
+    ]);
+  }
+
   return (
     <group>
       {/* surrounding forest floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
-        <planeGeometry args={[120, 120]} />
+        <planeGeometry args={[170, 170]} />
         <meshStandardMaterial color="#4c6a33" roughness={1} />
       </mesh>
       {/* your land */}
@@ -607,8 +1020,7 @@ export default function Homestead() {
         </mesh>
       ))}
 
-      {/* decorative treeline beyond the fence */}
-      {[[-24, -18], [-15, -24], [0, -26], [14, -24], [24, -16], [-26, 4], [26, 2], [-22, 18], [20, 20], [8, 26], [-8, 26]].map(([x, z], i) => (
+      {treeline.map(([x, z], i) => (
         <Model
           key={i}
           file={i % 2 ? "PP_Tree_02" : "PP_Birch_Tree_05"}
@@ -618,16 +1030,30 @@ export default function Homestead() {
         />
       ))}
 
-      <Cabin />
+      <House level={houseLevel} visiting={visiting} />
       {!visiting && <Chest />}
       {!visiting && <Furnace />}
-      <ExitGate />
+      {tier.well && <Well />}
+      {tier.pond && <Pond />}
+      {tier.windmill && <Windmill />}
+      {tier.windmill && <Scarecrow />}
+      <ExitGate tier={homeTier} />
       {!visiting && <ExtendSign />}
       {visiting
         ? Object.entries(visitData!.pens ?? {}).map(([i, p]: [string, any]) =>
             Number(i) < PEN_SPOTS.length ? <VisitPen key={i} idx={Number(i)} animal={p.animal} count={p.count} /> : null
           )
         : PEN_SPOTS.slice(0, pensAllowed(homeTier)).map((_, i) => <PenSpot key={i} idx={i} />)}
+      {visiting
+        ? Object.keys(visitData!.orchard ?? {}).map((i) =>
+            Number(i) < ORCHARD_SPOTS.length ? <OrchardSpot key={i} idx={Number(i)} readOnly /> : null
+          )
+        : ORCHARD_SPOTS.slice(0, tier.orchard).map((_, i) => <OrchardSpot key={i} idx={i} />)}
+      {visiting
+        ? Object.keys(visitData!.hives ?? {}).map((i) =>
+            Number(i) < HIVE_SPOTS.length ? <HiveSpot key={i} idx={Number(i)} readOnly /> : null
+          )
+        : HIVE_SPOTS.slice(0, tier.hives).map((_, i) => <HiveSpot key={i} idx={i} />)}
       {!visiting && <SleepingDog />}
 
       {structures.map((st) => (
@@ -638,7 +1064,7 @@ export default function Homestead() {
         <FarmTile key={i} idx={i} readOnly={visiting} />
       ))}
 
-      <Html position={[0, 5.4, -6]} center distanceFactor={36} zIndexRange={[8, 0]}>
+      <Html position={[0, 6.2, -6]} center distanceFactor={36} zIndexRange={[8, 0]}>
         <div className="world-label">🏡 {name}&apos;s {tier.name}{visiting ? " (visiting)" : ""}</div>
       </Html>
     </group>

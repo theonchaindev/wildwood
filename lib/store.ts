@@ -3,8 +3,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { sfx } from "./sound";
-import { teleport, live, isBloodMoonNight } from "./runtime";
-import { CAMPFIRE_POS, ShopId, HOME_TIERS, HOME_GATE_POS, HOME_PORTAL_POS } from "./world";
+import { teleport, live, isBloodMoonNight, isNight, clock, DAY_LENGTH_S } from "./runtime";
+import { CAMPFIRE_POS, ShopId, HOME_TIERS, HOME_PORTAL_POS, homeGateZ, homeTierDef } from "./world";
 
 export type Interact =
   | { kind: "shop"; id: ShopId }
@@ -13,7 +13,11 @@ export type Interact =
   | { kind: "portal" } // forest gate into the homestead
   | { kind: "homegate" } // homestead gate back to the forest
   | { kind: "extend" } // homestead extension sign
-  | { kind: "pen"; idx: number }; // farm animal pen (or its empty spot)
+  | { kind: "pen"; idx: number } // farm animal pen (or its empty spot)
+  | { kind: "house" } // your front door
+  | { kind: "well" }
+  | { kind: "orchard"; idx: number }
+  | { kind: "hive"; idx: number };
 
 export type Quest = {
   id: string;
@@ -117,6 +121,8 @@ export const SELL_PRICES: Record<string, number> = {
   "Cooked Rabbit": 12,
   "Raw Venison": 12,
   "Cooked Venison": 24,
+  Apple: 9,
+  Honey: 25,
 };
 
 export const COLLECTIBLE_RESPAWN_MS = 90_000;
@@ -171,11 +177,43 @@ export const FOODS: Record<string, { hp: number; energy: number; hunger: number;
   "Cooked Rabbit": { hp: 14, energy: 8, hunger: 18 },
   "Raw Venison": { hp: 5, energy: 5, hunger: 8, infect: 0.2 },
   "Cooked Venison": { hp: 28, energy: 12, hunger: 35 },
+  Apple: { hp: 10, energy: 8, hunger: 14 },
+  Honey: { hp: 18, energy: 20, hunger: 18 },
 };
 
 // ---- homestead extras ----
 
 export const DOG_COST = 200;
+
+// ---- the house: five upgrade levels, each with a real perk ----
+
+export const HOUSE_LEVELS = [
+  { name: "Log Cabin", icon: "🛖", acorns: 0, wood: 0, stone: 0, perk: "A humble roof over your head" },
+  { name: "Timber Cottage", icon: "🏠", acorns: 400, wood: 20, stone: 0, perk: "Sleep through the night — rest at your door after dusk" },
+  { name: "Stone Farmhouse", icon: "🏡", acorns: 900, wood: 30, stone: 20, perk: "Crops grow 20% faster" },
+  { name: "Hunter's Lodge", icon: "🏕️", acorns: 1600, wood: 50, stone: 35, perk: "Pens, hives & orchard produce 20% faster" },
+  { name: "Wildwood Manor", icon: "🏰", acorns: 3000, wood: 80, stone: 60, perk: `Earn 150 🌰 rent — collect at your door every day` },
+];
+
+export const RENT_AMOUNT = 150;
+export const RENT_INTERVAL_MS = DAY_LENGTH_S * 1000; // once per in-game day
+
+// ---- the orchard: plant apple trees behind the house (land tier 4+) ----
+
+export const ORCHARD_COST = { acorns: 120, wood: 4 };
+export const APPLE_GROW_MS = 240_000; // sapling matures in 4 minutes
+export const APPLE_INTERVAL_MS = 300_000; // then one apple every 5 minutes
+export const ORCHARD_STORE_CAP = 6;
+
+export type OrchardTree = { plantedAt: number; lastCollect: number };
+
+// ---- beehives: slow, valuable honey (land tier 5+) ----
+
+export const HIVE_COST = { acorns: 200, wood: 10 };
+export const HONEY_INTERVAL_MS = 420_000; // one honey every 7 minutes
+export const HIVE_STORE_CAP = 4;
+
+export type Hive = { builtAt: number; lastCollect: number };
 
 // ---- farm pens: pick an animal per pen, they produce while you play ----
 
@@ -356,20 +394,27 @@ type GameState = {
   lastHit: { id: number; key: string; amount: number; crit: boolean; at: number } | null;
   acceptedOffers: string[];
   homeTier: number; // 0 = no land owned
+  houseLevel: number; // index+1 into HOUSE_LEVELS
+  lastRentAt: number;
   location: "forest" | "home" | "visit";
   savedForestPos: { x: number; z: number } | null;
   account: { name: string; wallet?: string } | null;
   visitData: {
     name: string;
     homeTier: number;
+    houseLevel?: number;
     structures: Structure[];
     farm: Record<string, { seed: string; at: number }>;
     pens: Record<string, Pen>;
+    orchard?: Record<string, OrchardTree>;
+    hives?: Record<string, Hive>;
   } | null;
   chest: Record<string, number>;
   farm: Record<string, { seed: string; at: number }>;
   dog: boolean;
   pens: Record<string, Pen>; // key = pen spot index
+  orchard: Record<string, OrchardTree>; // key = orchard spot index
+  hives: Record<string, Hive>; // key = hive spot index
   structures: Structure[];
   buildMode: string | null; // buildable key, or "remove"
 
@@ -380,7 +425,7 @@ type GameState = {
   nearInteract: Interact | null;
   nearWater: boolean;
   openShop: ShopId | null;
-  openPanel: "chest" | "furnace" | null;
+  openPanel: "chest" | "furnace" | "house" | null;
   openPen: number | null;
   homeOffer: "buy" | "extend" | null;
   showQuests: boolean;
@@ -422,6 +467,18 @@ type GameState = {
   addPenAnimal: (idx: number) => void;
   penPending: (idx: number) => number;
   collectPen: (idx: number) => void;
+  growMsFor: (seed: string) => number;
+  produceFactor: () => number;
+  upgradeHouse: () => void;
+  sleepTillDawn: () => void;
+  rentReady: () => boolean;
+  collectRent: () => void;
+  plantOrchardTree: (idx: number) => void;
+  orchardPending: (idx: number) => number;
+  collectOrchard: (idx: number) => void;
+  buildHive: (idx: number) => void;
+  hivePending: (idx: number) => number;
+  collectHive: (idx: number) => void;
   setBuildMode: (mode: string | null) => void;
   placeStructure: (x: number, z: number) => void;
   removeStructure: (id: number) => void;
@@ -448,7 +505,7 @@ type GameState = {
   setNearWater: (near: boolean) => void;
   tick: (dtSeconds: number, moving: boolean, nearCamp: boolean, sprinting: boolean, working: boolean) => void;
   setOpenShop: (id: ShopId | null) => void;
-  setOpenPanel: (p: "chest" | "furnace" | null) => void;
+  setOpenPanel: (p: "chest" | "furnace" | "house" | null) => void;
   setOpenPen: (idx: number | null) => void;
   setHomeOffer: (o: "buy" | "extend" | null) => void;
   toggleQuests: () => void;
@@ -510,6 +567,8 @@ export const useGame = create<GameState>()(
       lastHit: null,
       acceptedOffers: [],
       homeTier: 0,
+      houseLevel: 1,
+      lastRentAt: 0,
       location: "forest",
       savedForestPos: null,
       account: null,
@@ -518,6 +577,8 @@ export const useGame = create<GameState>()(
       farm: {},
       dog: false,
       pens: {},
+      orchard: {},
+      hives: {},
       structures: [],
       buildMode: null,
 
@@ -747,11 +808,19 @@ export const useGame = create<GameState>()(
         const s = get();
         if (s.homeTier < 1 || s.homeTier >= HOME_TIERS.length) return;
         const next = HOME_TIERS[s.homeTier];
+        const cur = HOME_TIERS[s.homeTier - 1];
         if (!spend(s, next.price)) return;
         set({ acorns: s.acorns - next.price, homeTier: s.homeTier + 1, homeOffer: null });
         sfx.buy();
         s.setBanner(`🏡 Upgraded to the ${next.name}!`);
-        s.addToast(`+${next.tiles - HOME_TIERS[s.homeTier - 1].tiles} farm tiles · bigger grounds · chest holds ${next.chestCap}`);
+        const news: string[] = [`+${next.tiles - cur.tiles} farm tiles`];
+        if (next.pens > cur.pens) news.push(`+${next.pens - cur.pens} pen${next.pens - cur.pens > 1 ? "s" : ""}`);
+        if (next.orchard > cur.orchard) news.push(`+${next.orchard - cur.orchard} orchard plot${next.orchard - cur.orchard > 1 ? "s" : ""}`);
+        if (next.hives > cur.hives) news.push("+1 beehive spot");
+        if (next.well && !cur.well) news.push("a well 💧");
+        if (next.pond && !cur.pond) news.push("a fishing pond 🎣");
+        if (next.windmill && !cur.windmill) news.push("the windmill 🌬️");
+        s.addToast(news.join(" · "));
       },
 
       buyDog: () => {
@@ -807,9 +876,10 @@ export const useGame = create<GameState>()(
         const pen = get().pens[idx];
         if (!pen || pen.count < 1) return 0;
         const def = PEN_DEFS[pen.animal];
+        const interval = def.intervalMs * get().produceFactor();
         return Math.min(
           PEN_STORE_CAP,
-          Math.floor(((Date.now() - pen.lastCollect) / def.intervalMs) * pen.count)
+          Math.floor(((Date.now() - pen.lastCollect) / interval) * pen.count)
         );
       },
 
@@ -829,6 +899,170 @@ export const useGame = create<GameState>()(
         s.addToast(`${def.productIcon} Collected ${got} ${def.product} · +${4 * got} XP`);
         sfx.pickup();
         s.addXp(4 * got);
+      },
+
+      // a Stone Farmhouse tends the fields; a Hunter's Lodge tends the beasts
+      growMsFor: (seed) => SEEDS[seed].growMs * (get().houseLevel >= 3 ? 0.8 : 1),
+      produceFactor: () => (get().houseLevel >= 4 ? 0.8 : 1),
+
+      upgradeHouse: () => {
+        const s = get();
+        if (s.homeTier < 1 || s.houseLevel >= HOUSE_LEVELS.length) return;
+        const next = HOUSE_LEVELS[s.houseLevel];
+        if ((s.inventory.Wood ?? 0) < next.wood) {
+          s.addToast(`Needs ${next.wood} Wood 🪵`);
+          sfx.error();
+          return;
+        }
+        if ((s.inventory.Stone ?? 0) < next.stone) {
+          s.addToast(`Needs ${next.stone} Stone 🪨`);
+          sfx.error();
+          return;
+        }
+        if (!spend(s, next.acorns)) return;
+        const inv = { ...s.inventory };
+        for (const [mat, cost] of [["Wood", next.wood], ["Stone", next.stone]] as const) {
+          if (cost > 0) {
+            if (inv[mat] - cost <= 0) delete inv[mat];
+            else inv[mat] -= cost;
+          }
+        }
+        set({ acorns: s.acorns - next.acorns, inventory: inv, houseLevel: s.houseLevel + 1 });
+        sfx.levelUp();
+        s.setBanner(`${next.icon} Your house is now a ${next.name}!`);
+        s.addToast(next.perk);
+      },
+
+      sleepTillDawn: () => {
+        const s = get();
+        if (s.houseLevel < 2) {
+          s.addToast("You need a Timber Cottage to sleep the night away 🛏️");
+          return;
+        }
+        if (!isNight()) {
+          s.addToast("You're not tired yet — come back after dusk 🌙");
+          return;
+        }
+        if (clock.timeOfDay > 0.5) clock.day += 1; // sleeping past midnight starts a new day
+        clock.timeOfDay = 0.26; // just past dawn
+        set({
+          energy: s.maxEnergy,
+          hp: Math.min(s.maxHp, s.hp + 30),
+          openPanel: null,
+        });
+        sfx.questDone();
+        s.setBanner("☀️ You slept soundly till dawn");
+      },
+
+      rentReady: () => {
+        const s = get();
+        return s.houseLevel >= HOUSE_LEVELS.length && Date.now() - s.lastRentAt >= RENT_INTERVAL_MS;
+      },
+
+      collectRent: () => {
+        const s = get();
+        if (!s.rentReady()) {
+          const mins = Math.ceil((RENT_INTERVAL_MS - (Date.now() - s.lastRentAt)) / 60000);
+          s.addToast(`Rent isn't due yet — about ${mins} min to go 💰`);
+          return;
+        }
+        set({ acorns: s.acorns + RENT_AMOUNT, lastRentAt: Date.now() });
+        sfx.coin();
+        s.addToast(`💰 Collected ${RENT_AMOUNT} 🌰 rent from your tenants`);
+      },
+
+      plantOrchardTree: (idx) => {
+        const s = get();
+        if (s.orchard[idx] || s.homeTier < 1) return;
+        if ((s.inventory.Wood ?? 0) < ORCHARD_COST.wood) {
+          s.addToast(`You need ${ORCHARD_COST.wood} Wood for the stakes 🪵`);
+          sfx.error();
+          return;
+        }
+        if (!spend(s, ORCHARD_COST.acorns)) return;
+        const inv = { ...s.inventory };
+        if (inv.Wood - ORCHARD_COST.wood <= 0) delete inv.Wood;
+        else inv.Wood -= ORCHARD_COST.wood;
+        set({
+          acorns: s.acorns - ORCHARD_COST.acorns,
+          inventory: inv,
+          orchard: { ...s.orchard, [idx]: { plantedAt: Date.now(), lastCollect: Date.now() } },
+        });
+        sfx.buy();
+        s.addToast("🌳 Apple sapling planted — it'll bear fruit once it's grown");
+      },
+
+      orchardPending: (idx) => {
+        const tree = get().orchard[idx];
+        if (!tree) return 0;
+        const factor = get().produceFactor();
+        const grownAt = tree.plantedAt + APPLE_GROW_MS * factor;
+        const since = Date.now() - Math.max(tree.lastCollect, grownAt);
+        if (since <= 0) return 0;
+        return Math.min(ORCHARD_STORE_CAP, Math.floor(since / (APPLE_INTERVAL_MS * factor)));
+      },
+
+      collectOrchard: (idx) => {
+        const s = get();
+        const tree = s.orchard[idx];
+        if (!tree) return;
+        const n = s.orchardPending(idx);
+        if (n < 1) {
+          const grown = Date.now() >= tree.plantedAt + APPLE_GROW_MS * s.produceFactor();
+          s.addToast(grown ? "No apples ready yet 🍎" : "Still growing — give it time 🌱");
+          return;
+        }
+        const got = s.gainItem("Apple", n);
+        if (got < 1) return;
+        set({ orchard: { ...get().orchard, [idx]: { ...tree, lastCollect: Date.now() } } });
+        s.addToast(`🍎 Picked ${got} Apple${got > 1 ? "s" : ""} · +${4 * got} XP`);
+        sfx.pickup();
+        s.addXp(4 * got);
+      },
+
+      buildHive: (idx) => {
+        const s = get();
+        if (s.hives[idx] || s.homeTier < 1) return;
+        if ((s.inventory.Wood ?? 0) < HIVE_COST.wood) {
+          s.addToast(`You need ${HIVE_COST.wood} Wood for the hive box 🪵`);
+          sfx.error();
+          return;
+        }
+        if (!spend(s, HIVE_COST.acorns)) return;
+        const inv = { ...s.inventory };
+        if (inv.Wood - HIVE_COST.wood <= 0) delete inv.Wood;
+        else inv.Wood -= HIVE_COST.wood;
+        set({
+          acorns: s.acorns - HIVE_COST.acorns,
+          inventory: inv,
+          hives: { ...s.hives, [idx]: { builtAt: Date.now(), lastCollect: Date.now() } },
+        });
+        sfx.buy();
+        s.setBanner("🐝 The bees have moved in!");
+      },
+
+      hivePending: (idx) => {
+        const hive = get().hives[idx];
+        if (!hive) return 0;
+        const interval = HONEY_INTERVAL_MS * get().produceFactor();
+        return Math.min(HIVE_STORE_CAP, Math.floor((Date.now() - hive.lastCollect) / interval));
+      },
+
+      collectHive: (idx) => {
+        const s = get();
+        const hive = s.hives[idx];
+        if (!hive) return;
+        const n = s.hivePending(idx);
+        if (n < 1) {
+          s.addToast("The bees are still busy — no honey yet 🐝");
+          return;
+        }
+        const got = s.gainItem("Honey", n);
+        if (got < 1) return;
+        set({ hives: { ...get().hives, [idx]: { ...hive, lastCollect: Date.now() } } });
+        s.addToast(`🍯 Collected ${got} Honey · +${6 * got} XP`);
+        sfx.pickup();
+        s.addXp(6 * got);
       },
 
       setBuildMode: (mode) => {
@@ -910,8 +1144,8 @@ export const useGame = create<GameState>()(
           openShop: null,
           openPanel: null,
         });
-        teleport.x = HOME_GATE_POS[0];
-        teleport.z = HOME_GATE_POS[2] - 2;
+        teleport.x = 0;
+        teleport.z = homeGateZ(data.homeTier) - 2;
         teleport.pending = true;
         sfx.questDone();
       },
@@ -930,8 +1164,8 @@ export const useGame = create<GameState>()(
             animalTargetId: null,
             fishingState: "idle",
           });
-          teleport.x = HOME_GATE_POS[0];
-          teleport.z = HOME_GATE_POS[2] - 2;
+          teleport.x = 0;
+          teleport.z = homeGateZ(s.homeTier) - 2;
         } else {
           const p = s.savedForestPos ?? { x: HOME_PORTAL_POS[0], z: HOME_PORTAL_POS[2] + 2 };
           set({ location: "forest", zone: "The Glade" });
@@ -964,8 +1198,9 @@ export const useGame = create<GameState>()(
         const crop = s.farm[key];
         if (!crop) return;
         const def = SEEDS[crop.seed];
-        if (Date.now() - crop.at < def.growMs) {
-          const pct = Math.round(((Date.now() - crop.at) / def.growMs) * 100);
+        const growMs = s.growMsFor(crop.seed);
+        if (Date.now() - crop.at < growMs) {
+          const pct = Math.round(((Date.now() - crop.at) / growMs) * 100);
           s.addToast(`Still growing… ${pct}%`);
           return;
         }
@@ -1430,10 +1665,14 @@ export const useGame = create<GameState>()(
         quests: s.quests,
         acceptedOffers: s.acceptedOffers,
         homeTier: s.homeTier,
+        houseLevel: s.houseLevel,
+        lastRentAt: s.lastRentAt,
         chest: s.chest,
         farm: s.farm,
         dog: s.dog,
         pens: s.pens,
+        orchard: s.orchard,
+        hives: s.hives,
         structures: s.structures,
       }),
       onRehydrateStorage: () => (state) => {

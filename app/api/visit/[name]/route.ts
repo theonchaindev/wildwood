@@ -19,9 +19,12 @@ export async function GET(_req: Request, { params }: { params: { name: string } 
   return NextResponse.json({
     name: user.name,
     homeTier: save.homeTier,
+    houseLevel: save.houseLevel ?? 1,
     structures: save.structures ?? [],
     farm: save.farm ?? {},
     pens: save.pens ?? {},
+    orchard: save.orchard ?? {},
+    hives: save.hives ?? {},
     level: save.level ?? 1,
   });
 }

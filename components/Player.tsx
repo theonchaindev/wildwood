@@ -9,9 +9,10 @@ import { live, moveTarget, chop, mine, fishing, teleport, zombies, animals, dayl
 import { sfx } from "@/lib/sound";
 import {
   COLLECTIBLES, CAMPFIRE_POS, BUILDINGS, GLADE_RADIUS, RIVER_X, RIVER_WIDTH,
-  TREES, ROCKS, HOME_PORTAL_POS, HOME_GATE_POS, HOME_CHEST_POS, HOME_FURNACE_POS,
-  HOME_EXTEND_POS, PEN_SPOTS, pensAllowed, HOME_TIERS, zoneAt, resolveMovement,
-  resolveHomeMovement, bridgeY,
+  TREES, ROCKS, HOME_PORTAL_POS, HOME_CHEST_POS, HOME_FURNACE_POS,
+  HOME_EXTEND_POS, HOME_CABIN_POS, HOME_WELL_POS, HOME_POND_POS, POND_R,
+  ORCHARD_SPOTS, HIVE_SPOTS, PEN_SPOTS, pensAllowed, HOME_TIERS, homeTierDef,
+  homeGateZ, zoneAt, resolveMovement, resolveHomeMovement, bridgeY,
 } from "@/lib/world";
 import HitPop from "./HitPop";
 import CharacterModel, { Motion } from "./CharacterModel";
@@ -110,6 +111,15 @@ export default function Player() {
           } else if (i.kind === "homegate") s.travel("forest");
           else if (i.kind === "extend") s.setHomeOffer("extend");
           else if (i.kind === "pen") s.setOpenPen(i.idx);
+          else if (i.kind === "house") s.setOpenPanel("house");
+          else if (i.kind === "well") s.collectWater();
+          else if (i.kind === "orchard") {
+            if (s.orchard[i.idx]) s.collectOrchard(i.idx);
+            else s.plantOrchardTree(i.idx);
+          } else if (i.kind === "hive") {
+            if (s.hives[i.idx]) s.collectHive(i.idx);
+            else s.buildHive(i.idx);
+          }
         }
       }
       if (k === "f") {
@@ -376,8 +386,10 @@ export default function Player() {
       const nz = g.position.z + dir.z * speed * dt;
       const homeTierHere =
         state.location === "visit" ? state.visitData?.homeTier ?? 1 : state.homeTier;
+      const homeHouseHere =
+        state.location === "visit" ? state.visitData?.houseLevel ?? 1 : state.houseLevel;
       const [rx, rz] = atHome
-        ? resolveHomeMovement(g.position.x, g.position.z, nx, nz, homeTierHere)
+        ? resolveHomeMovement(g.position.x, g.position.z, nx, nz, homeTierHere, homeHouseHere)
         : resolveMovement(g.position.x, g.position.z, nx, nz, state.choppedAt, state.minedAt);
       g.position.x = rx;
       g.position.z = rz;
@@ -430,21 +442,37 @@ export default function Player() {
     if (atHome) {
       // peaceful instance: no zombies, foraging or quest triggers
       state.tick(stepDt, moving, false, sprinting, chopping || mining || attacking);
-      state.setNearWater(false);
+      const visiting = state.location === "visit";
+      const tierHere = visiting ? state.visitData?.homeTier ?? 1 : state.homeTier;
+      const tierDef = homeTierDef(tierHere);
+      // the estate pond is fishable water
+      state.setNearWater(
+        tierDef.pond && Math.hypot(px - HOME_POND_POS[0], pz - HOME_POND_POS[2]) < POND_R + 2.5
+      );
       let nearest: Interact | null = null;
       let nearestD = 3.4;
-      const visiting = state.location === "visit";
+      const gateZ = homeGateZ(tierHere);
       const spots: [number, number, Interact][] = visiting
-        ? [[HOME_GATE_POS[0], HOME_GATE_POS[2], { kind: "homegate" }]]
+        ? [[0, gateZ, { kind: "homegate" }]]
         : [
             [HOME_CHEST_POS[0], HOME_CHEST_POS[2], { kind: "chest" }],
             [HOME_FURNACE_POS[0], HOME_FURNACE_POS[2], { kind: "furnace" }],
-            [HOME_GATE_POS[0], HOME_GATE_POS[2], { kind: "homegate" }],
+            [HOME_CABIN_POS[0], HOME_CABIN_POS[2] + 2, { kind: "house" }],
+            [0, gateZ, { kind: "homegate" }],
           ];
       if (!visiting) {
         PEN_SPOTS.slice(0, pensAllowed(state.homeTier)).forEach(([px2, pz2], idx) => {
           spots.push([px2, pz2, { kind: "pen", idx }]);
         });
+        ORCHARD_SPOTS.slice(0, tierDef.orchard).forEach(([px2, pz2], idx) => {
+          spots.push([px2, pz2, { kind: "orchard", idx }]);
+        });
+        HIVE_SPOTS.slice(0, tierDef.hives).forEach(([px2, pz2], idx) => {
+          spots.push([px2, pz2, { kind: "hive", idx }]);
+        });
+        if (tierDef.well) {
+          spots.push([HOME_WELL_POS[0], HOME_WELL_POS[2], { kind: "well" }]);
+        }
         if (state.homeTier < HOME_TIERS.length) {
           spots.push([HOME_EXTEND_POS[0], HOME_EXTEND_POS[2], { kind: "extend" }]);
         }

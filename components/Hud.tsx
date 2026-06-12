@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import {
   useGame, AXES, WEAPONS, ARMOR, SHIRTS, HATS, MEDS, SEEDS, FOODS, RECIPES,
   SELL_PRICES, COMBAT, AxeTier, WeaponTier, ArmorTier, ROD_COST, DOG_COST,
   BUILDABLES, PEN_DEFS, PEN_BUILD_COST, MAX_PER_PEN, PenAnimal,
-  PICKAXE_COST, HELD_TORCH_COST,
+  PICKAXE_COST, HELD_TORCH_COST, HOUSE_LEVELS, RENT_AMOUNT, RENT_INTERVAL_MS,
   COLLECTIBLE_RESPAWN_MS, PACK_CAP, chestCapFor, rankFor, dayOffers,
 } from "@/lib/store";
 import {
@@ -55,6 +55,8 @@ const ITEM_ICONS: Record<string, string> = {
   "Cooked Rabbit": "🍖",
   "Raw Venison": "🥩",
   "Cooked Venison": "🍖",
+  Apple: "🍎",
+  Honey: "🍯",
 };
 
 const BUILDING_LABELS = Object.fromEntries(BUILDINGS.map((b) => [b.id, b.label]));
@@ -767,6 +769,29 @@ function HomeOfferModal() {
   const tier = buying ? HOME_TIERS[0] : HOME_TIERS[s.homeTier];
   if (!tier) return null;
   const current = s.homeTier > 0 ? HOME_TIERS[s.homeTier - 1] : null;
+
+  // everything the next deed adds over the current one
+  const gains: [string, string][] = [];
+  if (buying) {
+    gains.push(
+      ["🌱", `${tier.tiles} farm tiles — plant seeds, harvest crops`],
+      ["🐔", "1 animal pen — produce while you adventure"],
+      ["📦", `Chest holds ${tier.chestCap} items`],
+      ["🔥", "Furnace — cook meat & fish (1 Wood per cook)"],
+      ["🛖", "A cabin to call home — and no zombies, ever"],
+    );
+  } else if (current) {
+    gains.push(["🌱", `${tier.tiles} farm tiles (up from ${current.tiles})`]);
+    if (tier.pens > current.pens) gains.push(["🐔", `${tier.pens} animal pens (+${tier.pens - current.pens})`]);
+    if (tier.orchard > current.orchard) gains.push(["🍎", `${tier.orchard} orchard plots (+${tier.orchard - current.orchard})`]);
+    if (tier.hives > current.hives) gains.push(["🐝", `Beehive spot ${tier.hives} — slow, valuable honey`]);
+    if (tier.well && !current.well) gains.push(["💧", "A well — draw water at home"]);
+    if (tier.pond && !current.pond) gains.push(["🎣", "A private fishing pond"]);
+    if (tier.windmill && !current.windmill) gains.push(["🌬️", "The Old Windmill & scarecrow — crown of the Domain"]);
+    gains.push(["📦", `Chest holds ${tier.chestCap} (up from ${current.chestCap})`]);
+    gains.push(["📏", "Bigger fenced grounds"]);
+  }
+
   return (
     <div className="modal-backdrop" onClick={() => s.setHomeOffer(null)}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -775,29 +800,28 @@ function HomeOfferModal() {
           <span className="modal-acorns">🌰 {s.acorns}</span>
         </div>
         <div className="plot-pitch">
-          {buying
-            ? "Your own private land, away from the forest — walk through the gate to visit any time:"
-            : "Extend your land to the next size:"}
+          {buying ? (
+            <>Your own private land, away from the forest — the first of {HOME_TIERS.length} deeds, all the way up to the {HOME_TIERS[HOME_TIERS.length - 1].name}:</>
+          ) : (
+            <>
+              Deed {s.homeTier + 1} of {HOME_TIERS.length} · <i>{tier.tagline}</i>
+              <span style={{ display: "block", marginTop: 6, letterSpacing: 3 }}>
+                {HOME_TIERS.map((t, i) => (
+                  <span key={t.name} title={t.name} style={{ opacity: i < s.homeTier ? 1 : i === s.homeTier ? 0.85 : 0.3 }}>
+                    {i < s.homeTier ? "●" : i === s.homeTier ? "◉" : "○"}
+                  </span>
+                ))}
+              </span>
+            </>
+          )}
         </div>
         <div className="help-grid" style={{ marginTop: 10 }}>
-          <span>🌱</span>
-          <span>
-            <b>{tier.tiles} farm tiles</b>
-            {current ? ` (up from ${current.tiles})` : " — plant seeds, harvest crops"}
-          </span>
-          <span>📦</span>
-          <span>
-            <b>Chest holds {tier.chestCap}</b>
-            {current ? ` (up from ${current.chestCap})` : " items"}
-          </span>
-          {buying ? (
-            <>
-              <span>🔥</span><span><b>Furnace</b> — cook meat &amp; fish (1 Wood per cook)</span>
-              <span>🛖</span><span><b>A cabin</b> to call home — and no zombies, ever</span>
-            </>
-          ) : (
-            <span style={{ gridColumn: "1 / -1" }}>📏 Bigger fenced grounds</span>
-          )}
+          {gains.map(([icon, text], i) => (
+            <Fragment key={i}>
+              <span>{icon}</span>
+              <span>{text}</span>
+            </Fragment>
+          ))}
         </div>
         <button
           className="btn block"
@@ -807,6 +831,95 @@ function HomeOfferModal() {
           {buying ? `Buy for ${tier.price} 🌰` : `Extend for ${tier.price} 🌰`}
         </button>
         <button className="btn block ghost" onClick={() => s.setHomeOffer(null)}>Not now</button>
+      </div>
+    </div>
+  );
+}
+
+function HouseModal() {
+  const s = useGame();
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => tick((n) => n + 1), 3000);
+    return () => clearInterval(iv);
+  }, []);
+  const lv = Math.max(1, Math.min(s.houseLevel, HOUSE_LEVELS.length));
+  const cur = HOUSE_LEVELS[lv - 1];
+  const next = lv < HOUSE_LEVELS.length ? HOUSE_LEVELS[lv] : null;
+  const tier = HOME_TIERS[Math.max(0, s.homeTier - 1)];
+  const rentMins = Math.max(0, Math.ceil((RENT_INTERVAL_MS - (Date.now() - s.lastRentAt)) / 60000));
+  const close = () => s.setOpenPanel(null);
+  return (
+    <div className="modal-backdrop" onClick={close}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <span className="modal-title">{cur.icon} {cur.name}</span>
+          <span className="modal-acorns">🌰 {s.acorns} · 🪵 {s.inventory.Wood ?? 0} · 🪨 {s.inventory.Stone ?? 0}</span>
+        </div>
+        <div className="plot-pitch">
+          Home on the {tier?.name ?? "Homestead"} · house {lv} of {HOUSE_LEVELS.length}
+        </div>
+
+        <div className="shop-section">The five houses of the wood</div>
+        {HOUSE_LEVELS.map((h, i) => (
+          <div key={h.name} className="help-grid" style={{ opacity: i < lv ? 1 : 0.45, marginTop: 2 }}>
+            <span>{i < lv ? "✅" : "🔒"}</span>
+            <span><b>{h.icon} {h.name}</b> — {h.perk}</span>
+          </div>
+        ))}
+
+        {next && (
+          <>
+            <div className="shop-section">Upgrade</div>
+            <ShopRow
+              icon={next.icon}
+              name={`Build the ${next.name}`}
+              blurb={next.perk}
+              right={
+                <button
+                  className="btn small"
+                  disabled={
+                    s.acorns < next.acorns ||
+                    (s.inventory.Wood ?? 0) < next.wood ||
+                    (s.inventory.Stone ?? 0) < next.stone
+                  }
+                  onClick={() => s.upgradeHouse()}
+                >
+                  🌰 {next.acorns}{next.wood ? ` + 🪵 ${next.wood}` : ""}{next.stone ? ` + 🪨 ${next.stone}` : ""}
+                </button>
+              }
+            />
+          </>
+        )}
+
+        {lv >= 2 && (
+          <>
+            <div className="shop-section">Comforts</div>
+            <ShopRow
+              icon="🛏️"
+              name="Sleep till dawn"
+              blurb={isNight() ? "Skip the night — wake rested (+energy, +30 HP)" : "Only after dusk"}
+              right={
+                <button className="btn small" disabled={!isNight()} onClick={() => s.sleepTillDawn()}>
+                  Sleep
+                </button>
+              }
+            />
+            {lv >= HOUSE_LEVELS.length && (
+              <ShopRow
+                icon="💰"
+                name={s.rentReady() ? `${RENT_AMOUNT} 🌰 rent ready` : `Rent due in ~${rentMins} min`}
+                blurb="The Manor earns its keep, once every day"
+                right={
+                  <button className="btn small" disabled={!s.rentReady()} onClick={() => s.collectRent()}>
+                    Collect
+                  </button>
+                }
+              />
+            )}
+          </>
+        )}
+        <button className="btn block ghost" onClick={close}>Close</button>
       </div>
     </div>
   );
@@ -1170,6 +1283,16 @@ export default function Hud() {
                 else s.setHomeOffer("buy");
               } else if (i.kind === "homegate") s.travel("forest");
               else if (i.kind === "extend") s.setHomeOffer("extend");
+              else if (i.kind === "pen") s.setOpenPen(i.idx);
+              else if (i.kind === "house") s.setOpenPanel("house");
+              else if (i.kind === "well") s.collectWater();
+              else if (i.kind === "orchard") {
+                if (s.orchard[i.idx]) s.collectOrchard(i.idx);
+                else s.plantOrchardTree(i.idx);
+              } else if (i.kind === "hive") {
+                if (s.hives[i.idx]) s.collectHive(i.idx);
+                else s.buildHive(i.idx);
+              }
             }}
           >
             Press <b>E</b> —{" "}
@@ -1185,6 +1308,14 @@ export default function Hud() {
               ? "🌲 Back to the Forest"
               : s.nearInteract.kind === "pen"
               ? (s.pens[s.nearInteract.idx] ? `${PEN_DEFS[s.pens[s.nearInteract.idx].animal].icon} Animal Pen` : "🚧 Empty Pen")
+              : s.nearInteract.kind === "house"
+              ? `${HOUSE_LEVELS[Math.min(s.houseLevel, HOUSE_LEVELS.length) - 1].icon} Your House`
+              : s.nearInteract.kind === "well"
+              ? "💧 Draw water"
+              : s.nearInteract.kind === "orchard"
+              ? (s.orchard[s.nearInteract.idx] ? "🍎 Apple Tree" : "🌳 Plant an apple tree")
+              : s.nearInteract.kind === "hive"
+              ? (s.hives[s.nearInteract.idx] ? "🍯 Beehive" : "🐝 Build a beehive")
               : "📐 Extend your land"}
           </button>
         )}
@@ -1263,6 +1394,7 @@ export default function Hud() {
       {s.openShop && <ShopModal />}
       {s.openPanel === "chest" && <ChestModal />}
       {s.openPanel === "furnace" && <FurnaceModal />}
+      {s.openPanel === "house" && <HouseModal />}
       {s.openPen !== null && <PenModal />}
       {showBuild && <BuildModal onClose={() => setShowBuild(false)} />}
       {showLb && <LeaderboardModal onClose={() => setShowLb(false)} />}

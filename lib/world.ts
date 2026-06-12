@@ -309,17 +309,73 @@ for (let i = 0; i < 6; i++) {
 
 // the gate stands in the west gap of the glade fence, at the end of its own path
 export const HOME_PORTAL_POS: [number, number, number] = [-14.5, 0, 0];
-export const HOME_GATE_POS: [number, number, number] = [0, 0, 8]; // exit gate at the homestead
 export const HOME_CHEST_POS: [number, number, number] = [9, 0, -5];
 export const HOME_FURNACE_POS: [number, number, number] = [9, 0, -1.5];
-export const HOME_EXTEND_POS: [number, number, number] = [-9, 0, 6.5]; // extension sign
-export const HOME_COOP_POS: [number, number, number] = [-9, 0, -5];
+export const HOME_EXTEND_POS: [number, number, number] = [8.5, 0, 5.5]; // extension sign, east of the field
 export const HOME_CABIN_POS: [number, number, number] = [0, 0, -6.5];
+export const HOME_WELL_POS: [number, number, number] = [9, 0, 2]; // continues the utility column
+export const HOME_POND_POS: [number, number, number] = [19, 0, 8];
+export const POND_R = 3.2;
+export const HOME_WINDMILL_POS: [number, number, number] = [-22, 0, -12];
+export const HOME_SCARECROW_POS: [number, number, number] = [12, 0, -8];
 
-export const HOME_TIERS = [
-  { name: "Homestead", price: 250, tiles: 6, halfW: 12, halfD: 9, chestCap: 200 },
-  { name: "Extended Homestead", price: 300, tiles: 12, halfW: 15, halfD: 11, chestCap: 300 },
-  { name: "Grand Homestead", price: 600, tiles: 18, halfW: 18, halfD: 13, chestCap: 400 },
+// The estate masterplan — every zone has a fixed anchor so expansions grow
+// outward logically instead of scattering:
+//   north (behind the house) = orchard rows · west = ranch pen columns
+//   east = utility column (chest/furnace/well/hives) then the pond
+//   south = the farm field, filling row by row toward the gate
+export type HomeTier = {
+  name: string;
+  price: number;
+  tiles: number;
+  halfW: number;
+  halfD: number;
+  chestCap: number;
+  pens: number;
+  orchard: number;
+  hives: number;
+  well: boolean;
+  pond: boolean;
+  windmill: boolean;
+  tagline: string;
+};
+
+export const HOME_TIERS: HomeTier[] = [
+  { name: "Homestead",          price: 250,  tiles: 6,  halfW: 12, halfD: 9,  chestCap: 200,  pens: 1, orchard: 0, hives: 0, well: false, pond: false, windmill: false, tagline: "A patch of land to call your own" },
+  { name: "Extended Homestead", price: 300,  tiles: 12, halfW: 15, halfD: 11, chestCap: 300,  pens: 2, orchard: 0, hives: 0, well: false, pond: false, windmill: false, tagline: "Twice the field, a second pen" },
+  { name: "Grand Homestead",    price: 600,  tiles: 18, halfW: 18, halfD: 13, chestCap: 400,  pens: 3, orchard: 0, hives: 0, well: true,  pond: false, windmill: false, tagline: "Your own well — water without the trek" },
+  { name: "Smallholding",       price: 900,  tiles: 24, halfW: 20, halfD: 15, chestCap: 550,  pens: 4, orchard: 2, hives: 0, well: true,  pond: false, windmill: false, tagline: "An orchard takes root behind the house" },
+  { name: "Farmstead",          price: 1300, tiles: 30, halfW: 22, halfD: 17, chestCap: 700,  pens: 4, orchard: 2, hives: 1, well: true,  pond: false, windmill: false, tagline: "The bees move in" },
+  { name: "Greenacre Farm",     price: 1800, tiles: 34, halfW: 24, halfD: 18, chestCap: 900,  pens: 5, orchard: 4, hives: 1, well: true,  pond: false, windmill: false, tagline: "Green as far as the fence runs" },
+  { name: "Riverside Estate",   price: 2400, tiles: 38, halfW: 26, halfD: 19, chestCap: 1100, pens: 5, orchard: 4, hives: 1, well: true,  pond: true,  windmill: false, tagline: "A private pond, stocked with fish" },
+  { name: "Forest Estate",      price: 3200, tiles: 42, halfW: 27, halfD: 20, chestCap: 1400, pens: 6, orchard: 5, hives: 2, well: true,  pond: true,  windmill: false, tagline: "The forest itself works for you" },
+  { name: "Greatwood Estate",   price: 4200, tiles: 45, halfW: 28, halfD: 22, chestCap: 1700, pens: 7, orchard: 6, hives: 2, well: true,  pond: true,  windmill: false, tagline: "An estate worthy of a Warden" },
+  { name: "Wildwood Domain",    price: 5500, tiles: 48, halfW: 30, halfD: 23, chestCap: 2000, pens: 8, orchard: 6, hives: 2, well: true,  pond: true,  windmill: true,  tagline: "The windmill turns — the whole wood is yours" },
+];
+
+export function homeTierDef(tier: number): HomeTier {
+  return HOME_TIERS[Math.max(0, Math.min(tier, HOME_TIERS.length) - 1)];
+}
+
+/** The exit gate sits in the middle of the southern fence, so it moves out as the land grows. */
+export function homeGateZ(tier: number) {
+  return homeTierDef(tier).halfD;
+}
+
+// orchard rows behind the house: front row first, then the back row
+export const ORCHARD_SPOTS: [number, number][] = [
+  [-4.5, -11],
+  [0, -11],
+  [4.5, -11],
+  [-4.5, -14.5],
+  [0, -14.5],
+  [4.5, -14.5],
+];
+
+// beehives extend the utility column east of the chest
+export const HIVE_SPOTS: [number, number][] = [
+  [13, -5],
+  [13, -1.5],
 ];
 
 /** Farm tile position within the homestead (6 per row). */
@@ -333,20 +389,27 @@ export function homeTileKey(idx: number) {
   return `home:${idx}`;
 }
 
-const HOME_COLLIDERS = [
-  { x: HOME_CHEST_POS[0], z: HOME_CHEST_POS[2], r: 0.9 },
-  { x: HOME_FURNACE_POS[0], z: HOME_FURNACE_POS[2], r: 1.0 },
-  { x: HOME_CABIN_POS[0], z: HOME_CABIN_POS[2], r: 2.4 },
-];
+function homeColliders(tier: number, houseLevel: number) {
+  const t = homeTierDef(tier);
+  const c = [
+    { x: HOME_CHEST_POS[0], z: HOME_CHEST_POS[2], r: 0.9 },
+    { x: HOME_FURNACE_POS[0], z: HOME_FURNACE_POS[2], r: 1.0 },
+    { x: HOME_CABIN_POS[0], z: HOME_CABIN_POS[2], r: 2.2 + houseLevel * 0.25 },
+  ];
+  if (t.well) c.push({ x: HOME_WELL_POS[0], z: HOME_WELL_POS[2], r: 0.75 });
+  if (t.pond) c.push({ x: HOME_POND_POS[0], z: HOME_POND_POS[2], r: POND_R });
+  if (t.windmill) c.push({ x: HOME_WINDMILL_POS[0], z: HOME_WINDMILL_POS[2], r: 1.8 });
+  return c;
+}
 
 /** Movement resolution inside the homestead instance. */
 export function resolveHomeMovement(
-  px: number, pz: number, nxIn: number, nzIn: number, tier: number
+  px: number, pz: number, nxIn: number, nzIn: number, tier: number, houseLevel = 1
 ): [number, number] {
-  const t = HOME_TIERS[Math.max(0, Math.min(tier, HOME_TIERS.length) - 1)];
+  const t = homeTierDef(tier);
   let nx = nxIn;
   let nz = nzIn;
-  for (const c of HOME_COLLIDERS) {
+  for (const c of homeColliders(tier, houseLevel)) {
     const r = c.r + 0.35;
     const dx = nx - c.x;
     const dz = nz - c.z;
@@ -402,16 +465,21 @@ export const ANIMAL_SPAWNS: AnimalSpawn[] = [
 
 // ---- homestead animal pens (unlocked by land tier) ----
 
-// kept clear of the farm tile grid (x −10.1…5.6, z −4.2…4.6)
+// the ranch: pen 0 beside the house, then two tidy columns down the west side,
+// kept clear of the farm tile grid (x −10.1…5.6)
 export const PEN_SPOTS: [number, number][] = [
   [-9, -6.6],
-  [-12.8, 1],
-  [12, 4],
-  [-13.6, -9],
+  [-12.8, -2],
+  [-12.8, 2.6],
+  [-12.8, 7.2],
+  [-17.6, -2],
+  [-17.6, 2.6],
+  [-17.6, 7.2],
+  [-17.6, -6.6],
 ];
 
 export function pensAllowed(tier: number) {
-  return tier >= 3 ? 4 : tier === 2 ? 2 : tier === 1 ? 1 : 0;
+  return tier > 0 ? homeTierDef(tier).pens : 0;
 }
 
 // ---- movement / collision ----
