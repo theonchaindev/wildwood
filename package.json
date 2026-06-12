@@ -13,11 +13,14 @@
     "@prisma/client": "^6.19.3",
     "@react-three/drei": "9.114.3",
     "@react-three/fiber": "8.17.10",
+    "@solana/web3.js": "^1.98.4",
+    "bs58": "^6.0.0",
     "jose": "^6.2.3",
     "next": "14.2.15",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "three": "0.169.0",
+    "tweetnacl": "^1.0.3",
     "zustand": "^4.5.5"
   },
   "devDependencies": {
