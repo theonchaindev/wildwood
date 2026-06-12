@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma, requireDb } from "@/lib/server/db";
 import { getSessionUser } from "@/lib/server/auth";
 
-// Play-to-earn exchange rate: 1000 acorns = 0.01 SOL
-const ACORNS_PER_SOL = 100_000;
-const MIN_CASHOUT = 1000;
+// Play-to-earn conversion: 1 acorn = 1 $ACORN (SPL token, 6 decimals),
+// minted straight to the player's connected wallet.
+const MIN_CASHOUT = 100;
+const TOKEN_DECIMALS = 6;
 
 export async function POST(req: Request) {
   const dbErr = requireDb();
@@ -12,67 +13,65 @@ export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   if (!user.wallet) {
-    return NextResponse.json({ error: "Connect a Phantom wallet to cash out" }, { status: 400 });
+    return NextResponse.json({ error: "Connect a Phantom wallet to convert" }, { status: 400 });
   }
   const { acorns } = await req.json().catch(() => ({}));
   if (!Number.isInteger(acorns) || acorns < MIN_CASHOUT) {
-    return NextResponse.json({ error: `Minimum cash-out is ${MIN_CASHOUT} acorns` }, { status: 400 });
+    return NextResponse.json({ error: `Minimum conversion is ${MIN_CASHOUT} acorns` }, { status: 400 });
   }
   // guard rails: flagged accounts and burst withdrawals wait for review
   if (user.flagged >= 3) {
-    return NextResponse.json({ error: "Account under review — cash-outs paused" }, { status: 403 });
+    return NextResponse.json({ error: "Account under review — conversions paused" }, { status: 403 });
   }
   const recent = await prisma.payout.findFirst({
     where: { userId: user.id, createdAt: { gt: new Date(Date.now() - 3600_000) }, status: { not: "failed" } },
   });
   if (recent) {
-    return NextResponse.json({ error: "One cash-out per hour — try again later" }, { status: 429 });
+    return NextResponse.json({ error: "One conversion per hour — try again later" }, { status: 429 });
   }
   const dayTotal = await prisma.payout.aggregate({
     _sum: { acorns: true },
     where: { userId: user.id, createdAt: { gt: new Date(Date.now() - 24 * 3600_000) }, status: { not: "failed" } },
   });
   if ((dayTotal._sum.acorns ?? 0) + acorns > 5000) {
-    return NextResponse.json({ error: "Daily cash-out cap is 5,000 acorns" }, { status: 429 });
+    return NextResponse.json({ error: "Daily conversion cap is 5,000 acorns" }, { status: 429 });
   }
-  const lamports = Math.floor((acorns / ACORNS_PER_SOL) * 1_000_000_000);
+  const rawAmount = acorns * 10 ** TOKEN_DECIMALS; // 1:1, in token base units
 
   const payout = await prisma.payout.create({
-    data: { userId: user.id, wallet: user.wallet, acorns, lamports },
+    data: { userId: user.id, wallet: user.wallet, acorns, lamports: rawAmount },
   });
 
   const secret = process.env.DEV_WALLET_SECRET;
-  if (!secret) {
+  const mintAddr = process.env.ACORN_MINT;
+  if (!secret || !mintAddr) {
     return NextResponse.json({
       status: "pending",
-      lamports,
-      message: "Payout queued — the dev wallet isn't configured on this server yet",
+      acorns,
+      message: "Conversion queued — the $ACORN mint isn't configured on this server yet",
     });
   }
 
   try {
-    const { Connection, Keypair, PublicKey, SystemProgram, Transaction, sendAndConfirmTransaction } =
-      await import("@solana/web3.js");
+    const { Connection, Keypair, PublicKey } = await import("@solana/web3.js");
+    const { getOrCreateAssociatedTokenAccount, mintTo } = await import("@solana/spl-token");
     const bs58 = (await import("bs58")).default;
     const connection = new Connection(
       process.env.SOLANA_RPC ?? "https://api.devnet.solana.com",
       "confirmed"
     );
     const devWallet = Keypair.fromSecretKey(bs58.decode(secret));
-    const tx = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: devWallet.publicKey,
-        toPubkey: new PublicKey(user.wallet),
-        lamports,
-      })
-    );
-    const sig = await sendAndConfirmTransaction(connection, tx, [devWallet]);
+    const mint = new PublicKey(mintAddr);
+    const owner = new PublicKey(user.wallet);
+    // the player's $ACORN account (created for them on first conversion)
+    const ata = await getOrCreateAssociatedTokenAccount(connection, devWallet, mint, owner);
+    const sig = await mintTo(connection, devWallet, mint, ata.address, devWallet, rawAmount);
     await prisma.payout.update({ where: { id: payout.id }, data: { status: "paid", txSig: sig } });
-    return NextResponse.json({ status: "paid", lamports, txSig: sig });
+    return NextResponse.json({ status: "paid", acorns, txSig: sig, mint: mintAddr });
   } catch (e: any) {
     await prisma.payout.update({ where: { id: payout.id }, data: { status: "failed" } });
     return NextResponse.json(
-      { error: `Payout failed: ${e.message ?? "unknown error"}` },
+      { error: `Conversion failed: ${e.message ?? "unknown error"}` },
       { status: 502 }
     );
   }

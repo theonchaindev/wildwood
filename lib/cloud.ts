@@ -328,19 +328,23 @@ export const ACORNS_PER_SOL = 100_000;
 export async function cashOut(acorns: number) {
   const s = useGame.getState();
   if (s.acorns < acorns) throw new Error("Not enough acorns");
-  const data = await api<{ status: string; lamports: number; txSig?: string; message?: string }>(
+  const data = await api<{ status: string; acorns: number; txSig?: string; mint?: string; message?: string }>(
     "/api/cashout",
     { method: "POST", body: JSON.stringify({ acorns }) }
   );
   useGame.setState({ acorns: useGame.getState().acorns - acorns });
   pushSave();
-  const sol = (data.lamports / 1_000_000_000).toFixed(4);
   if (data.status === "paid") {
-    s.addToast(`💸 Paid ${sol} SOL — tx ${data.txSig?.slice(0, 8)}…`);
+    s.addToast(`🪙 ${acorns} $ACORN minted to your wallet — tx ${data.txSig?.slice(0, 8)}…`);
   } else {
-    s.addToast(`💸 ${sol} SOL payout queued (${data.message ?? "pending"})`);
+    s.addToast(`🪙 ${acorns} $ACORN conversion queued (${data.message ?? "pending"})`);
   }
   return data;
+}
+
+/** Solana Explorer link for a conversion tx (devnet for now). */
+export function explorerTxUrl(sig: string) {
+  return `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 }
 
 export async function fetchVisit(name: string) {

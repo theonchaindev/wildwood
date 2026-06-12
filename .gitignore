@@ -6,3 +6,4 @@ prisma/dev.db
 prisma/dev.db-journal
 *.log
 .DS_Store
+.acorn-dev-wallet.json

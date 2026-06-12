@@ -21,7 +21,7 @@ import {
 } from "@/lib/world";
 import {
   fetchOffers, postOffer, acceptPlayerOffer, cancelPlayerOffer, fetchVisit,
-  cashOut, fetchLeaderboard, ACORNS_PER_SOL, PlayerOffer,
+  cashOut, fetchLeaderboard, explorerTxUrl, PlayerOffer,
   fetchGifts, sendGift, claimGift, Gift as CloudGift,
   fetchGuestbook, signGuestbook, GuestbookEntry,
 } from "@/lib/cloud";
@@ -510,6 +510,7 @@ function PlayerOffers() {
   const [postPrice, setPostPrice] = useState(10);
   const [visitName, setVisitName] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [lastTx, setLastTx] = useState<string | null>(null);
 
   const refresh = () => {
     fetchOffers().then(setOffers).catch(() => setOffers([]));
@@ -601,29 +602,42 @@ function PlayerOffers() {
 
       <GiftsSection />
 
-      <div className="shop-section">💸 Cash out — play to earn</div>
+      <div className="shop-section">🪙 Convert to $ACORN — straight to your wallet</div>
       {s.account.wallet ? (
         <>
           <div className="shop-note" style={{ marginTop: 0 }}>
-            1,000 🌰 = 0.01 SOL, paid from the dev wallet to{" "}
+            1 🌰 = 1 $ACORN, minted on Solana to{" "}
             <b>{s.account.wallet.slice(0, 4)}…{s.account.wallet.slice(-4)}</b>
+            {" "}· devnet beta — switch Phantom to devnet to see your tokens
           </div>
           <div className="offer-form" style={{ marginTop: 8 }}>
-            {[1000, 5000, 10000].map((n) => (
+            {[100, 1000, 5000].map((n) => (
               <button
                 key={n}
                 className="btn small"
                 disabled={s.acorns < n}
-                onClick={() => cashOut(n).catch((e) => setErr(e.message))}
+                onClick={() =>
+                  cashOut(n)
+                    .then((d) => d.txSig && setLastTx(d.txSig))
+                    .catch((e) => setErr(e.message))
+                }
               >
-                {n} 🌰 → {(n / ACORNS_PER_SOL).toFixed(2)} SOL
+                {n} 🌰 → {n} 🪙
               </button>
             ))}
           </div>
+          {lastTx && (
+            <div className="shop-note">
+              ✅ minted —{" "}
+              <a href={explorerTxUrl(lastTx)} target="_blank" rel="noreferrer" style={{ fontWeight: 800 }}>
+                view transaction ↗
+              </a>
+            </div>
+          )}
         </>
       ) : (
         <div className="shop-note" style={{ marginTop: 0 }}>
-          Sign in with Phantom on the intro screen to cash acorns out as SOL.
+          Sign in with Phantom on the intro screen to convert acorns into $ACORN.
         </div>
       )}
 
