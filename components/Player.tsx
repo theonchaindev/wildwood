@@ -16,7 +16,7 @@ import {
   homeGateZ, zoneAt, resolveMovement, resolveHomeMovement, bridgeY,
   interiorDims, interiorLayout, resolveInteriorMovement,
   CAVE_ORES, CAVE_HD, CAVE_ENTRANCE_POS, resolveCaveMovement, HOME_BENCH_POS,
-  NOTICE_BOARD_POS,
+  NOTICE_BOARD_POS, LAKE_POS, LAKE_R,
 } from "@/lib/world";
 import HitPop from "./HitPop";
 import CharacterModel, { Motion } from "./CharacterModel";
@@ -339,8 +339,9 @@ export default function Player() {
 
     // --- zombie attack target: walk to it, then swing ---
     let attacking = false;
+    const canFight = !atHome || atCave; // forest by night, the mine by torchlight
     const targetZombie =
-      state.attackTargetId !== null && !atHome
+      state.attackTargetId !== null && canFight
         ? zombies.find((zz) => zz.id === state.attackTargetId && zz.state !== "dying")
         : null;
     if (state.attackTargetId !== null && !targetZombie) state.setAttackTarget(null);
@@ -738,7 +739,10 @@ export default function Player() {
     state.setNearInteract(nearest);
 
     const distRiver = Math.abs(px - RIVER_X);
-    state.setNearWater(distRiver > RIVER_WIDTH / 2 - 1 && distRiver < RIVER_WIDTH / 2 + 3.5);
+    const atRiver = distRiver > RIVER_WIDTH / 2 - 1 && distRiver < RIVER_WIDTH / 2 + 3.5;
+    const distLake = Math.hypot(px - LAKE_POS[0], pz - LAKE_POS[2]);
+    const atLake = distLake > LAKE_R - 1 && distLake < LAKE_R + 3.5;
+    state.setNearWater(atRiver || atLake);
 
     // pick up nearby collectibles
     const now = Date.now();

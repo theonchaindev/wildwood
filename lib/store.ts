@@ -143,6 +143,7 @@ export const SELL_PRICES: Record<string, number> = {
   Honey: 25,
   Coal: 8,
   Diamond: 400,
+  Bones: 6,
   "Magic Shroom": 45,
   Weed: 35,
   "Honey Apple": 40,
@@ -1105,11 +1106,11 @@ export const useGame = create<GameState>()(
           leveled = true;
         }
         if (leveled) {
-          const newMaxHp = 100 + (level - 1) * 10;
           const oldRank = rankFor(get().level);
           const newRank = rankFor(level);
+          // levelling no longer raises max HP — just heal up and grant a skill point
           set({
-            xp, level, maxHp: newMaxHp, hp: newMaxHp, energy: get().maxEnergy,
+            xp, level, hp: get().maxHp, energy: get().maxEnergy,
             skillPoints: get().skillPoints + 1,
           });
           get().setBanner(
@@ -1249,6 +1250,19 @@ export const useGame = create<GameState>()(
           get().bumpStat("bossKills");
           get().bumpStat("zombiesKilled");
           get().questEvent("night-watch");
+          return;
+        }
+        // down in the mine the dead drop bones and the odd lump of ore
+        if (s.location === "cave") {
+          const loot = 4 + Math.floor(Math.random() * 9);
+          s.gainItem("Bones", 1 + (Math.random() < 0.4 ? 1 : 0));
+          if (Math.random() < 0.35) s.gainItem("Coal", 1);
+          if (Math.random() < 0.04) s.gainItem("Diamond", 1);
+          set({ acorns: get().acorns + loot, attackTargetId: null });
+          s.addToast(`💀 Slain! +20 XP · +${loot} 🌰 · 🦴 Bones`);
+          sfx.coin();
+          s.addXp(20);
+          get().bumpStat("zombiesKilled");
           return;
         }
         const blood = isBloodMoonNight();
@@ -2319,8 +2333,9 @@ export const useGame = create<GameState>()(
           energy = Math.min(s.maxEnergy, energy + dt * 1.2);
         }
 
-        // appetite: faster when working hard
-        const burn = working || sprinting ? 0.14 : 0.06;
+        // appetite: faster when working hard (slowed right down — a full bar
+        // now lasts well over an hour of light play)
+        const burn = working || sprinting ? 0.05 : 0.022;
         const prevHunger = hunger;
         hunger = Math.max(0, hunger - dt * burn);
         if (prevHunger > 25 && hunger <= 25) {

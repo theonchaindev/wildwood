@@ -42,37 +42,43 @@ function mulberry32(seed: number) {
 const rng = mulberry32(1337);
 const rand = (min: number, max: number) => min + rng() * (max - min);
 
-// the river runs north-south at x ~ 30
-export const RIVER_X = 30;
-export const RIVER_WIDTH = 7;
-export const GLADE_RADIUS = 14;
-export const CAMPFIRE_POS: [number, number, number] = [3, 0, -2];
-export const NOTICE_BOARD_POS: [number, number, number] = [-1.5, 0, -4.5];
+// the river runs north-south at x ~ 38
+export const RIVER_X = 38;
+export const RIVER_WIDTH = 8;
+export const GLADE_RADIUS = 20;
+export const MAP_BOUND = 95; // playable half-extent
+export const CAMPFIRE_POS: [number, number, number] = [2, 0, 0];
+export const NOTICE_BOARD_POS: [number, number, number] = [-3, 0, -6];
+
+// a calm fishing lake in the north-west
+export const LAKE_POS: [number, number, number] = [-46, 0, -34];
+export const LAKE_R = 13;
 
 // the welcome tour: the camera glides to each landmark with a caption
 export type TourStop = { focus: [number, number]; title: string; text: string };
 export const TOUR_STOPS: TourStop[] = [
-  { focus: [3, -2], title: "Welcome to Wildwood", text: "A living forest you can farm, fight and earn in. Here's the lay of the land…" },
-  { focus: [-5, 4], title: "🛖 The Den", text: "General store — axes, a fishing rod, pickaxe, seeds, even pets. Your first stop." },
-  { focus: [-9, -5], title: "⚔️ The Forge", text: "Weapons & armour to fight the dead after dark. Bigger blades, tougher nights." },
-  { focus: [3, 9], title: "🧵 Threads", text: "Outfits and hats — make your survivor your own." },
-  { focus: [9, 3], title: "🏥 The Remedy", text: "Bandages, medkits and antidotes. Zombie scratches and raw meat can infect you." },
-  { focus: [-2, -9], title: "⚖️ The Vault", text: "Trade with other survivors, send gifts, and convert acorns into $ACORN coin." },
-  { focus: [-1.5, -4.5], title: "📌 Notice Board", text: "The coin contract and a live tally of everything paid out to players." },
-  { focus: [-14.5, 0], title: "🏡 Your Haven", text: "Buy your own private land through this gate — farm, ranch, build and decorate." },
-  { focus: [-22, -16], title: "⛏️ The Old Mine", text: "West through Darkwood: coal to fuel your furnace and rare diamonds to forge." },
-  { focus: [3, -2], title: "Off you go!", text: "Night falls every 20 minutes — gather by day, survive by night. Good luck out there." },
+  { focus: [2, 0], title: "Welcome to Wildwood", text: "A living forest you can farm, fight and earn in. Here's the lay of the land…" },
+  { focus: [-9, 8], title: "🛖 The Den", text: "General store — axes, a fishing rod, pickaxe, seeds, even pets. Your first stop." },
+  { focus: [-14, -8], title: "⚔️ The Forge", text: "Weapons & armour to fight the dead after dark. Bigger blades, tougher nights." },
+  { focus: [6, 15], title: "🧵 Threads", text: "Outfits and hats — make your survivor your own." },
+  { focus: [15, 7], title: "🏥 The Remedy", text: "Bandages, medkits and antidotes. Zombie scratches and raw meat can infect you." },
+  { focus: [-4, -15], title: "⚖️ The Vault", text: "Trade with other survivors, send gifts, and convert acorns into $ACORN coin." },
+  { focus: [-3, -6], title: "📌 Notice Board", text: "The coin contract and a live tally of everything paid out to players." },
+  { focus: [-22, 0], title: "🏡 Your Haven", text: "Buy your own private land through the west gate — farm, ranch, build and decorate." },
+  { focus: [-38, -38], title: "⛏️ The Old Mine", text: "Northwest through Darkwood: a deep cave of coal, diamonds — and things that bite back." },
+  { focus: [-46, -34], title: "🎣 The Lake", text: "A calm lake to fish, and the river to the east — cross it on the Old Bridge." },
+  { focus: [2, 0], title: "Off you go!", text: "Night falls every 20 minutes — gather by day, survive by night. Good luck out there." },
 ];
 export const BRIDGE_Z = 0;
 
 export type ShopId = "trader" | "armoury" | "tailor" | "medbay" | "exchange";
 
 export const BUILDINGS: { id: ShopId; label: string; pos: [number, number, number] }[] = [
-  { id: "trader", label: "🛖 The Den", pos: [-5, 0, 4] },
-  { id: "armoury", label: "⚔️ The Forge", pos: [-9, 0, -5] },
-  { id: "tailor", label: "🧵 Threads", pos: [3, 0, 9] },
-  { id: "medbay", label: "🏥 The Remedy", pos: [9, 0, 3] },
-  { id: "exchange", label: "⚖️ The Vault", pos: [-2, 0, -9] },
+  { id: "trader", label: "🛖 The Den", pos: [-9, 0, 8] },
+  { id: "armoury", label: "⚔️ The Forge", pos: [-14, 0, -8] },
+  { id: "tailor", label: "🧵 Threads", pos: [6, 0, 15] },
+  { id: "medbay", label: "🏥 The Remedy", pos: [15, 0, 7] },
+  { id: "exchange", label: "⚖️ The Vault", pos: [-4, 0, -15] },
 ];
 
 // gaps in the glade fence: east (path), south (meadow), north (grove),
@@ -94,10 +100,11 @@ function inFenceGap(angle: number) {
 }
 
 function blocked(x: number, z: number) {
-  // keep clear: glade centre, the east path corridor, and the river banks
+  // keep clear: glade centre, the east path corridor, the river banks, the lake
   if (Math.hypot(x, z) < GLADE_RADIUS + 2) return true;
-  if (Math.abs(z - BRIDGE_Z) < 5 && x > 0 && x < 45) return true;
+  if (Math.abs(z - BRIDGE_Z) < 5 && x > 0 && x < RIVER_X + 16) return true;
   if (Math.abs(x - RIVER_X) < RIVER_WIDTH / 2 + 2) return true;
+  if (Math.hypot(x - LAKE_POS[0], z - LAKE_POS[2]) < LAKE_R + 3) return true;
   return false;
 }
 
@@ -127,9 +134,9 @@ function addTree(x: number, z: number, size: number) {
 }
 
 // forest trees — denser ring around the glade, scattered out to the edge
-for (let i = 0; i < 110; i++) {
+for (let i = 0; i < 230; i++) {
   const angle = rand(0, Math.PI * 2);
-  const radius = rand(GLADE_RADIUS + 3, 62);
+  const radius = rand(GLADE_RADIUS + 3, 90);
   const x = Math.cos(angle) * radius;
   const z = Math.sin(angle) * radius;
   if (blocked(x, z)) continue;
@@ -137,18 +144,18 @@ for (let i = 0; i < 110; i++) {
 }
 
 // a few trees across the river to make crossing worthwhile
-for (let i = 0; i < 14; i++) {
-  const x = rand(RIVER_X + 6, 60);
-  const z = rand(-30, 30);
+for (let i = 0; i < 26; i++) {
+  const x = rand(RIVER_X + 6, 90);
+  const z = rand(-50, 50);
   if (Math.abs(z - BRIDGE_Z) < 4) continue;
   addTree(x, z, rand(4.5, 7));
 }
 
 // rocks + piles — mineable for stone
 let rockId = 0;
-for (let i = 0; i < 26; i++) {
-  const x = rand(-55, 55);
-  const z = rand(-55, 55);
+for (let i = 0; i < 48; i++) {
+  const x = rand(-88, 88);
+  const z = rand(-88, 88);
   if (blocked(x, z)) continue;
   const pile = rng() > 0.7;
   const size = pile ? rand(1.2, 2) : rand(0.7, 1.4);
@@ -165,9 +172,9 @@ for (let i = 0; i < 26; i++) {
 }
 
 // grass tufts everywhere, including inside the glade
-for (let i = 0; i < 70; i++) {
-  const x = rand(-50, 50);
-  const z = rand(-50, 50);
+for (let i = 0; i < 130; i++) {
+  const x = rand(-85, 85);
+  const z = rand(-85, 85);
   if (Math.abs(x - RIVER_X) < RIVER_WIDTH / 2 + 1) continue;
   DECOR.push({
     file: GRASS[Math.floor(rng() * GRASS.length)],
@@ -190,8 +197,8 @@ for (let i = 0; i < 14; i++) {
   });
 }
 
-// fence ring around the glade, skipping the three gaps
-for (let a = 0; a < Math.PI * 2; a += Math.PI / 9) {
+// fence ring around the glade, skipping the gaps
+for (let a = 0; a < Math.PI * 2; a += Math.PI / 13) {
   if (inFenceGap(a)) continue;
   const x = Math.cos(a) * GLADE_RADIUS;
   const z = Math.sin(a) * GLADE_RADIUS;
@@ -204,63 +211,70 @@ for (let a = 0; a < Math.PI * 2; a += Math.PI / 9) {
   });
 }
 
+const PATH_TILES = ["PP_Floor_Tile_05", "PP_Floor_Tile_06", "PP_Floor_Tile_15", "PP_Floor_Tile_16"];
+
 // stone path from camp east toward the bridge
-for (let x = 5; x <= 24; x += 2.4) {
-  const tiles = ["PP_Floor_Tile_05", "PP_Floor_Tile_06", "PP_Floor_Tile_15", "PP_Floor_Tile_16"];
-  DECOR.push({
-    file: tiles[Math.floor(rng() * tiles.length)],
-    size: 2.4,
-    by: "xz",
-    pos: [x, 0.02, BRIDGE_Z + rand(-0.6, 0.6)],
-    rot: rand(0, Math.PI * 2),
-  });
+for (let x = 8; x <= RIVER_X - 4; x += 2.4) {
+  DECOR.push({ file: PATH_TILES[Math.floor(rng() * PATH_TILES.length)], size: 2.4, by: "xz", pos: [x, 0.02, BRIDGE_Z + rand(-0.6, 0.6)], rot: rand(0, Math.PI * 2) });
 }
 
-// short path west from the glade centre to the homestead gate
-for (let x = -6; x >= -13.5; x -= 2.4) {
-  const tiles = ["PP_Floor_Tile_05", "PP_Floor_Tile_06", "PP_Floor_Tile_15", "PP_Floor_Tile_16"];
-  DECOR.push({
-    file: tiles[Math.floor(rng() * tiles.length)],
-    size: 2.2,
-    by: "xz",
-    pos: [x, 0.02, rand(-0.5, 0.5)],
-    rot: rand(0, Math.PI * 2),
-  });
+// path west from the glade centre out to the homestead gate
+for (let x = -8; x >= -27; x -= 2.4) {
+  DECOR.push({ file: PATH_TILES[Math.floor(rng() * PATH_TILES.length)], size: 2.2, by: "xz", pos: [x, 0.02, rand(-0.5, 0.5)], rot: rand(0, Math.PI * 2) });
 }
 
 // meadow patches + path in the south — thick ground tiles, embedded flush
-DECOR.push({ file: "PP_Meadow_07", size: 14, by: "xz", align: "flush", pos: [-8, 0, 30], rot: 0 });
-DECOR.push({ file: "PP_Meadow_08", size: 12, by: "xz", align: "flush", pos: [6, 0, 34], rot: 1.2 });
-DECOR.push({ file: "PP_Meadow_Path_05", size: 10, by: "xz", align: "flush", pos: [-1, 0, 22], rot: 0.3 });
+DECOR.push({ file: "PP_Meadow_07", size: 18, by: "xz", align: "flush", pos: [-10, 0, 42], rot: 0 });
+DECOR.push({ file: "PP_Meadow_08", size: 16, by: "xz", align: "flush", pos: [9, 0, 47], rot: 1.2 });
+DECOR.push({ file: "PP_Meadow_Path_05", size: 12, by: "xz", align: "flush", pos: [-1, 0, 30], rot: 0.3 });
 
-// lake bed decor to the west — also flush
-DECOR.push({ file: "PP_Lake_Ground_04", size: 16, by: "xz", align: "flush", pos: [-34, 0, 14], rot: 0 });
+// the fishing lake bed in the NW — flush ground under the water plane
+DECOR.push({ file: "PP_Lake_Ground_04", size: LAKE_R * 2.4, by: "xz", align: "flush", pos: [LAKE_POS[0], 0, LAKE_POS[2]], rot: 0 });
+// reeds + boulders around the lake shore
+for (let i = 0; i < 10; i++) {
+  const a = (i / 10) * Math.PI * 2;
+  const rx = LAKE_POS[0] + Math.cos(a) * (LAKE_R + 1.5);
+  const rz = LAKE_POS[2] + Math.sin(a) * (LAKE_R + 1.5);
+  DECOR.push({ file: i % 2 ? "PP_Grass_15" : "PP_Rock_Moss_Grown_09", size: i % 2 ? 0.8 : 1.4, pos: [rx, 0, rz], rot: rand(0, 6.28) });
+}
 
-// mossy mountains as a backdrop on the map edges
+// an ancient standing-stone circle landmark in the far south-east
+const RUINS: [number, number] = [58, 52];
+for (let i = 0; i < 7; i++) {
+  const a = (i / 7) * Math.PI * 2;
+  const rx = RUINS[0] + Math.cos(a) * 5;
+  const rz = RUINS[1] + Math.sin(a) * 5;
+  DECOR.push({ file: "PP_Rock_Moss_Grown_11", size: rand(2.6, 3.4), pos: [rx, 0, rz], rot: rand(0, 6.28) });
+  COLLIDERS.push({ x: rx, z: rz, r: 1.3 });
+}
+
+// mossy mountains ringing the edge of the bigger map
 const MOUNTAINS: [number, number][] = [
-  [-58, -50], [-20, -64], [34, -60], [62, -34],
-  [-64, 16], [-50, 48], [30, 62], [64, 44],
+  [-80, -64], [-30, -88], [44, -84], [86, -46],
+  [-88, 24], [-66, 70], [42, 86], [88, 60], [12, -90], [-90, -20],
 ];
 for (const [x, z] of MOUNTAINS) {
-  const size = rand(14, 22);
+  const size = rand(16, 24);
   DECOR.push({
     file: rng() > 0.5 ? "PP_Forest_Mountain_Moss_01" : "PP_Forest_Mountain_Moss_02",
     size,
     pos: [x, 0, z],
     rot: rand(0, Math.PI * 2),
   });
-  // the mossy mountain models are squat: the footprint at the base is far
-  // wider than the height, so the collider tracks the visible rock face
-  COLLIDERS.push({ x, z, r: size * 0.62 });
+  // these mossy mountains are squat — a wide base, low peak — so the collider
+  // is generous to cover the full visible footprint (better to stop early
+  // than let players clip into the rock)
+  COLLIDERS.push({ x, z, r: size * 0.95 });
 }
 
 // the Old Mine's rocky outcrop (the mouth itself stays approachable)
-COLLIDERS.push({ x: -28, z: -27.4, r: 2.6 });
+// (literal here — CAVE_ENTRANCE_POS is declared further down)
+COLLIDERS.push({ x: -38, z: -39.4, r: 2.6 });
 
 // daffodils sprinkled around the glade as decoration (not collectible)
-for (let i = 0; i < 8; i++) {
+for (let i = 0; i < 12; i++) {
   const a = rand(0, Math.PI * 2);
-  const r = rand(5, 11);
+  const r = rand(6, 16);
   DECOR.push({
     file: "PP_Daffodil_03",
     size: 0.55,
@@ -292,11 +306,11 @@ const FLOWER_FILES: { file: string; label: string }[] = [
 
 export const COLLECTIBLES: Collectible[] = [];
 
-// mushrooms in the northern grove
-for (let i = 0; i < 8; i++) {
+// mushrooms in the northern grove (Sporewood)
+for (let i = 0; i < 14; i++) {
   const m = MUSHROOM_FILES[i % MUSHROOM_FILES.length];
-  const x = rand(-24, 14);
-  const z = rand(-44, -22);
+  const x = rand(-34, 18);
+  const z = rand(-58, -30);
   COLLECTIBLES.push({
     id: `mushroom-${i}`,
     file: m.file,
@@ -311,19 +325,19 @@ for (let i = 0; i < 8; i++) {
 // the forest's secret stashes — magic shrooms deep in Sporewood, weed on
 // the far bank. Rare finds with a long respawn.
 COLLECTIBLES.push(
-  { id: "shroom-0", file: "PP_Mushroom_Fantasy_Purple_05", size: 1.5, pos: [-21, 0, -47], rot: rand(0, 6.28), kind: "herb", label: "Magic Shroom" },
-  { id: "shroom-1", file: "PP_Mushroom_Fantasy_Purple_08", size: 1.4, pos: [9, 0, -49], rot: rand(0, 6.28), kind: "herb", label: "Magic Shroom" },
+  { id: "shroom-0", file: "PP_Mushroom_Fantasy_Purple_05", size: 1.5, pos: [-24, 0, -56], rot: rand(0, 6.28), kind: "herb", label: "Magic Shroom" },
+  { id: "shroom-1", file: "PP_Mushroom_Fantasy_Purple_08", size: 1.4, pos: [12, 0, -58], rot: rand(0, 6.28), kind: "herb", label: "Magic Shroom" },
   { id: "shroom-2", file: "PP_Mushroom_Fantasy_Purple_05", size: 1.6, pos: [-44, 0, -34], rot: rand(0, 6.28), kind: "herb", label: "Magic Shroom" },
-  { id: "weed-0", file: "PP_Grass_15", size: 1.3, pos: [48, 0, 24], rot: rand(0, 6.28), kind: "herb", label: "Weed" },
-  { id: "weed-1", file: "PP_Grass_15", size: 1.2, pos: [54, 0, -22], rot: rand(0, 6.28), kind: "herb", label: "Weed" },
-  { id: "weed-2", file: "PP_Grass_11", size: 1.3, pos: [-46, 0, 40], rot: rand(0, 6.28), kind: "herb", label: "Weed" },
+  { id: "weed-0", file: "PP_Grass_15", size: 1.3, pos: [62, 0, 30], rot: rand(0, 6.28), kind: "herb", label: "Weed" },
+  { id: "weed-1", file: "PP_Grass_15", size: 1.2, pos: [68, 0, -28], rot: rand(0, 6.28), kind: "herb", label: "Weed" },
+  { id: "weed-2", file: "PP_Grass_11", size: 1.3, pos: [-58, 0, 52], rot: rand(0, 6.28), kind: "herb", label: "Weed" },
 );
 
 // flowers in the southern meadow
-for (let i = 0; i < 6; i++) {
+for (let i = 0; i < 12; i++) {
   const f = FLOWER_FILES[i % FLOWER_FILES.length];
-  const x = rand(-14, 12);
-  const z = rand(24, 40);
+  const x = rand(-20, 18);
+  const z = rand(32, 52);
   COLLECTIBLES.push({
     id: `flower-${i}`,
     file: f.file,
@@ -340,7 +354,7 @@ for (let i = 0; i < 6; i++) {
 // crowded with private land.
 
 // the gate stands in the west gap of the glade fence, at the end of its own path
-export const HOME_PORTAL_POS: [number, number, number] = [-14.5, 0, 0];
+export const HOME_PORTAL_POS: [number, number, number] = [-22, 0, 0];
 export const HOME_CHEST_POS: [number, number, number] = [9, 0, -5];
 export const HOME_FURNACE_POS: [number, number, number] = [9, 0, -1.5];
 export const HOME_EXTEND_POS: [number, number, number] = [9, 0, 5.5]; // extension sign, in the east utility column
@@ -463,9 +477,29 @@ export function resolveHomeMovement(
 
 // ---- the Old Mine: a dark cave instance, entered in Darkwood ----
 
-export const CAVE_ENTRANCE_POS: [number, number, number] = [-28, 0, -26];
-export const CAVE_HW = 21;
-export const CAVE_HD = 14;
+export const CAVE_ENTRANCE_POS: [number, number, number] = [-38, 0, -38];
+export const CAVE_HW = 36;
+export const CAVE_HD = 26;
+
+// the mine has three depths going north (deeper = more danger, better ore):
+//   shallow (entrance, z>10) · middle (z -6..10) · deep (z < -6, the diamond seam)
+export const CAVE_DEPTHS = [
+  { name: "Mine Mouth", zMax: 26, zMin: 12 },
+  { name: "The Galleries", zMax: 12, zMin: -8 },
+  { name: "The Deep", zMax: -8, zMin: -26 },
+];
+
+// spots where mobs lurk (deeper chambers hold more)
+export const CAVE_MOB_SPOTS: { x: number; z: number; kind: "zombie" | "skeleton" }[] = [
+  { x: -10, z: 6, kind: "zombie" },
+  { x: 12, z: 4, kind: "skeleton" },
+  { x: 0, z: -2, kind: "zombie" },
+  { x: -18, z: -12, kind: "skeleton" },
+  { x: 16, z: -14, kind: "skeleton" },
+  { x: -4, z: -18, kind: "zombie" },
+  { x: 8, z: -20, kind: "skeleton" },
+  { x: -24, z: -2, kind: "zombie" },
+];
 
 export type CaveOre = {
   id: string;
@@ -486,11 +520,12 @@ export const STALAGMITES: { x: number; z: number; h: number; r: number }[] = [];
     CAVE_ORES.every((o) => Math.hypot(o.pos[0] - x, o.pos[2] - z) > 2.6) &&
     STALAGMITES.every((s) => Math.hypot(s.x - x, s.z - z) > 2.4);
 
-  const place = (kind: CaveOre["kind"], n: number, size: [number, number]) => {
+  // place ore within a z-band (deeper bands hold the richer seams)
+  const place = (kind: CaveOre["kind"], n: number, size: [number, number], zMin: number, zMax: number) => {
     let placed = 0;
-    for (let tries = 0; tries < 200 && placed < n; tries++) {
+    for (let tries = 0; tries < 400 && placed < n; tries++) {
       const x = cRand(-CAVE_HW + 2, CAVE_HW - 2);
-      const z = cRand(-CAVE_HD + 2, CAVE_HD - 2);
+      const z = cRand(zMin, zMax);
       if (!clearOf(x, z)) continue;
       const s = cRand(size[0], size[1]);
       CAVE_ORES.push({
@@ -503,17 +538,17 @@ export const STALAGMITES: { x: number; z: number; h: number; r: number }[] = [];
       placed++;
     }
   };
-  // plain stone is plentiful, coal is common, diamonds are a lucky day
-  place("stone", 8, [0.8, 1.3]);
-  place("coal", 10, [0.9, 1.4]);
-  place("diamond", 2, [0.7, 0.9]);
+  // stone everywhere, coal through the galleries, diamonds only in the deep
+  place("stone", 16, [0.8, 1.3], -CAVE_HD + 2, CAVE_HD - 2);
+  place("coal", 22, [0.9, 1.4], -CAVE_HD + 2, 12);
+  place("diamond", 5, [0.7, 0.9], -CAVE_HD + 2, -8);
 
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < 28; i++) {
     for (let tries = 0; tries < 60; tries++) {
       const x = cRand(-CAVE_HW + 1.5, CAVE_HW - 1.5);
       const z = cRand(-CAVE_HD + 1.5, CAVE_HD - 1.5);
       if (!clearOf(x, z)) continue;
-      STALAGMITES.push({ x, z, h: cRand(1.2, 3.2), r: cRand(0.4, 0.8) });
+      STALAGMITES.push({ x, z, h: cRand(1.2, 3.4), r: cRand(0.4, 0.85) });
       break;
     }
   }
@@ -658,6 +693,13 @@ export const ANIMAL_SPAWNS: AnimalSpawn[] = [
   { id: "de-1", kind: "deer", pos: [24, -34] },
   { id: "de-2", kind: "deer", pos: [-38, 26] },
   { id: "de-3", kind: "deer", pos: [48, 12] },
+  { id: "de-4", kind: "deer", pos: [62, -40] },
+  { id: "de-5", kind: "deer", pos: [-62, 48] },
+  { id: "bo-4", kind: "boar", pos: [70, 30] },
+  { id: "bo-5", kind: "boar", pos: [-58, -14] },
+  { id: "ra-5", kind: "rabbit", pos: [-50, -28] },
+  { id: "ra-6", kind: "rabbit", pos: [40, 44] },
+  { id: "ch-8", kind: "chicken", pos: [-40, -44] },
 ];
 
 // ---- homestead animal pens (unlocked by land tier) ----
@@ -774,11 +816,19 @@ export function resolveMovement(
         nz = BRIDGE_Z + Math.sign(bdz) * 3.6;
       }
     }
+    // the lake — stand on the shore, can't wade in
+    const ldx = nx - LAKE_POS[0];
+    const ldz = nz - LAKE_POS[2];
+    const ld = Math.hypot(ldx, ldz);
+    if (ld < LAKE_R && ld > 1e-6) {
+      nx = LAKE_POS[0] + (ldx / ld) * LAKE_R;
+      nz = LAKE_POS[2] + (ldz / ld) * LAKE_R;
+    }
   }
 
   // map bounds
-  nx = Math.max(-68, Math.min(68, nx));
-  nz = Math.max(-68, Math.min(68, nz));
+  nx = Math.max(-MAP_BOUND, Math.min(MAP_BOUND, nx));
+  nz = Math.max(-MAP_BOUND, Math.min(MAP_BOUND, nz));
   return [nx, nz];
 }
 
@@ -788,7 +838,7 @@ export function zoneAt(x: number, z: number): string {
   if (Math.abs(x - RIVER_X) < RIVER_WIDTH / 2 + 3) return "The Rush";
   if (x > RIVER_X + RIVER_WIDTH / 2) return "The Outlands";
   if (Math.hypot(x, z) < GLADE_RADIUS + 2) return "The Hollow";
-  if (z < -20 && x < 18) return "Sporewood";
-  if (z > 20) return "The Bloom";
+  if (z < -28 && x < 24) return "Sporewood";
+  if (z > 28) return "The Bloom";
   return "Darkwood";
 }

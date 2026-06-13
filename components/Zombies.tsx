@@ -25,6 +25,8 @@ export const ZOMBIE_TYPES: Record<ZombieType, {
   brute: { hp: 70, dmg: 16, speed: 1.7, chase: 13, scale: 1.4, skin: "#5a7a45", shirt: "#33333b" },
   // the Butcher — one rises every 10th night
   boss: { hp: 400, dmg: 30, speed: 2.0, chase: 30, scale: 2.3, skin: "#3d5232", shirt: "#1c1018" },
+  // mine-dwelling skeleton — quick and brittle
+  skeleton: { hp: 24, dmg: 10, speed: 3.4, chase: 16, scale: 1, skin: "#e8e6dc", shirt: "#cfc8b4" },
 };
 
 function rollType(blood: boolean): ZombieType {

@@ -8,6 +8,7 @@ import { Model, useCompositeModel } from "@/lib/assets";
 import {
   DECOR, COLLECTIBLES, RIVER_X, RIVER_WIDTH, CAMPFIRE_POS, BUILDINGS,
   HOME_PORTAL_POS, HOME_TIERS, CAVE_ENTRANCE_POS, NOTICE_BOARD_POS,
+  GLADE_RADIUS, LAKE_POS, LAKE_R,
 } from "@/lib/world";
 import { useGame, collectibleRespawnMs } from "@/lib/store";
 import { moveTarget, daylight, lastWater } from "@/lib/runtime";
@@ -29,36 +30,37 @@ function Ground() {
     moveTarget.active = true;
     moveTarget.setAt = performance.now();
   };
+  const drink = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    const s = useGame.getState();
+    if (!s.nearWater) {
+      s.addToast("Get closer to the water 💧");
+      return;
+    }
+    if (Date.now() - lastWater.at < 2000) return;
+    lastWater.at = Date.now();
+    s.collectWater();
+  };
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow onClick={handleClick}>
-        <planeGeometry args={[150, 150]} />
+        <planeGeometry args={[230, 230]} />
         <meshStandardMaterial color="#5d7e3b" roughness={1} />
       </mesh>
       {/* glade clearing — slightly lighter grass */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]} receiveShadow>
-        <circleGeometry args={[15, 40]} />
+        <circleGeometry args={[GLADE_RADIUS + 1, 44]} />
         <meshStandardMaterial color="#6f924a" roughness={1} />
       </mesh>
       {/* river — click near the bank to collect water */}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[RIVER_X, 0.015, 0]}
-        onClick={(e) => {
-          e.stopPropagation();
-          const s = useGame.getState();
-          if (!s.nearWater) {
-            s.addToast("Get closer to the water 💧");
-            return;
-          }
-          if (Date.now() - lastWater.at < 2000) return;
-          lastWater.at = Date.now();
-          s.collectWater();
-        }}
+        onClick={drink}
         onPointerOver={() => { document.body.style.cursor = "pointer"; }}
         onPointerOut={() => { document.body.style.cursor = ""; }}
       >
-        <planeGeometry args={[RIVER_WIDTH, 150]} />
+        <planeGeometry args={[RIVER_WIDTH, 230]} />
         <meshStandardMaterial color="#3d7ba6" roughness={0.3} />
       </mesh>
       {/* river banks */}
@@ -68,10 +70,25 @@ function Ground() {
           rotation={[-Math.PI / 2, 0, 0]}
           position={[RIVER_X + side * (RIVER_WIDTH / 2 + 0.5), 0.01, 0]}
         >
-          <planeGeometry args={[1.2, 150]} />
+          <planeGeometry args={[1.2, 230]} />
           <meshStandardMaterial color="#8a7a55" roughness={1} />
         </mesh>
       ))}
+      {/* the fishing lake */}
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[LAKE_POS[0], 0.015, LAKE_POS[2]]}
+        onClick={drink}
+        onPointerOver={() => { document.body.style.cursor = "pointer"; }}
+        onPointerOut={() => { document.body.style.cursor = ""; }}
+      >
+        <circleGeometry args={[LAKE_R, 44]} />
+        <meshStandardMaterial color="#3d7ba6" roughness={0.3} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[LAKE_POS[0], 0.008, LAKE_POS[2]]}>
+        <circleGeometry args={[LAKE_R + 1, 44]} />
+        <meshStandardMaterial color="#8a7a55" roughness={1} />
+      </mesh>
     </group>
   );
 }

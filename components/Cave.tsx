@@ -11,6 +11,7 @@ import { useGame } from "@/lib/store";
 import { live, moveTarget, mine } from "@/lib/runtime";
 import { CAVE_ORES, CAVE_HW, CAVE_HD, STALAGMITES, ORE_RESPAWN_MS, CaveOre } from "@/lib/world";
 import { HoverRing } from "./Trees";
+import CaveMobs from "./CaveMobs";
 
 const ORE_COLORS: Record<CaveOre["kind"], { rock: string; fleck: string; emissive: string }> = {
   stone: { rock: "#6e675e", fleck: "#8d857a", emissive: "#000000" },
@@ -218,6 +219,7 @@ export default function Cave() {
         <OreNode key={ore.id} ore={ore} />
       ))}
 
+      <CaveMobs />
       <CaveExit />
 
       {/* your lantern glow follows you; the rest is darkness */}

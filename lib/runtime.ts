@@ -55,7 +55,7 @@ export const teleport = { x: 0, z: 0, pending: false };
 // when the intro tutorial is panning the camera, the player stops driving it
 export const tour = { active: false };
 
-export type ZombieType = "walker" | "runner" | "brute" | "boss";
+export type ZombieType = "walker" | "runner" | "brute" | "boss" | "skeleton";
 
 /** Every 10th night the Butcher walks. */
 export function isBossNight() {
