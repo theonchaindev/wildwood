@@ -509,7 +509,7 @@ function OrchardSpot({ idx, readOnly }: { idx: number; readOnly?: boolean }) {
       </mesh>
       {!tree ? (
         <Html position={[0, 1.2, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
-          <div className="world-label small">🌳 Plant apple tree · {ORCHARD_COST.acorns} 🌰 + {ORCHARD_COST.wood} 🪵</div>
+          <div className="world-label small">🌳 Plant apple tree · {ORCHARD_COST.acorns} 🌰 + {ORCHARD_COST.wood} 🌲</div>
         </Html>
       ) : (
         <>
@@ -582,7 +582,7 @@ function HiveSpot({ idx, readOnly }: { idx: number; readOnly?: boolean }) {
             <meshStandardMaterial color="#75582f" roughness={1} />
           </mesh>
           <Html position={[0, 1.1, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
-            <div className="world-label small">🐝 Build beehive · {HIVE_COST.acorns} 🌰 + {HIVE_COST.wood} 🪵</div>
+            <div className="world-label small">🐝 Build beehive · {HIVE_COST.acorns} 🌰 + {HIVE_COST.wood} 🌲</div>
           </Html>
         </>
       ) : (
@@ -1188,17 +1188,17 @@ export default function Homestead() {
       {houseLevel >= 1 || visiting ? (
         <House level={visiting ? houseLevel : Math.max(1, houseLevel)} visiting={visiting} />
       ) : (
-        <BuildSite pos={HOME_CABIN_POS} label={`Build a Log Cabin · ${HOUSE_LEVELS[0].acorns}🌰 + ${HOUSE_LEVELS[0].wood}🪵`} onBuild={() => useGame.getState().houseStation()} />
+        <BuildSite pos={HOME_CABIN_POS} label={`Build a Log Cabin · ${HOUSE_LEVELS[0].acorns}🌰 + ${HOUSE_LEVELS[0].wood}🌲`} onBuild={() => useGame.getState().houseStation()} />
       )}
       {!visiting && (baseChest
         ? <Chest />
-        : <BuildSite pos={HOME_CHEST_POS} label={`Build Chest · ${BASE_BUILD.chest.wood}🪵`} onBuild={() => useGame.getState().station("chest")} />)}
+        : <BuildSite pos={HOME_CHEST_POS} label={`Build Chest · ${BASE_BUILD.chest.wood}🌲`} onBuild={() => useGame.getState().station("chest")} />)}
       {!visiting && (baseFurnace
         ? <Furnace />
         : <BuildSite pos={HOME_FURNACE_POS} label={`Build Furnace · ${BASE_BUILD.furnace.stone}🪨`} onBuild={() => useGame.getState().station("furnace")} />)}
       {!visiting && (baseBench
         ? <CraftingBench />
-        : <BuildSite pos={HOME_BENCH_POS} label={`Build Bench · ${BASE_BUILD.bench.wood}🪵 ${BASE_BUILD.bench.stone}🪨`} onBuild={() => useGame.getState().station("bench")} />)}
+        : <BuildSite pos={HOME_BENCH_POS} label={`Build Bench · ${BASE_BUILD.bench.wood}🌲 ${BASE_BUILD.bench.stone}🪨`} onBuild={() => useGame.getState().station("bench")} />)}
       {tier.well && <Well />}
       {tier.pond && <Pond />}
       {tier.windmill && <Windmill />}

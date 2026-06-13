@@ -112,7 +112,7 @@ export const HAND_YIELD = 2;
 export const ROD_COST = 80;
 
 export const SELL_PRICES: Record<string, number> = {
-  Wood: 4,
+  Timber: 4,
   "Orange Mushroom": 8,
   "Purple Mushroom": 10,
   Sunflower: 6,
@@ -176,7 +176,7 @@ export const SEEDS: Record<string, { cost: number; growMs: number; yieldLabel: s
   "Pumpkin Seeds": { cost: 15, growMs: 120_000, yieldLabel: "Pumpkin", yieldN: 1 },
 };
 
-// what cooking turns things into (each cook burns 1 Coal, or 1 Wood)
+// what cooking turns things into (each cook burns 1 Coal, or 1 Timber)
 export const RECIPES: Record<string, string> = {
   "Raw Chicken": "Cooked Chicken",
   "Raw Pork": "Cooked Pork",
@@ -240,12 +240,12 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
     inputs: { Carrot: 2, Pumpkin: 1, Water: 1 }, output: { label: "Forest Stew", n: 1 },
   },
   {
-    id: "torchpack", icon: "🕯️", label: "Wood bundle ×6", blurb: "Split coal heat into burnable wood",
-    inputs: { Coal: 2, Stone: 1 }, output: { label: "Wood", n: 6 },
+    id: "torchpack", icon: "🕯️", label: "Timber bundle ×6", blurb: "Split coal heat into burnable timber",
+    inputs: { Coal: 2, Stone: 1 }, output: { label: "Timber", n: 6 },
   },
   {
     id: "dsword", icon: "💠", label: "Diamond Sword", blurb: "55 dmg · 25% crits — the deep pays off",
-    inputs: { Diamond: 2, Wood: 5, Coal: 5 }, weapon: "diamond",
+    inputs: { Diamond: 2, Timber: 5, Coal: 5 }, weapon: "diamond",
   },
 ];
 
@@ -386,7 +386,7 @@ export const HORSE_COST = 600;
 export const BOAT_COST = { acorns: 180, wood: 35 };
 
 // the cat brings a present once per game day if you remember to pet her
-const CAT_GIFTS = ["Egg", "Apple", "Carrot", "Stone", "Wood", "Carp", "Orange Mushroom"];
+const CAT_GIFTS = ["Egg", "Apple", "Carrot", "Stone", "Timber", "Carp", "Orange Mushroom"];
 
 // ---- the house: five upgrade levels, each with a real perk ----
 
@@ -403,6 +403,17 @@ export const BASE_LAND_WOOD = 30; // clearing the raw plot costs timber too
 // Each client applies it a single time on load — survives cloud re-syncs.
 export const BASE_RESET_EPOCH = 1;
 export const BASE_RESET_REFUND = 1000;
+
+/** Rename the old "Wood" item to "Timber" in a save's stacks (the $WOOD coin
+ *  took the "Wood" name). Idempotent. */
+export function migrateWoodToTimber(save: any) {
+  for (const bag of [save?.inventory, save?.chest]) {
+    if (bag && bag.Wood != null) {
+      bag.Timber = (bag.Timber ?? 0) + bag.Wood;
+      delete bag.Wood;
+    }
+  }
+}
 
 /** One-time base wipe migration, applied to a save object on load. Mutates
  *  the object and returns true if it changed anything. */
@@ -1268,13 +1279,13 @@ export const useGame = create<GameState>()(
         const s = get();
         if (s.choppedAt[treeId]) return;
         const yieldN = s.axe ? AXES[s.axe].yield : HAND_YIELD;
-        const got = s.gainItem("Wood", yieldN);
+        const got = s.gainItem("Timber", yieldN);
         set({
           choppedAt: { ...get().choppedAt, [treeId]: Date.now() },
           chopTargetId: null,
         });
         sfx.treeFall();
-        if (got > 0) s.addToast(`+${got} Wood · +15 XP`);
+        if (got > 0) s.addToast(`+${got} Timber · +15 XP`);
         s.addXp(15);
         get().bumpStat("treesChopped");
         get().questEvent("timber");
@@ -1354,15 +1365,15 @@ export const useGame = create<GameState>()(
         const s = get();
         if (s.homeTier > 0) return;
         const tier = HOME_TIERS[0];
-        if ((s.inventory.Wood ?? 0) < BASE_LAND_WOOD) {
-          s.addToast(`Clearing the land needs ${BASE_LAND_WOOD} Wood 🪵`);
+        if ((s.inventory.Timber ?? 0) < BASE_LAND_WOOD) {
+          s.addToast(`Clearing the land needs ${BASE_LAND_WOOD} Timber 🌲`);
           sfx.error();
           return;
         }
         if (!spend(s, tier.price)) return;
         const inv = { ...s.inventory };
-        if (inv.Wood - BASE_LAND_WOOD <= 0) delete inv.Wood;
-        else inv.Wood -= BASE_LAND_WOOD;
+        if (inv.Timber - BASE_LAND_WOOD <= 0) delete inv.Timber;
+        else inv.Timber -= BASE_LAND_WOOD;
         set({ acorns: s.acorns - tier.price, inventory: inv, homeTier: 1, homeOffer: null });
         sfx.buy();
         s.setBanner("🏡 The land is yours — now build it up!");
@@ -1406,15 +1417,15 @@ export const useGame = create<GameState>()(
         if (s.pens[idx] || s.homeTier < 1) return;
         const def = PEN_DEFS[animal];
         const totalAcorns = PEN_BUILD_COST.acorns + def.animalCost;
-        if ((s.inventory.Wood ?? 0) < PEN_BUILD_COST.wood) {
-          s.addToast(`You need ${PEN_BUILD_COST.wood} Wood for the fencing 🪵`);
+        if ((s.inventory.Timber ?? 0) < PEN_BUILD_COST.wood) {
+          s.addToast(`You need ${PEN_BUILD_COST.wood} Timber for the fencing 🌲`);
           sfx.error();
           return;
         }
         if (!spend(s, totalAcorns)) return;
         const inv = { ...s.inventory };
-        if (inv.Wood - PEN_BUILD_COST.wood <= 0) delete inv.Wood;
-        else inv.Wood -= PEN_BUILD_COST.wood;
+        if (inv.Timber - PEN_BUILD_COST.wood <= 0) delete inv.Timber;
+        else inv.Timber -= PEN_BUILD_COST.wood;
         set({
           acorns: s.acorns - totalAcorns,
           inventory: inv,
@@ -1486,8 +1497,8 @@ export const useGame = create<GameState>()(
         const s = get();
         if (s.homeTier < 1 || s.houseLevel >= HOUSE_LEVELS.length) return;
         const next = HOUSE_LEVELS[s.houseLevel];
-        if ((s.inventory.Wood ?? 0) < next.wood) {
-          s.addToast(`Needs ${next.wood} Wood 🪵`);
+        if ((s.inventory.Timber ?? 0) < next.wood) {
+          s.addToast(`Needs ${next.wood} Timber 🌲`);
           sfx.error();
           return;
         }
@@ -1498,7 +1509,7 @@ export const useGame = create<GameState>()(
         }
         if (!spend(s, next.acorns)) return;
         const inv = { ...s.inventory };
-        for (const [mat, cost] of [["Wood", next.wood], ["Stone", next.stone]] as const) {
+        for (const [mat, cost] of [["Timber", next.wood], ["Stone", next.stone]] as const) {
           if (cost > 0) {
             if (inv[mat] - cost <= 0) delete inv[mat];
             else inv[mat] -= cost;
@@ -1552,15 +1563,15 @@ export const useGame = create<GameState>()(
       plantOrchardTree: (idx) => {
         const s = get();
         if (s.orchard[idx] || s.homeTier < 1) return;
-        if ((s.inventory.Wood ?? 0) < ORCHARD_COST.wood) {
-          s.addToast(`You need ${ORCHARD_COST.wood} Wood for the stakes 🪵`);
+        if ((s.inventory.Timber ?? 0) < ORCHARD_COST.wood) {
+          s.addToast(`You need ${ORCHARD_COST.wood} Timber for the stakes 🌲`);
           sfx.error();
           return;
         }
         if (!spend(s, ORCHARD_COST.acorns)) return;
         const inv = { ...s.inventory };
-        if (inv.Wood - ORCHARD_COST.wood <= 0) delete inv.Wood;
-        else inv.Wood -= ORCHARD_COST.wood;
+        if (inv.Timber - ORCHARD_COST.wood <= 0) delete inv.Timber;
+        else inv.Timber -= ORCHARD_COST.wood;
         set({
           acorns: s.acorns - ORCHARD_COST.acorns,
           inventory: inv,
@@ -1602,15 +1613,15 @@ export const useGame = create<GameState>()(
       buildHive: (idx) => {
         const s = get();
         if (s.hives[idx] || s.homeTier < 1) return;
-        if ((s.inventory.Wood ?? 0) < HIVE_COST.wood) {
-          s.addToast(`You need ${HIVE_COST.wood} Wood for the hive box 🪵`);
+        if ((s.inventory.Timber ?? 0) < HIVE_COST.wood) {
+          s.addToast(`You need ${HIVE_COST.wood} Timber for the hive box 🌲`);
           sfx.error();
           return;
         }
         if (!spend(s, HIVE_COST.acorns)) return;
         const inv = { ...s.inventory };
-        if (inv.Wood - HIVE_COST.wood <= 0) delete inv.Wood;
-        else inv.Wood -= HIVE_COST.wood;
+        if (inv.Timber - HIVE_COST.wood <= 0) delete inv.Timber;
+        else inv.Timber -= HIVE_COST.wood;
         set({
           acorns: s.acorns - HIVE_COST.acorns,
           inventory: inv,
@@ -1665,8 +1676,8 @@ export const useGame = create<GameState>()(
           s.addToast("Too close to another structure");
           return;
         }
-        if ((s.inventory.Wood ?? 0) < def.wood) {
-          s.addToast(`Needs ${def.wood} Wood 🪵`);
+        if ((s.inventory.Timber ?? 0) < def.wood) {
+          s.addToast(`Needs ${def.wood} Timber 🌲`);
           sfx.error();
           return;
         }
@@ -1681,7 +1692,7 @@ export const useGame = create<GameState>()(
           return;
         }
         const inv = { ...s.inventory };
-        for (const [mat, cost] of [["Wood", def.wood], ["Stone", def.stone]] as const) {
+        for (const [mat, cost] of [["Timber", def.wood], ["Stone", def.stone]] as const) {
           if (cost > 0) {
             if (inv[mat] - cost <= 0) delete inv[mat];
             else inv[mat] -= cost;
@@ -1702,7 +1713,7 @@ export const useGame = create<GameState>()(
         const def = BUILDABLES[st.type];
         const refundWood = Math.floor(def.wood / 2);
         const refundStone = Math.floor(def.stone / 2);
-        if (refundWood > 0) s.gainItem("Wood", refundWood);
+        if (refundWood > 0) s.gainItem("Timber", refundWood);
         if (refundStone > 0) s.gainItem("Stone", refundStone);
         set({ structures: get().structures.filter((x) => x.id !== id) });
         s.addToast(`Removed ${def.label}`);
@@ -1788,15 +1799,15 @@ export const useGame = create<GameState>()(
       buyBoat: () => {
         const s = get();
         if (s.boat) return;
-        if ((s.inventory.Wood ?? 0) < BOAT_COST.wood) {
-          s.addToast(`You need ${BOAT_COST.wood} Wood to build a boat 🪵`);
+        if ((s.inventory.Timber ?? 0) < BOAT_COST.wood) {
+          s.addToast(`You need ${BOAT_COST.wood} Timber to build a boat 🌲`);
           sfx.error();
           return;
         }
         if (!spend(s, BOAT_COST.acorns)) return;
         const inv = { ...s.inventory };
-        if (inv.Wood - BOAT_COST.wood <= 0) delete inv.Wood;
-        else inv.Wood -= BOAT_COST.wood;
+        if (inv.Timber - BOAT_COST.wood <= 0) delete inv.Timber;
+        else inv.Timber -= BOAT_COST.wood;
         set({ acorns: s.acorns - BOAT_COST.acorns, inventory: inv, boat: true });
         sfx.buy();
         s.setBanner("⛵ A boat! Now you can cross the river and lake anywhere");
@@ -1823,10 +1834,10 @@ export const useGame = create<GameState>()(
           return;
         }
         const def = BASE_BUILD[kind];
-        if ((s.inventory.Wood ?? 0) < def.wood) { s.addToast(`Build the ${def.label}: needs ${def.wood} Wood 🪵`); sfx.error(); return; }
+        if ((s.inventory.Timber ?? 0) < def.wood) { s.addToast(`Build the ${def.label}: needs ${def.wood} Timber 🌲`); sfx.error(); return; }
         if ((s.inventory.Stone ?? 0) < def.stone) { s.addToast(`Build the ${def.label}: needs ${def.stone} Stone 🪨`); sfx.error(); return; }
         const inv = { ...s.inventory };
-        for (const [mat, n] of [["Wood", def.wood], ["Stone", def.stone]] as const) {
+        for (const [mat, n] of [["Timber", def.wood], ["Stone", def.stone]] as const) {
           if (n > 0) { if (inv[mat] - n <= 0) delete inv[mat]; else inv[mat] -= n; }
         }
         set({ inventory: inv, [builtKey]: true } as any);
@@ -1842,9 +1853,9 @@ export const useGame = create<GameState>()(
         if (s.houseLevel >= 1) { s.enterHouse(); return; }
         const def = HOUSE_LEVELS[0];
         if (!spend(s, def.acorns)) return;
-        if ((s.inventory.Wood ?? 0) < def.wood) { s.addToast(`The ${def.name} needs ${def.wood} Wood 🪵`); sfx.error(); return; }
+        if ((s.inventory.Timber ?? 0) < def.wood) { s.addToast(`The ${def.name} needs ${def.wood} Timber 🌲`); sfx.error(); return; }
         const inv = { ...s.inventory };
-        if (inv.Wood - def.wood <= 0) delete inv.Wood; else inv.Wood -= def.wood;
+        if (inv.Timber - def.wood <= 0) delete inv.Timber; else inv.Timber -= def.wood;
         set({ acorns: s.acorns - def.acorns, inventory: inv, houseLevel: 1 });
         sfx.levelUp();
         s.setBanner(`${def.icon} You built a ${def.name}!`);
@@ -1854,10 +1865,10 @@ export const useGame = create<GameState>()(
       tillSoil: (key) => {
         const s = get();
         if (s.tilled[key]) return;
-        if ((s.inventory.Wood ?? 0) < TILL_COST.wood) { s.addToast(`Tilling soil needs ${TILL_COST.wood} Wood 🪵`); sfx.error(); return; }
+        if ((s.inventory.Timber ?? 0) < TILL_COST.wood) { s.addToast(`Tilling soil needs ${TILL_COST.wood} Timber 🌲`); sfx.error(); return; }
         if (!spend(s, TILL_COST.acorns)) return;
         const inv = { ...s.inventory };
-        if (TILL_COST.wood > 0) { if (inv.Wood - TILL_COST.wood <= 0) delete inv.Wood; else inv.Wood -= TILL_COST.wood; }
+        if (TILL_COST.wood > 0) { if (inv.Timber - TILL_COST.wood <= 0) delete inv.Timber; else inv.Timber -= TILL_COST.wood; }
         set({ acorns: s.acorns - TILL_COST.acorns, inventory: inv, tilled: { ...s.tilled, [key]: true } });
         sfx.pickup();
         s.addToast("🟫 Soil tilled — plant a seed here");
@@ -2030,9 +2041,9 @@ export const useGame = create<GameState>()(
         if (!cooked) return;
         if ((s.inventory[rawLabel] ?? 0) < 1) return;
         // coal from the mine burns first; wood as a fallback
-        const fuel = (s.inventory.Coal ?? 0) >= 1 ? "Coal" : "Wood";
+        const fuel = (s.inventory.Coal ?? 0) >= 1 ? "Coal" : "Timber";
         if ((s.inventory[fuel] ?? 0) < 1) {
-          s.addToast("You need 1 Coal or 1 Wood for fuel ⚫🪵");
+          s.addToast("You need 1 Coal or 1 Timber for fuel ⚫🌲");
           sfx.error();
           return;
         }
@@ -2606,6 +2617,7 @@ export const useGame = create<GameState>()(
         if (!state.ownedAxes) state.ownedAxes = state.axe ? [state.axe] : [];
         if (!state.ownedArmor) state.ownedArmor = state.armor ? [state.armor] : [];
         // one-time base wipe for this epoch (keeps acorns/level/etc.)
+        migrateWoodToTimber(state);
         const wiped = applyBaseReset(state);
         if (wiped && state.homeTier === 0) state.location = "forest";
         // existing base owners already had everything built — keep it that way

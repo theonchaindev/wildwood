@@ -2,7 +2,7 @@
 
 // Client helpers for accounts, cloud saves, visiting and player offers.
 
-import { useGame, applyBaseReset } from "./store";
+import { useGame, applyBaseReset, migrateWoodToTimber } from "./store";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -118,6 +118,7 @@ function applyAuth(data: AuthResponse) {
       if (!save.ownedWeapons) save.ownedWeapons = save.weapon ? [save.weapon] : [];
       if (!save.ownedAxes) save.ownedAxes = save.axe ? [save.axe] : [];
       if (!save.ownedArmor) save.ownedArmor = save.armor ? [save.armor] : [];
+      migrateWoodToTimber(save);
       const baseWiped = applyBaseReset(save); // one-time base wipe for this epoch
       if (baseWiped) {
         setTimeout(() => useGame.getState().setBanner("🏡 Bases have been reset — rebuild yours! (acorns refunded)"), 1500);
@@ -363,9 +364,9 @@ export async function cashOut(acorns: number) {
   useGame.setState({ acorns: useGame.getState().acorns - acorns });
   pushSave();
   if (data.status === "paid") {
-    s.addToast(`🪙 ${acorns} $ACORN minted to your wallet — tx ${data.txSig?.slice(0, 8)}…`);
+    s.addToast(`🪵 ${acorns} $WOOD minted to your wallet — tx ${data.txSig?.slice(0, 8)}…`);
   } else {
-    s.addToast(`🪙 ${acorns} $ACORN conversion queued (${data.message ?? "pending"})`);
+    s.addToast(`🪵 ${acorns} $WOOD conversion queued (${data.message ?? "pending"})`);
   }
   return data;
 }
