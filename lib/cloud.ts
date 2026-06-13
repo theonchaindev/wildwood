@@ -67,6 +67,10 @@ export function saveData() {
     acceptedOffers: s.acceptedOffers,
     homeTier: s.homeTier,
     houseLevel: s.houseLevel,
+    baseChest: s.baseChest,
+    baseFurnace: s.baseFurnace,
+    baseBench: s.baseBench,
+    tilled: s.tilled,
     dailyDay: s.dailyDay,
     dailyBase: s.dailyBase,
     dailyClaimed: s.dailyClaimed,
@@ -78,6 +82,7 @@ export function saveData() {
     cat: s.cat,
     catLastPet: s.catLastPet,
     horse: s.horse,
+    boat: s.boat,
     pens: s.pens,
     orchard: s.orchard,
     hives: s.hives,
@@ -112,6 +117,16 @@ function applyAuth(data: AuthResponse) {
       if (!save.ownedWeapons) save.ownedWeapons = save.weapon ? [save.weapon] : [];
       if (!save.ownedAxes) save.ownedAxes = save.axe ? [save.axe] : [];
       if (!save.ownedArmor) save.ownedArmor = save.armor ? [save.armor] : [];
+      // existing base owners keep their built stations/soil
+      if (save.homeTier >= 1 && save.baseChest === undefined) {
+        save.baseChest = true; save.baseFurnace = true; save.baseBench = true;
+        if (!save.houseLevel || save.houseLevel < 1) save.houseLevel = 1;
+        save.tilled = save.tilled ?? {};
+        const tiles = [6, 12, 18, 24, 30, 34, 38, 42, 45, 48][Math.min(save.homeTier, 10) - 1];
+        for (let i = 0; i < tiles; i++) save.tilled[`home:${i}`] = true;
+      } else if (!save.homeTier && save.baseChest === undefined) {
+        save.houseLevel = 0;
+      }
       useGame.setState({ ...save, name: data.name });
     }
   } else {

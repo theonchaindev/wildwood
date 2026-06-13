@@ -81,6 +81,35 @@ function HeldWeapon({ weapon }: { weapon: WeaponTier }) {
   return <primitive object={instance} position={[0, def.lift, 0]} rotation={def.rot} />;
 }
 
+function BoatMesh() {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (!ref.current) return;
+    // only show the boat when you're actually over water
+    const onRiver = Math.abs(live.x - RIVER_X) < RIVER_WIDTH / 2 + 0.6;
+    const onLake = Math.hypot(live.x - LAKE_POS[0], live.z - LAKE_POS[2]) < LAKE_R + 0.6;
+    ref.current.visible = onRiver || onLake;
+  });
+  return (
+    <group ref={ref} position={[0, 0.05, 0]}>
+      {/* hull */}
+      <mesh position={[0, 0.12, 0]} castShadow>
+        <boxGeometry args={[0.9, 0.28, 1.5]} />
+        <meshStandardMaterial color="#7a5a33" roughness={1} />
+      </mesh>
+      <mesh position={[0, 0.12, 0.86]} rotation={[0, 0, 0]} castShadow>
+        <coneGeometry args={[0.45, 0.5, 4]} />
+        <meshStandardMaterial color="#6b4e2a" roughness={1} />
+      </mesh>
+      {/* inner trim */}
+      <mesh position={[0, 0.26, 0]}>
+        <boxGeometry args={[0.66, 0.06, 1.2]} />
+        <meshStandardMaterial color="#5e4426" roughness={1} />
+      </mesh>
+    </group>
+  );
+}
+
 function HorseMesh({ motion }: { motion: Motion }) {
   const legRefs = useRef<(THREE.Mesh | null)[]>([null, null, null, null]);
   const headRef = useRef<THREE.Group>(null);
@@ -197,15 +226,15 @@ export default function Player() {
         } else if (s.nearInteract) {
           const i = s.nearInteract;
           if (i.kind === "shop") s.setOpenShop(i.id);
-          else if (i.kind === "chest") s.setOpenPanel("chest");
-          else if (i.kind === "furnace") s.setOpenPanel("furnace");
+          else if (i.kind === "chest") s.station("chest");
+          else if (i.kind === "furnace") s.station("furnace");
           else if (i.kind === "portal") {
             if (s.homeTier > 0) s.travel("home");
             else s.setHomeOffer("buy");
           } else if (i.kind === "homegate") s.travel("forest");
           else if (i.kind === "extend") s.setHomeOffer("extend");
           else if (i.kind === "pen") s.setOpenPen(i.idx);
-          else if (i.kind === "house") s.enterHouse();
+          else if (i.kind === "house") s.houseStation();
           else if (i.kind === "bed") s.sleepTillDawn();
           else if (i.kind === "desk") s.setOpenPanel("house");
           else if (i.kind === "exitdoor") s.exitHouse();
@@ -219,7 +248,7 @@ export default function Player() {
           } else if (i.kind === "notice") s.toggleNotice();
           else if (i.kind === "cave") s.enterCave();
           else if (i.kind === "caveexit") s.exitCave();
-          else if (i.kind === "bench") s.setOpenPanel("bench");
+          else if (i.kind === "bench") s.station("bench");
         }
       }
       if (k === "i" || k === "b") {
@@ -333,7 +362,7 @@ export default function Player() {
       );
     };
 
-    const atHome = state.location !== "forest"; // own Haven, visiting, indoors or underground
+    const atHome = state.location !== "forest"; // own Base, visiting, indoors or underground
     const atInterior = state.location === "interior";
     const atCave = state.location === "cave";
 
@@ -525,7 +554,7 @@ export default function Player() {
           ? resolveInteriorMovement(px0, pz0, nx, nz, homeHouseHere)
           : atHome
           ? resolveHomeMovement(px0, pz0, nx, nz, homeTierHere, homeHouseHere)
-          : resolveMovement(px0, pz0, nx, nz, state.choppedAt, state.minedAt);
+          : resolveMovement(px0, pz0, nx, nz, state.choppedAt, state.minedAt, state.boat);
 
       // click-to-move steers around obstacles: try the straight line first,
       // and if it's blocked fan out to either side and take the clearest angle
@@ -769,10 +798,12 @@ export default function Player() {
 
   const showRodInHand = fishingState !== "idle";
   const mounted = useGame((s) => s.mounted);
+  const boat = useGame((s) => s.boat);
 
   return (
     <group ref={group}>
       {mounted && <HorseMesh motion={motion} />}
+      {boat && <BoatMesh />}
       <group position={[0, mounted ? 0.62 : 0, 0]}>
         <CharacterModel appearance={appearance} shirt={shirt} hat={hat} armor={armor} motion={motion} />
       </group>

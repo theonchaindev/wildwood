@@ -6,7 +6,7 @@ import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import {
   useGame, SEEDS, BUILDABLES, PEN_DEFS, Structure, HOUSE_LEVELS,
-  ORCHARD_COST, HIVE_COST, APPLE_GROW_MS, RENT_INTERVAL_MS,
+  ORCHARD_COST, HIVE_COST, APPLE_GROW_MS, RENT_INTERVAL_MS, BASE_BUILD, TILL_COST,
 } from "@/lib/store";
 import { live, daylight, moveTarget, isNight } from "@/lib/runtime";
 import { Model } from "@/lib/assets";
@@ -45,10 +45,42 @@ const STAGE_COLORS: Record<string, string> = {
   "Pumpkin Seeds": "#d8742e",
 };
 
+// a wooden "build here" marker shown where a station hasn't been built yet
+function BuildSite({ pos, label, onBuild }: { pos: [number, number, number]; label: string; onBuild: () => void }) {
+  const click = stopAnd(() => {
+    const s = useGame.getState();
+    if (near(pos[0], pos[2], 3.2)) onBuild();
+    else s.addToast("Walk closer to build here");
+  });
+  return (
+    <group position={pos} onClick={click} {...hoverCursor()}>
+      {[-0.5, 0.5].map((x) => (
+        <mesh key={x} position={[x, 0.4, 0]} castShadow>
+          <cylinderGeometry args={[0.05, 0.06, 0.8, 5]} />
+          <meshStandardMaterial color="#6b4e2a" roughness={1} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.78, 0]} castShadow>
+        <boxGeometry args={[1.3, 0.5, 0.06]} />
+        <meshStandardMaterial color="#caa86a" roughness={1} />
+      </mesh>
+      {/* faint footprint outline */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
+        <ringGeometry args={[0.9, 1.05, 4]} />
+        <meshBasicMaterial color="#e8d9a8" transparent opacity={0.5} />
+      </mesh>
+      <Html position={[0, 1.5, 0]} center distanceFactor={28} zIndexRange={[10, 0]}>
+        <div className="world-label small">🔨 {label}</div>
+      </Html>
+    </group>
+  );
+}
+
 function FarmTile({ idx, readOnly }: { idx: number; readOnly?: boolean }) {
   const key = homeTileKey(idx);
   const ownCrop = useGame((s) => s.farm[key]);
   const visitCrop = useGame((s) => s.visitData?.farm?.[key]);
+  const tilled = useGame((s) => (readOnly ? true : !!s.tilled[key]));
   const crop = readOnly ? visitCrop : ownCrop;
   const [, tick] = useState(0);
   useEffect(() => {
@@ -79,6 +111,21 @@ function FarmTile({ idx, readOnly }: { idx: number; readOnly?: boolean }) {
     const k = Math.min(1, (Date.now() - crop.at) / growMs);
     stage = k;
     ready = k >= 1;
+  }
+
+  // untilled plots are just marked grass with a buy prompt
+  if (!tilled) {
+    return (
+      <group position={[x, 0, z]} onClick={click} {...hoverCursor()}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
+          <planeGeometry args={[2.2, 2.4]} />
+          <meshStandardMaterial color="#6f8a48" roughness={1} transparent opacity={0.6} />
+        </mesh>
+        <Html position={[0, 0.6, 0]} center distanceFactor={30} zIndexRange={[9, 0]}>
+          <div className="world-label small">🟫 Till soil · {TILL_COST.acorns}🌰</div>
+        </Html>
+      </group>
+    );
   }
 
   return (
@@ -135,7 +182,7 @@ function Furnace() {
   });
   const click = stopAnd(() => {
     const s = useGame.getState();
-    if (near(HOME_FURNACE_POS[0], HOME_FURNACE_POS[2])) s.setOpenPanel("furnace");
+    if (near(HOME_FURNACE_POS[0], HOME_FURNACE_POS[2])) s.station("furnace");
     else s.addToast("Walk closer to the furnace");
   });
   return (
@@ -162,7 +209,7 @@ function Furnace() {
 function CraftingBench() {
   const click = stopAnd(() => {
     const s = useGame.getState();
-    if (near(HOME_BENCH_POS[0], HOME_BENCH_POS[2])) s.setOpenPanel("bench");
+    if (near(HOME_BENCH_POS[0], HOME_BENCH_POS[2])) s.station("bench");
     else s.addToast("Walk closer to the bench");
   });
   return (
@@ -205,7 +252,7 @@ function CraftingBench() {
 function Chest() {
   const click = stopAnd(() => {
     const s = useGame.getState();
-    if (near(HOME_CHEST_POS[0], HOME_CHEST_POS[2])) s.setOpenPanel("chest");
+    if (near(HOME_CHEST_POS[0], HOME_CHEST_POS[2])) s.station("chest");
     else s.addToast("Walk closer to the chest");
   });
   return (
@@ -1054,6 +1101,9 @@ export default function Homestead() {
   const visitData = useGame((s) => s.visitData);
   const visiting = useGame((s) => s.location === "visit") && !!visitData;
 
+  const baseChest = useGame((s) => s.baseChest);
+  const baseFurnace = useGame((s) => s.baseFurnace);
+  const baseBench = useGame((s) => s.baseBench);
   const name = visiting ? visitData!.name : ownName;
   const homeTier = visiting ? visitData!.homeTier : ownTier;
   const houseLevel = visiting ? visitData!.houseLevel ?? 1 : ownHouse;
@@ -1135,10 +1185,20 @@ export default function Homestead() {
         />
       ))}
 
-      <House level={houseLevel} visiting={visiting} />
-      {!visiting && <Chest />}
-      {!visiting && <Furnace />}
-      {!visiting && <CraftingBench />}
+      {houseLevel >= 1 || visiting ? (
+        <House level={visiting ? houseLevel : Math.max(1, houseLevel)} visiting={visiting} />
+      ) : (
+        <BuildSite pos={HOME_CABIN_POS} label={`Build a Log Cabin · ${HOUSE_LEVELS[0].acorns}🌰 + ${HOUSE_LEVELS[0].wood}🪵`} onBuild={() => useGame.getState().houseStation()} />
+      )}
+      {!visiting && (baseChest
+        ? <Chest />
+        : <BuildSite pos={HOME_CHEST_POS} label={`Build Chest · ${BASE_BUILD.chest.wood}🪵`} onBuild={() => useGame.getState().station("chest")} />)}
+      {!visiting && (baseFurnace
+        ? <Furnace />
+        : <BuildSite pos={HOME_FURNACE_POS} label={`Build Furnace · ${BASE_BUILD.furnace.stone}🪨`} onBuild={() => useGame.getState().station("furnace")} />)}
+      {!visiting && (baseBench
+        ? <CraftingBench />
+        : <BuildSite pos={HOME_BENCH_POS} label={`Build Bench · ${BASE_BUILD.bench.wood}🪵 ${BASE_BUILD.bench.stone}🪨`} onBuild={() => useGame.getState().station("bench")} />)}
       {tier.well && <Well />}
       {tier.pond && <Pond />}
       {tier.windmill && <Windmill />}

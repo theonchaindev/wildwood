@@ -27,7 +27,7 @@ export type Interact =
   | { kind: "exitdoor" }
   | { kind: "cave" } // the mine entrance in Darkwood
   | { kind: "caveexit" }
-  | { kind: "bench" } // crafting bench at the Haven
+  | { kind: "bench" } // crafting bench at the Base
   | { kind: "notice" }; // the camp notice board
 
 export type Quest = {
@@ -58,7 +58,7 @@ export const WEAPONS: Record<WeaponTier, { label: string; icon: string; cost: nu
   sword: { label: "Iron Sword", icon: "⚔️", cost: 250, dmg: 38, blurb: "Fast swings, 20% critical hits" },
   waraxe: { label: "War Axe", icon: "🪓", cost: 450, dmg: 46, blurb: "Brutal cleaves with savage knockback" },
   warhammer: { label: "War Hammer", icon: "🔨", cost: 700, dmg: 52, blurb: "Slow but devastating — flattens the dead" },
-  // not for sale — crafted at the Haven bench from mine diamonds
+  // not for sale — crafted at the Base bench from mine diamonds
   diamond: { label: "Diamond Sword", icon: "💠", cost: 0, dmg: 55, blurb: "Forged from the deep — craft it at your bench" },
 };
 
@@ -214,7 +214,7 @@ export const FOODS: Record<string, { hp: number; energy: number; hunger: number;
   "Forest Stew": { hp: 40, energy: 20, hunger: 50 },
 };
 
-// ---- the crafting bench at the Haven ----
+// ---- the crafting bench at the Base ----
 
 export type CraftRecipe = {
   id: string;
@@ -383,14 +383,25 @@ export const MAX_DECOR = 25;
 export const DOG_COST = 200;
 export const CAT_COST = 250;
 export const HORSE_COST = 600;
+export const BOAT_COST = { acorns: 180, wood: 35 };
 
 // the cat brings a present once per game day if you remember to pet her
 const CAT_GIFTS = ["Egg", "Apple", "Carrot", "Stone", "Wood", "Carp", "Orange Mushroom"];
 
 // ---- the house: five upgrade levels, each with a real perk ----
 
+// a fresh Base is bare ground — every station is built by hand
+export const BASE_BUILD = {
+  chest: { wood: 20, stone: 0, acorns: 0, label: "Storage Chest", icon: "📦" },
+  furnace: { wood: 0, stone: 25, acorns: 0, label: "Furnace", icon: "🔥" },
+  bench: { wood: 15, stone: 10, acorns: 0, label: "Crafting Bench", icon: "🛠️" },
+};
+export const TILL_COST = { acorns: 8, wood: 1 }; // per plot of soil
+export const BASE_LAND_WOOD = 30; // clearing the raw plot costs timber too
+
 export const HOUSE_LEVELS = [
-  { name: "Log Cabin", icon: "🛖", acorns: 0, wood: 0, stone: 0, perk: "A humble roof over your head" },
+  // the Log Cabin must be built first — expensive, and a lot of timber
+  { name: "Log Cabin", icon: "🛖", acorns: 300, wood: 60, stone: 0, perk: "A roof of your own — unlocks sleeping & upgrades" },
   { name: "Timber Cottage", icon: "🏠", acorns: 400, wood: 20, stone: 0, perk: "Sleep through the night — rest at your door after dusk" },
   { name: "Stone Farmhouse", icon: "🏡", acorns: 900, wood: 30, stone: 20, perk: "Crops grow 20% faster" },
   { name: "Hunter's Lodge", icon: "🏕️", acorns: 1600, wood: 50, stone: 35, perk: "Pens, hives & orchard produce 20% faster" },
@@ -547,9 +558,9 @@ const QUESTS: Quest[] = [
   { id: "cross-bridge", title: "Cross the Old Bridge", desc: "Cross the river east of camp — only the bridge will get you over.", goal: 1, progress: 0, done: false, xp: 50, acorns: 15 },
   { id: "return-camp", title: "Back to Camp", desc: "Return to the campfire and warm up.", goal: 1, progress: 0, done: false, xp: 70, acorns: 30 },
   { id: "night-watch", title: "Night Watch", desc: "Zombies rise after dark. Put 3 of them back in the ground — click one to attack.", goal: 3, progress: 0, done: false, xp: 150, acorns: 50 },
-  { id: "buy-plot", title: "Land Owner", desc: "Buy your own Haven at the 🏡 gate near camp — your private land, away from the forest.", goal: 1, progress: 0, done: false, xp: 120, acorns: 0 },
-  { id: "harvest", title: "Green Thumb", desc: "Buy seeds at The Den, plant them on your Haven, and harvest 3 crops.", goal: 3, progress: 0, done: false, xp: 100, acorns: 30 },
-  { id: "cook", title: "Home Cooking", desc: "Hunt an animal and cook its meat in your Haven furnace (fuelled by coal or wood).", goal: 1, progress: 0, done: false, xp: 100, acorns: 25 },
+  { id: "buy-plot", title: "Land Owner", desc: "Buy your own Base at the 🏡 gate near camp — your private land, away from the forest.", goal: 1, progress: 0, done: false, xp: 120, acorns: 0 },
+  { id: "harvest", title: "Green Thumb", desc: "Buy seeds at The Den, plant them on your Base, and harvest 3 crops.", goal: 3, progress: 0, done: false, xp: 100, acorns: 30 },
+  { id: "cook", title: "Home Cooking", desc: "Hunt an animal and cook its meat in your Base furnace (fuelled by coal or wood).", goal: 1, progress: 0, done: false, xp: 100, acorns: 25 },
 ];
 
 let toastId = 0;
@@ -599,7 +610,11 @@ type GameState = {
   lastHit: { id: number; key: string; amount: number; crit: boolean; at: number } | null;
   acceptedOffers: string[];
   homeTier: number; // 0 = no land owned
-  houseLevel: number; // index+1 into HOUSE_LEVELS
+  houseLevel: number; // 0 = no house yet, else index+1 into HOUSE_LEVELS
+  baseChest: boolean;
+  baseFurnace: boolean;
+  baseBench: boolean;
+  tilled: Record<string, boolean>; // farm tile key -> soil purchased
   lastRentAt: number;
   location: "forest" | "home" | "visit" | "interior" | "cave";
   savedForestPos: { x: number; z: number } | null;
@@ -622,6 +637,7 @@ type GameState = {
   cat: boolean;
   catLastPet: number;
   horse: boolean;
+  boat: boolean;
   mounted: boolean;
   tripUntil: number;
   tripKind: "shroom" | "weed" | null;
@@ -710,11 +726,15 @@ type GameState = {
   extendHomestead: () => void;
   travel: (to: "forest" | "home") => void;
   enterHouse: () => void;
+  station: (kind: "chest" | "furnace" | "bench") => void;
+  houseStation: () => void;
+  tillSoil: (key: string) => void;
   exitHouse: () => void;
   enterCave: () => void;
   exitCave: () => void;
   craftItem: (id: string) => void;
   buyHorse: () => void;
+  buyBoat: () => void;
   toggleMount: () => void;
   startVisit: (data: GameState["visitData"]) => void;
   buyDog: () => void;
@@ -829,7 +849,11 @@ export const useGame = create<GameState>()(
       lastHit: null,
       acceptedOffers: [],
       homeTier: 0,
-      houseLevel: 1,
+      houseLevel: 0,
+      baseChest: false,
+      baseFurnace: false,
+      baseBench: false,
+      tilled: {},
       lastRentAt: 0,
       location: "forest",
       savedForestPos: null,
@@ -842,6 +866,7 @@ export const useGame = create<GameState>()(
       cat: false,
       catLastPet: 0,
       horse: false,
+      boat: false,
       mounted: false,
       tripUntil: 0,
       tripKind: null,
@@ -1300,11 +1325,19 @@ export const useGame = create<GameState>()(
         const s = get();
         if (s.homeTier > 0) return;
         const tier = HOME_TIERS[0];
+        if ((s.inventory.Wood ?? 0) < BASE_LAND_WOOD) {
+          s.addToast(`Clearing the land needs ${BASE_LAND_WOOD} Wood 🪵`);
+          sfx.error();
+          return;
+        }
         if (!spend(s, tier.price)) return;
-        set({ acorns: s.acorns - tier.price, homeTier: 1, homeOffer: null });
+        const inv = { ...s.inventory };
+        if (inv.Wood - BASE_LAND_WOOD <= 0) delete inv.Wood;
+        else inv.Wood -= BASE_LAND_WOOD;
+        set({ acorns: s.acorns - tier.price, inventory: inv, homeTier: 1, homeOffer: null });
         sfx.buy();
-        s.setBanner("🏡 The Haven is yours!");
-        s.addToast("Walk through the gate to visit your Haven");
+        s.setBanner("🏡 The land is yours — now build it up!");
+        s.addToast("Through the gate: build a chest, furnace, cabin and till your soil");
         get().bumpStat("deeds");
         get().questEvent("buy-plot");
       },
@@ -1723,6 +1756,23 @@ export const useGame = create<GameState>()(
         s.setBanner("🐴 A horse of your own! Press H to ride");
       },
 
+      buyBoat: () => {
+        const s = get();
+        if (s.boat) return;
+        if ((s.inventory.Wood ?? 0) < BOAT_COST.wood) {
+          s.addToast(`You need ${BOAT_COST.wood} Wood to build a boat 🪵`);
+          sfx.error();
+          return;
+        }
+        if (!spend(s, BOAT_COST.acorns)) return;
+        const inv = { ...s.inventory };
+        if (inv.Wood - BOAT_COST.wood <= 0) delete inv.Wood;
+        else inv.Wood -= BOAT_COST.wood;
+        set({ acorns: s.acorns - BOAT_COST.acorns, inventory: inv, boat: true });
+        sfx.buy();
+        s.setBanner("⛵ A boat! Now you can cross the river and lake anywhere");
+      },
+
       toggleMount: () => {
         const s = get();
         if (!s.horse) return;
@@ -1733,6 +1783,55 @@ export const useGame = create<GameState>()(
         set({ mounted: !s.mounted });
         sfx.ui();
         if (!s.mounted) s.addToast("🐴 Mounted up — H to dismount");
+      },
+
+      // build-or-use a base station (chest / furnace / bench)
+      station: (kind) => {
+        const s = get();
+        const builtKey = kind === "chest" ? "baseChest" : kind === "furnace" ? "baseFurnace" : "baseBench";
+        if ((s as any)[builtKey]) {
+          s.setOpenPanel(kind);
+          return;
+        }
+        const def = BASE_BUILD[kind];
+        if ((s.inventory.Wood ?? 0) < def.wood) { s.addToast(`Build the ${def.label}: needs ${def.wood} Wood 🪵`); sfx.error(); return; }
+        if ((s.inventory.Stone ?? 0) < def.stone) { s.addToast(`Build the ${def.label}: needs ${def.stone} Stone 🪨`); sfx.error(); return; }
+        const inv = { ...s.inventory };
+        for (const [mat, n] of [["Wood", def.wood], ["Stone", def.stone]] as const) {
+          if (n > 0) { if (inv[mat] - n <= 0) delete inv[mat]; else inv[mat] -= n; }
+        }
+        set({ inventory: inv, [builtKey]: true } as any);
+        sfx.buy();
+        s.setBanner(`${def.icon} ${def.label} built!`);
+        s.setOpenPanel(kind);
+      },
+
+      // build-or-enter the house (Log Cabin first, then upgrades via the desk)
+      houseStation: () => {
+        const s = get();
+        if (s.location === "visit") { s.enterHouse(); return; }
+        if (s.houseLevel >= 1) { s.enterHouse(); return; }
+        const def = HOUSE_LEVELS[0];
+        if (!spend(s, def.acorns)) return;
+        if ((s.inventory.Wood ?? 0) < def.wood) { s.addToast(`The ${def.name} needs ${def.wood} Wood 🪵`); sfx.error(); return; }
+        const inv = { ...s.inventory };
+        if (inv.Wood - def.wood <= 0) delete inv.Wood; else inv.Wood -= def.wood;
+        set({ acorns: s.acorns - def.acorns, inventory: inv, houseLevel: 1 });
+        sfx.levelUp();
+        s.setBanner(`${def.icon} You built a ${def.name}!`);
+        s.addToast("Step inside — sleep, store deeds, and upgrade from the desk");
+      },
+
+      tillSoil: (key) => {
+        const s = get();
+        if (s.tilled[key]) return;
+        if ((s.inventory.Wood ?? 0) < TILL_COST.wood) { s.addToast(`Tilling soil needs ${TILL_COST.wood} Wood 🪵`); sfx.error(); return; }
+        if (!spend(s, TILL_COST.acorns)) return;
+        const inv = { ...s.inventory };
+        if (TILL_COST.wood > 0) { if (inv.Wood - TILL_COST.wood <= 0) delete inv.Wood; else inv.Wood -= TILL_COST.wood; }
+        set({ acorns: s.acorns - TILL_COST.acorns, inventory: inv, tilled: { ...s.tilled, [key]: true } });
+        sfx.pickup();
+        s.addToast("🟫 Soil tilled — plant a seed here");
       },
 
       enterHouse: () => {
@@ -1767,7 +1866,7 @@ export const useGame = create<GameState>()(
         const lv = visiting ? s.visitData!.houseLevel ?? 1 : s.houseLevel;
         set({
           location: visiting ? "visit" : "home",
-          zone: visiting ? `🏡 ${s.visitData!.name}'s land` : "🏡 Your Haven",
+          zone: visiting ? `🏡 ${s.visitData!.name}'s land` : "🏡 Your Base",
           openPanel: null,
           decorMode: null,
         });
@@ -1806,7 +1905,7 @@ export const useGame = create<GameState>()(
           set({
             savedForestPos: { x: live.x, z: live.z },
             location: "home",
-            zone: "🏡 Your Haven",
+            zone: "🏡 Your Base",
             chopTargetId: null,
             attackTargetId: null,
             animalTargetId: null,
@@ -1827,6 +1926,11 @@ export const useGame = create<GameState>()(
       plantSeed: (key) => {
         const s = get();
         if (s.farm[key]) return;
+        if (!s.tilled[key]) {
+          // not bought yet — buy the soil first
+          s.tillSoil(key);
+          return;
+        }
         const seedLabel = Object.keys(SEEDS).find((label) => (s.inventory[label] ?? 0) > 0);
         if (!seedLabel) {
           s.addToast("No seeds! Buy some at The Den 🌱");
@@ -2438,6 +2542,10 @@ export const useGame = create<GameState>()(
         acceptedOffers: s.acceptedOffers,
         homeTier: s.homeTier,
         houseLevel: s.houseLevel,
+        baseChest: s.baseChest,
+        baseFurnace: s.baseFurnace,
+        baseBench: s.baseBench,
+        tilled: s.tilled,
         lastRentAt: s.lastRentAt,
         chest: s.chest,
         farm: s.farm,
@@ -2446,6 +2554,7 @@ export const useGame = create<GameState>()(
         cat: s.cat,
         catLastPet: s.catLastPet,
         horse: s.horse,
+        boat: s.boat,
         pens: s.pens,
         orchard: s.orchard,
         hives: s.hives,
@@ -2466,6 +2575,19 @@ export const useGame = create<GameState>()(
         if (!state.ownedWeapons) state.ownedWeapons = state.weapon ? [state.weapon] : [];
         if (!state.ownedAxes) state.ownedAxes = state.axe ? [state.axe] : [];
         if (!state.ownedArmor) state.ownedArmor = state.armor ? [state.armor] : [];
+        // existing base owners already had everything built — keep it that way
+        if (state.homeTier >= 1 && state.baseChest === undefined) {
+          state.baseChest = true;
+          state.baseFurnace = true;
+          state.baseBench = true;
+          if (!state.houseLevel || state.houseLevel < 1) state.houseLevel = 1;
+          const tiles = HOME_TIERS[Math.min(state.homeTier, HOME_TIERS.length) - 1].tiles;
+          state.tilled = state.tilled ?? {};
+          for (let i = 0; i < tiles; i++) state.tilled[`home:${i}`] = true;
+        } else if (state.homeTier < 1 || state.homeTier === undefined) {
+          // never owned land — make sure they start house-less on a fresh base
+          if (state.baseChest === undefined) state.houseLevel = 0;
+        }
       },
     }
   )

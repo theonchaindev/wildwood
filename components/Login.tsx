@@ -332,7 +332,7 @@ export default function Login() {
               Create account
             </button>
             <button className="intro-btn ghosted" onClick={() => setMode("menu")}>← Back</button>
-            <p className="login-note">cloud saves · player market · visit Havens</p>
+            <p className="login-note">cloud saves · player market · visit Bases</p>
           </div>
         )}
 

@@ -5,9 +5,9 @@ import {
   useGame, AXES, WEAPONS, ARMOR, SHIRTS, HATS, MEDS, SEEDS, FOODS, RECIPES,
   SELL_PRICES, COMBAT, AxeTier, WeaponTier, ArmorTier, ROD_COST, DOG_COST,
   BUILDABLES, PEN_DEFS, PEN_BUILD_COST, MAX_PER_PEN, PenAnimal,
-  PICKAXE_COST, HELD_TORCH_COST, HOUSE_LEVELS, RENT_AMOUNT, RENT_INTERVAL_MS,
+  PICKAXE_COST, HELD_TORCH_COST, HOUSE_LEVELS, RENT_AMOUNT, RENT_INTERVAL_MS, BASE_LAND_WOOD,
   SKILLS, SkillKey, MAX_SKILL_RANK, ACHIEVEMENTS, dailyQuestsFor,
-  DECOR_ITEMS, MAX_DECOR, CAT_COST, HORSE_COST, CRAFT_RECIPES,
+  DECOR_ITEMS, MAX_DECOR, CAT_COST, HORSE_COST, BOAT_COST, CRAFT_RECIPES,
   COLLECTIBLE_RESPAWN_MS, PACK_CAP, chestCapFor, rankFor, dayOffers,
 } from "@/lib/store";
 import {
@@ -338,7 +338,7 @@ function TraderShop() {
       <ShopRow
         icon="🐈"
         name="House Cat"
-        blurb="Lives on your Haven. Pet her once a day for a little present"
+        blurb="Lives on your Base. Pet her once a day for a little present"
         right={s.cat ? <span className="shop-owned">Adopted</span> : <BuyBtn cost={CAT_COST} onClick={s.buyCat} />}
       />
       <ShopRow
@@ -346,6 +346,16 @@ function TraderShop() {
         name="Horse"
         blurb="Press H to ride — covers ground nearly twice as fast"
         right={s.horse ? <span className="shop-owned">Stabled</span> : <BuyBtn cost={HORSE_COST} onClick={s.buyHorse} />}
+      />
+      <ShopRow
+        icon="⛵"
+        name="Boat"
+        blurb={<>Cross the river &amp; lake anywhere · {BOAT_COST.wood} 🪵 + {BOAT_COST.acorns} 🌰</>}
+        right={s.boat ? <span className="shop-owned">Moored</span> : (
+          <button className="btn small" disabled={s.acorns < BOAT_COST.acorns || (s.inventory.Wood ?? 0) < BOAT_COST.wood} onClick={s.buyBoat}>
+            🪵 {BOAT_COST.wood} + 🌰 {BOAT_COST.acorns}
+          </button>
+        )}
       />
       <div className="shop-section">Seeds — plant on your own plot</div>
       {Object.entries(SEEDS).map(([label, def]) => (
@@ -546,7 +556,7 @@ function PlayerOffers() {
     return (
       <div className="shop-note">
         🌐 Log in with an online account to trade with other players and visit
-        their Havens.
+        their Bases.
       </div>
     );
   }
@@ -978,7 +988,7 @@ function HomeOfferModal() {
     <div className="modal-backdrop" onClick={() => s.setHomeOffer(null)}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <span className="modal-title">{buying ? "🪧 Your own Haven" : `📐 ${tier.name}`}</span>
+          <span className="modal-title">{buying ? "🪧 Your own Base" : `📐 ${tier.name}`}</span>
           <span className="modal-acorns">🌰 {s.acorns}</span>
         </div>
         <div className="plot-pitch">
@@ -1005,12 +1015,17 @@ function HomeOfferModal() {
             </Fragment>
           ))}
         </div>
+        {buying && (
+          <div className="shop-note" style={{ marginTop: 8 }}>
+            Bare land — you&apos;ll build the chest, furnace, cabin and till the soil yourself.
+          </div>
+        )}
         <button
           className="btn block"
-          disabled={s.acorns < tier.price}
+          disabled={buying ? s.acorns < tier.price || (s.inventory.Wood ?? 0) < BASE_LAND_WOOD : s.acorns < tier.price}
           onClick={() => (buying ? s.buyHomestead() : s.extendHomestead())}
         >
-          {buying ? `Buy for ${tier.price} 🌰` : `Extend for ${tier.price} 🌰`}
+          {buying ? `Clear the land — ${tier.price} 🌰 + ${BASE_LAND_WOOD} 🪵` : `Extend for ${tier.price} 🌰`}
         </button>
         <button className="btn block ghost" onClick={() => s.setHomeOffer(null)}>Not now</button>
       </div>
@@ -1087,7 +1102,7 @@ function HouseModal() {
           <span className="modal-acorns">🌰 {s.acorns} · 🪵 {s.inventory.Wood ?? 0} · 🪨 {s.inventory.Stone ?? 0}</span>
         </div>
         <div className="plot-pitch">
-          Home on the {tier?.name ?? "Haven"} · house {lv} of {HOUSE_LEVELS.length}
+          Home on the {tier?.name ?? "Base"} · house {lv} of {HOUSE_LEVELS.length}
         </div>
 
         <div className="shop-section">The five houses of the wood</div>
@@ -1327,7 +1342,7 @@ function LeaderboardModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Jump straight to someone's Haven from any name in the UI. */
+/** Jump straight to someone's Base from any name in the UI. */
 async function visitByName(name: string) {
   const s = useGame.getState();
   if (name === s.name) {
@@ -1381,7 +1396,7 @@ function LeaderboardDock() {
             <div
               key={p.name}
               className={`lb-line click ${p.name === myName ? "me" : ""}`}
-              title="Visit their Haven"
+              title="Visit their Base"
               onClick={() => visitByName(p.name)}
             >
               <span className="lb-rank">{medal(i)}</span>
@@ -1397,7 +1412,7 @@ function LeaderboardDock() {
             <div
               key={p.name}
               className={`lb-line click ${p.name === myName ? "me" : ""}`}
-              title="Visit their Haven"
+              title="Visit their Base"
               onClick={() => visitByName(p.name)}
             >
               <span className="lb-rank">{medal(i)}</span>
@@ -1962,7 +1977,7 @@ function HelpModal() {
           <span>☣️</span><span>Scratches can infect you — antidotes at The Remedy; click meds in the hotbar to use</span>
           <span>⚖️</span><span>The Vault posts daily offers from other survivors at premium prices</span>
           <span>🧵</span><span>Threads sells shirts &amp; hats to customise your look</span>
-          <span>🪧</span><span><b>Buy your Haven</b> at the gate near camp — your own private land with farm tiles, a chest, a furnace and a cabin. Extend it at the 📐 sign inside</span>
+          <span>🪧</span><span><b>Buy your Base</b> at the gate near camp — your own private land with farm tiles, a chest, a furnace and a cabin. Extend it at the 📐 sign inside</span>
           <span>🥕</span><span>Buy seeds, click a tilled tile to plant, click again to harvest when ready</span>
           <span>🐔</span><span>Hunt chickens &amp; boars for meat — <b>cook it first</b>; raw chicken can infect you!</span>
           <span>🎒</span><span>Your pack holds {PACK_CAP} items — store extras in your chest</span>
@@ -2086,15 +2101,15 @@ export default function Hud() {
             onClick={() => {
               const i = s.nearInteract!;
               if (i.kind === "shop") s.setOpenShop(i.id);
-              else if (i.kind === "chest") s.setOpenPanel("chest");
-              else if (i.kind === "furnace") s.setOpenPanel("furnace");
+              else if (i.kind === "chest") s.station("chest");
+              else if (i.kind === "furnace") s.station("furnace");
               else if (i.kind === "portal") {
                 if (s.homeTier > 0) s.travel("home");
                 else s.setHomeOffer("buy");
               } else if (i.kind === "homegate") s.travel("forest");
               else if (i.kind === "extend") s.setHomeOffer("extend");
               else if (i.kind === "pen") s.setOpenPen(i.idx);
-              else if (i.kind === "house") s.enterHouse();
+              else if (i.kind === "house") s.houseStation();
               else if (i.kind === "bed") s.sleepTillDawn();
               else if (i.kind === "desk") s.setOpenPanel("house");
               else if (i.kind === "exitdoor") s.exitHouse();
@@ -2108,7 +2123,7 @@ export default function Hud() {
               } else if (i.kind === "notice") s.toggleNotice();
               else if (i.kind === "cave") s.enterCave();
               else if (i.kind === "caveexit") s.exitCave();
-              else if (i.kind === "bench") s.setOpenPanel("bench");
+              else if (i.kind === "bench") s.station("bench");
             }}
           >
             Press <b>E</b> —{" "}
@@ -2119,7 +2134,7 @@ export default function Hud() {
               : s.nearInteract.kind === "furnace"
               ? "🔥 Furnace"
               : s.nearInteract.kind === "portal"
-              ? s.homeTier > 0 ? "🏡 Enter your Haven" : "🪧 Land for Sale"
+              ? s.homeTier > 0 ? "🏡 Enter your Base" : "🪧 Land for Sale"
               : s.nearInteract.kind === "homegate"
               ? "🌲 Back to the Forest"
               : s.nearInteract.kind === "pen"

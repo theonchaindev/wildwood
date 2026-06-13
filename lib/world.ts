@@ -64,7 +64,7 @@ export const TOUR_STOPS: TourStop[] = [
   { focus: [15, 7], title: "🏥 The Remedy", text: "Bandages, medkits and antidotes. Zombie scratches and raw meat can infect you." },
   { focus: [-4, -15], title: "⚖️ The Vault", text: "Trade with other survivors, send gifts, and convert acorns into $ACORN coin." },
   { focus: [-3, -6], title: "📌 Notice Board", text: "The coin contract and a live tally of everything paid out to players." },
-  { focus: [-22, 0], title: "🏡 Your Haven", text: "Buy your own private land through the west gate — farm, ranch, build and decorate." },
+  { focus: [-22, 0], title: "🏡 Your Base", text: "Buy your own private land through the west gate — farm, ranch, build and decorate." },
   { focus: [-38, -38], title: "⛏️ The Old Mine", text: "Northwest through Darkwood: a deep cave of coal, diamonds — and things that bite back." },
   { focus: [-52, -6], title: "🎣 The Lake", text: "A calm lake to fish out west, and the river to the east — cross it on the Old Bridge." },
   { focus: [2, 0], title: "Off you go!", text: "Night falls every 20 minutes — gather by day, survive by night. Good luck out there." },
@@ -388,9 +388,9 @@ export type HomeTier = {
 };
 
 export const HOME_TIERS: HomeTier[] = [
-  { name: "Haven",              price: 250,  tiles: 6,  halfW: 12, halfD: 9,  chestCap: 200,  pens: 1, orchard: 0, hives: 0, well: false, pond: false, windmill: false, tagline: "A patch of land to call your own" },
-  { name: "Expanded Haven",     price: 300,  tiles: 12, halfW: 15, halfD: 11, chestCap: 300,  pens: 2, orchard: 0, hives: 0, well: false, pond: false, windmill: false, tagline: "Twice the field, a second pen" },
-  { name: "Grand Haven",        price: 600,  tiles: 18, halfW: 18, halfD: 13, chestCap: 400,  pens: 3, orchard: 0, hives: 0, well: true,  pond: false, windmill: false, tagline: "Your own well — water without the trek" },
+  { name: "Base",              price: 250,  tiles: 6,  halfW: 12, halfD: 9,  chestCap: 200,  pens: 1, orchard: 0, hives: 0, well: false, pond: false, windmill: false, tagline: "A patch of land to call your own" },
+  { name: "Expanded Base",     price: 300,  tiles: 12, halfW: 15, halfD: 11, chestCap: 300,  pens: 2, orchard: 0, hives: 0, well: false, pond: false, windmill: false, tagline: "Twice the field, a second pen" },
+  { name: "Grand Base",        price: 600,  tiles: 18, halfW: 18, halfD: 13, chestCap: 400,  pens: 3, orchard: 0, hives: 0, well: true,  pond: false, windmill: false, tagline: "Your own well — water without the trek" },
   { name: "The Acres",          price: 900,  tiles: 24, halfW: 20, halfD: 15, chestCap: 550,  pens: 4, orchard: 2, hives: 0, well: true,  pond: false, windmill: false, tagline: "An orchard takes root behind the house" },
   { name: "The Farmlands",      price: 1300, tiles: 30, halfW: 22, halfD: 17, chestCap: 700,  pens: 4, orchard: 2, hives: 1, well: true,  pond: false, windmill: false, tagline: "The bees move in" },
   { name: "The Grounds",        price: 1800, tiles: 34, halfW: 24, halfD: 18, chestCap: 900,  pens: 5, orchard: 4, hives: 1, well: true,  pond: false, windmill: false, tagline: "Green as far as the fence runs" },
@@ -743,7 +743,8 @@ export function resolveMovement(
   px: number, pz: number,
   nxIn: number, nzIn: number,
   chopped: Record<string, number>,
-  mined: Record<string, number> = {}
+  mined: Record<string, number> = {},
+  boat = false // a boat lets you glide over the river and lake
 ): [number, number] {
   let nx = nxIn;
   let nz = nzIn;
@@ -784,8 +785,8 @@ export function resolveMovement(
       nx *= s;
       nz *= s;
     }
-    // river — only crossable on the bridge deck
-    const inBand = Math.abs(nx - RIVER_X) < RIVER_BAND;
+    // river — only crossable on the bridge deck (or in a boat)
+    const inBand = !boat && Math.abs(nx - RIVER_X) < RIVER_BAND;
     if (inBand) {
       const onBridgeZ = Math.abs(nz - BRIDGE_Z) <= BRIDGE_HALF_WIDTH;
       if (!onBridgeZ) {
@@ -806,7 +807,7 @@ export function resolveMovement(
     // wing walls flare wider at the ends — cover those too)
     const bdx = Math.abs(nx - RIVER_X);
     const bdz = nz - BRIDGE_Z;
-    if (bdx < BRIDGE_HALF_SPAN + 1.2 && Math.abs(bdz) > BRIDGE_HALF_WIDTH && Math.abs(bdz) < 3.6) {
+    if (!boat && bdx < BRIDGE_HALF_SPAN + 1.2 && Math.abs(bdz) > BRIDGE_HALF_WIDTH && Math.abs(bdz) < 3.6) {
       const wasInside = Math.abs(px - RIVER_X) < BRIDGE_HALF_SPAN + 1.2 && Math.abs(pz - BRIDGE_Z) <= BRIDGE_HALF_WIDTH;
       if (wasInside) {
         // on the deck: the parapet keeps them on it
@@ -816,11 +817,11 @@ export function resolveMovement(
         nz = BRIDGE_Z + Math.sign(bdz) * 3.6;
       }
     }
-    // the lake — stand on the shore, can't wade in
+    // the lake — stand on the shore, can't wade in (unless you have a boat)
     const ldx = nx - LAKE_POS[0];
     const ldz = nz - LAKE_POS[2];
     const ld = Math.hypot(ldx, ldz);
-    if (ld < LAKE_R && ld > 1e-6) {
+    if (!boat && ld < LAKE_R && ld > 1e-6) {
       nx = LAKE_POS[0] + (ldx / ld) * LAKE_R;
       nz = LAKE_POS[2] + (ldz / ld) * LAKE_R;
     }
