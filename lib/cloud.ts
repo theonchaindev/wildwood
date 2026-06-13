@@ -2,7 +2,7 @@
 
 // Client helpers for accounts, cloud saves, visiting and player offers.
 
-import { useGame } from "./store";
+import { useGame, applyBaseReset } from "./store";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -71,6 +71,7 @@ export function saveData() {
     baseFurnace: s.baseFurnace,
     baseBench: s.baseBench,
     tilled: s.tilled,
+    baseResetAck: s.baseResetAck,
     dailyDay: s.dailyDay,
     dailyBase: s.dailyBase,
     dailyClaimed: s.dailyClaimed,
@@ -117,6 +118,10 @@ function applyAuth(data: AuthResponse) {
       if (!save.ownedWeapons) save.ownedWeapons = save.weapon ? [save.weapon] : [];
       if (!save.ownedAxes) save.ownedAxes = save.axe ? [save.axe] : [];
       if (!save.ownedArmor) save.ownedArmor = save.armor ? [save.armor] : [];
+      const baseWiped = applyBaseReset(save); // one-time base wipe for this epoch
+      if (baseWiped) {
+        setTimeout(() => useGame.getState().setBanner("🏡 Bases have been reset — rebuild yours! (acorns refunded)"), 1500);
+      }
       // existing base owners keep their built stations/soil
       if (save.homeTier >= 1 && save.baseChest === undefined) {
         save.baseChest = true; save.baseFurnace = true; save.baseBench = true;

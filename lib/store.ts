@@ -399,6 +399,33 @@ export const BASE_BUILD = {
 export const TILL_COST = { acorns: 8, wood: 1 }; // per plot of soil
 export const BASE_LAND_WOOD = 30; // clearing the raw plot costs timber too
 
+// bump this to wipe every player's base once (they keep acorns/level/etc.).
+// Each client applies it a single time on load — survives cloud re-syncs.
+export const BASE_RESET_EPOCH = 1;
+export const BASE_RESET_REFUND = 1000;
+
+/** One-time base wipe migration, applied to a save object on load. Mutates
+ *  the object and returns true if it changed anything. */
+export function applyBaseReset(save: any): boolean {
+  if (!save || save.baseResetAck === BASE_RESET_EPOCH) return false;
+  const hadBase = (save.homeTier ?? 0) >= 1;
+  save.homeTier = 0;
+  save.houseLevel = 0;
+  save.baseChest = false;
+  save.baseFurnace = false;
+  save.baseBench = false;
+  save.tilled = {};
+  save.pens = {};
+  save.orchard = {};
+  save.hives = {};
+  save.structures = [];
+  save.farm = {};
+  save.chest = {};
+  if (hadBase) save.acorns = (save.acorns ?? 0) + BASE_RESET_REFUND;
+  save.baseResetAck = BASE_RESET_EPOCH;
+  return true;
+}
+
 export const HOUSE_LEVELS = [
   // the Log Cabin must be built first — expensive, and a lot of timber
   { name: "Log Cabin", icon: "🛖", acorns: 300, wood: 60, stone: 0, perk: "A roof of your own — unlocks sleeping & upgrades" },
@@ -615,6 +642,7 @@ type GameState = {
   baseFurnace: boolean;
   baseBench: boolean;
   tilled: Record<string, boolean>; // farm tile key -> soil purchased
+  baseResetAck: number;
   lastRentAt: number;
   location: "forest" | "home" | "visit" | "interior" | "cave";
   savedForestPos: { x: number; z: number } | null;
@@ -854,6 +882,7 @@ export const useGame = create<GameState>()(
       baseFurnace: false,
       baseBench: false,
       tilled: {},
+      baseResetAck: BASE_RESET_EPOCH,
       lastRentAt: 0,
       location: "forest",
       savedForestPos: null,
@@ -2546,6 +2575,7 @@ export const useGame = create<GameState>()(
         baseFurnace: s.baseFurnace,
         baseBench: s.baseBench,
         tilled: s.tilled,
+        baseResetAck: s.baseResetAck,
         lastRentAt: s.lastRentAt,
         chest: s.chest,
         farm: s.farm,
@@ -2575,6 +2605,9 @@ export const useGame = create<GameState>()(
         if (!state.ownedWeapons) state.ownedWeapons = state.weapon ? [state.weapon] : [];
         if (!state.ownedAxes) state.ownedAxes = state.axe ? [state.axe] : [];
         if (!state.ownedArmor) state.ownedArmor = state.armor ? [state.armor] : [];
+        // one-time base wipe for this epoch (keeps acorns/level/etc.)
+        const wiped = applyBaseReset(state);
+        if (wiped && state.homeTier === 0) state.location = "forest";
         // existing base owners already had everything built — keep it that way
         if (state.homeTier >= 1 && state.baseChest === undefined) {
           state.baseChest = true;
