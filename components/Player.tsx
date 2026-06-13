@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
-import { useGame, collectibleRespawnMs, Interact } from "@/lib/store";
+import { useGame, collectibleRespawnMs, Interact, WeaponTier } from "@/lib/store";
+import { useModel } from "@/lib/assets";
 import { live, moveTarget, chop, mine, fishing, teleport, zombies, animals, daylight, isRaining } from "@/lib/runtime";
 import { sfx } from "@/lib/sound";
 import {
@@ -58,6 +59,26 @@ function HeldTorch() {
       <pointLight ref={lightRef} position={[0, 0.45, 0]} color="#ffb04a" distance={9} decay={2} />
     </group>
   );
+}
+
+const WEAPON_TEX = "/models/weapons/weapons-atlas.png";
+
+// each weapon's model, target length, and in-hand rotation/offset; tuned so the
+// grip sits at the hand and the blade points up out of the fist
+const WEAPON_MODELS: Record<WeaponTier, { file: string; len: number; rot: [number, number, number]; lift: number }> = {
+  club: { file: "Hammer_01", len: 1.0, rot: [0.2, 0, 0], lift: 0.42 },
+  spear: { file: "Spear_02", len: 1.9, rot: [0.2, 0, 0], lift: 0.78 },
+  sword: { file: "Sword_03", len: 1.3, rot: [0.2, 0, 0], lift: 0.55 },
+  waraxe: { file: "Ax_05", len: 1.15, rot: [0.2, 0, 0], lift: 0.48 },
+  warhammer: { file: "Hammer_06", len: 1.2, rot: [0.2, 0, 0], lift: 0.5 },
+  diamond: { file: "Sword_09", len: 1.35, rot: [0.2, 0, 0], lift: 0.57 },
+};
+
+function HeldWeapon({ weapon }: { weapon: WeaponTier }) {
+  const def = WEAPON_MODELS[weapon];
+  const proto = useModel(`weapons/${def.file}`, def.len, "max", "center", WEAPON_TEX);
+  const instance = useMemo(() => proto.clone(true), [proto]);
+  return <primitive object={instance} position={[0, def.lift, 0]} rotation={def.rot} />;
 }
 
 function HorseMesh({ motion }: { motion: Motion }) {
@@ -784,40 +805,7 @@ export default function Player() {
 
       {/* left hand: combat weapon */}
       <group ref={weaponRef} position={[-0.42, 0.68, 0.12]}>
-        {weapon === "club" && (
-          <mesh position={[0, 0.28, 0]} rotation={[0.25, 0, 0]} castShadow>
-            <cylinderGeometry args={[0.05, 0.09, 0.55, 7]} />
-            <meshStandardMaterial color="#6b4e2a" roughness={1} />
-          </mesh>
-        )}
-        {weapon === "spear" && (
-          <group rotation={[0.3, 0, 0]}>
-            <mesh position={[0, 0.45, 0]} castShadow>
-              <cylinderGeometry args={[0.025, 0.025, 1.2, 6]} />
-              <meshStandardMaterial color="#7a5a33" roughness={1} />
-            </mesh>
-            <mesh position={[0, 1.1, 0]} castShadow>
-              <coneGeometry args={[0.06, 0.2, 6]} />
-              <meshStandardMaterial color="#9aa0a6" metalness={0.6} roughness={0.3} />
-            </mesh>
-          </group>
-        )}
-        {weapon === "sword" && (
-          <group rotation={[0.25, 0, 0]}>
-            <mesh position={[0, 0.12, 0]} castShadow>
-              <cylinderGeometry args={[0.035, 0.035, 0.18, 6]} />
-              <meshStandardMaterial color="#4a3b28" roughness={1} />
-            </mesh>
-            <mesh position={[0, 0.24, 0]} castShadow>
-              <boxGeometry args={[0.2, 0.04, 0.05]} />
-              <meshStandardMaterial color="#8a6a1f" metalness={0.5} roughness={0.4} />
-            </mesh>
-            <mesh position={[0, 0.6, 0]} castShadow>
-              <boxGeometry args={[0.07, 0.68, 0.025]} />
-              <meshStandardMaterial color="#c8cdd2" metalness={0.7} roughness={0.25} />
-            </mesh>
-          </group>
-        )}
+        {weapon && <HeldWeapon weapon={weapon} />}
       </group>
 
       <Html position={[0, 2.05, 0]} center distanceFactor={26} zIndexRange={[10, 0]}>

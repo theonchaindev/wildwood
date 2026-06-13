@@ -370,7 +370,7 @@ function TraderShop() {
 
 function ArmouryShop() {
   const s = useGame();
-  const wOrder: WeaponTier[] = ["club", "spear", "sword"];
+  const wOrder: WeaponTier[] = ["club", "spear", "sword", "waraxe", "warhammer"];
   const aOrder: ArmorTier[] = ["leather", "iron"];
   return (
     <>

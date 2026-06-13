@@ -74,7 +74,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at 50% 45%, rgba(10, 18, 8, 0.55) 0%, rgba(10, 18, 8, 0.85) 100%);
+  background: radial-gradient(ellipse at 50% 45%, rgba(8, 14, 6, 0.82) 0%, rgba(6, 11, 5, 0.95) 100%);
 }
 
 .intro-panel {
@@ -220,7 +220,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 22px;
+  margin: 22px auto 0;
   width: 300px;
 }
 
@@ -236,7 +236,7 @@ body {
   color: #f3ead2;
   border: 1px solid rgba(255, 253, 246, 0.2);
   transition: background 0.15s, transform 0.1s;
-  text-align: left;
+  text-align: center;
 }
 
 .intro-btn:hover:not(:disabled) {
@@ -277,7 +277,7 @@ body {
 
 .intro-actions .login-input {
   margin-top: 0;
-  text-align: left;
+  text-align: center;
 }
 
 .intro-actions .login-note,
@@ -290,11 +290,12 @@ body {
 }
 
 .intro-loading {
-  margin-top: 24px;
+  margin: 24px auto 0;
   width: 300px;
   font-size: 12px;
   letter-spacing: 1.5px;
   color: #cfd8bd;
+  text-align: center;
 }
 
 .intro-loading-track {
@@ -315,7 +316,9 @@ body {
 .intro-footer {
   position: absolute;
   bottom: 18px;
-  left: 7vw;
+  left: 0;
+  right: 0;
+  text-align: center;
   font-size: 11px;
   letter-spacing: 1px;
   color: rgba(207, 216, 189, 0.6);
@@ -332,30 +335,37 @@ body {
 }
 
 .intro-step-title {
-  margin-top: 20px;
+  margin: 20px auto 0;
   font-size: 14px;
   font-weight: 800;
   color: #f3ead2;
+  text-align: center;
 }
 
 .intro-actions.wide {
-  width: 330px;
+  width: 340px;
 }
 
 .cust-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  background: rgba(255, 253, 246, 0.05);
+  border-radius: 10px;
+  padding: 6px 10px;
 }
 
 .cust-label {
-  width: 56px;
+  width: 64px;
+  flex: none;
   font-size: 11.5px;
   font-weight: 800;
   letter-spacing: 0.5px;
   color: #cfd8bd;
   text-transform: uppercase;
+  text-align: left;
 }
 
 .cust-swatch {

@@ -44,7 +44,7 @@ export type Quest = {
 export type Toast = { id: number; text: string };
 
 export type AxeTier = "rusty" | "golden";
-export type WeaponTier = "club" | "spear" | "sword" | "diamond";
+export type WeaponTier = "club" | "spear" | "sword" | "waraxe" | "warhammer" | "diamond";
 export type ArmorTier = "leather" | "iron";
 
 export const AXES: Record<AxeTier, { label: string; cost: number; chopTime: number; yield: number; blurb: string }> = {
@@ -56,6 +56,8 @@ export const WEAPONS: Record<WeaponTier, { label: string; icon: string; cost: nu
   club: { label: "Wooden Club", icon: "🏏", cost: 40, dmg: 16, blurb: "Heavy knockback — keeps them off you" },
   spear: { label: "Hunting Spear", icon: "🔱", cost: 120, dmg: 26, blurb: "Long reach — strike before they close in" },
   sword: { label: "Iron Sword", icon: "⚔️", cost: 250, dmg: 38, blurb: "Fast swings, 20% critical hits" },
+  waraxe: { label: "War Axe", icon: "🪓", cost: 450, dmg: 46, blurb: "Brutal cleaves with savage knockback" },
+  warhammer: { label: "War Hammer", icon: "🔨", cost: 700, dmg: 52, blurb: "Slow but devastating — flattens the dead" },
   // not for sale — crafted at the Haven bench from mine diamonds
   diamond: { label: "Diamond Sword", icon: "💠", cost: 0, dmg: 55, blurb: "Forged from the deep — craft it at your bench" },
 };
@@ -75,6 +77,8 @@ export const COMBAT: Record<"fists" | "axe" | WeaponTier, CombatProfile> = {
   club: { label: "Wooden Club", dmg: 16, swing: 0.6, reach: 1.9, knockback: 1.5, crit: 0.05 },
   spear: { label: "Hunting Spear", dmg: 26, swing: 0.55, reach: 2.9, knockback: 0.7, crit: 0.1 },
   sword: { label: "Iron Sword", dmg: 38, swing: 0.45, reach: 2.0, knockback: 0.5, crit: 0.2 },
+  waraxe: { label: "War Axe", dmg: 46, swing: 0.6, reach: 2.1, knockback: 1.6, crit: 0.18 },
+  warhammer: { label: "War Hammer", dmg: 52, swing: 0.75, reach: 2.0, knockback: 2.2, crit: 0.15 },
   diamond: { label: "Diamond Sword", dmg: 55, swing: 0.4, reach: 2.1, knockback: 0.6, crit: 0.25 },
 };
 
@@ -1960,7 +1964,7 @@ export const useGame = create<GameState>()(
       buyWeapon: (tier) => {
         const s = get();
         if (s.weapon === "diamond") return; // nothing The Forge sells beats it
-        const order: WeaponTier[] = ["club", "spear", "sword"];
+        const order: WeaponTier[] = ["club", "spear", "sword", "waraxe", "warhammer"];
         if (s.weapon && order.indexOf(s.weapon) >= order.indexOf(tier)) return;
         const def = WEAPONS[tier];
         if (!spend(s, def.cost)) return;

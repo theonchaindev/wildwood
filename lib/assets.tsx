@@ -38,8 +38,8 @@ export function usePaletteMaterial() {
 export function useModel(
   file: string,
   size: number,
-  by: "y" | "xz" = "y",
-  align: "bottom" | "flush" = "bottom",
+  by: "y" | "xz" | "max" = "y",
+  align: "bottom" | "flush" | "center" = "bottom",
   tex?: string
 ) {
   const fbx = useLoader(FBXLoader, `/models/${file}.fbx`);
@@ -56,12 +56,14 @@ export function useModel(
     });
     const box = new THREE.Box3().setFromObject(obj);
     const dims = box.getSize(new THREE.Vector3());
-    const dim = by === "xz" ? Math.max(dims.x, dims.z) : dims.y;
+    const dim =
+      by === "xz" ? Math.max(dims.x, dims.z) : by === "max" ? Math.max(dims.x, dims.y, dims.z) : dims.y;
     obj.scale.setScalar(size / (dim || 1));
 
     const box2 = new THREE.Box3().setFromObject(obj);
     const center = box2.getCenter(new THREE.Vector3());
-    const yOff = align === "flush" ? -box2.max.y + 0.05 : -box2.min.y;
+    // "center" fully centres the model (held items); others ground/embed it
+    const yOff = align === "center" ? -center.y : align === "flush" ? -box2.max.y + 0.05 : -box2.min.y;
     obj.position.set(-center.x, yOff, -center.z);
 
     const group = new THREE.Group();
