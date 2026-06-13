@@ -50,8 +50,8 @@ export const MAP_BOUND = 95; // playable half-extent
 export const CAMPFIRE_POS: [number, number, number] = [2, 0, 0];
 export const NOTICE_BOARD_POS: [number, number, number] = [-3, 0, -6];
 
-// a calm fishing lake in the north-west
-export const LAKE_POS: [number, number, number] = [-46, 0, -34];
+// a calm fishing lake out west, clear of the mine and the homestead path
+export const LAKE_POS: [number, number, number] = [-52, 0, -6];
 export const LAKE_R = 13;
 
 // the welcome tour: the camera glides to each landmark with a caption
@@ -66,7 +66,7 @@ export const TOUR_STOPS: TourStop[] = [
   { focus: [-3, -6], title: "📌 Notice Board", text: "The coin contract and a live tally of everything paid out to players." },
   { focus: [-22, 0], title: "🏡 Your Haven", text: "Buy your own private land through the west gate — farm, ranch, build and decorate." },
   { focus: [-38, -38], title: "⛏️ The Old Mine", text: "Northwest through Darkwood: a deep cave of coal, diamonds — and things that bite back." },
-  { focus: [-46, -34], title: "🎣 The Lake", text: "A calm lake to fish, and the river to the east — cross it on the Old Bridge." },
+  { focus: [-52, -6], title: "🎣 The Lake", text: "A calm lake to fish out west, and the river to the east — cross it on the Old Bridge." },
   { focus: [2, 0], title: "Off you go!", text: "Night falls every 20 minutes — gather by day, survive by night. Good luck out there." },
 ];
 export const BRIDGE_Z = 0;
