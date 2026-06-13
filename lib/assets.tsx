@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useLoader } from "@react-three/fiber";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
-import { useTexture } from "@react-three/drei";
+import { useTexture, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 
 // one shared material per texture atlas (nature palette, furniture pack, …)
@@ -110,6 +110,94 @@ export function useCompositeModel(files: string[], size: number, by: "y" | "xz" 
     inner.position.set(-center.x, -box2.min.y, -center.z);
     return outer;
   }, [fbxes, material, size, by]);
+}
+
+/**
+ * Like useModel but for self-contained .glb files (keeps their own textures /
+ * materials). glTF is Y-up by spec, so orientation comes through correctly.
+ */
+export function useGltfModel(
+  file: string,
+  size: number,
+  by: "y" | "xz" | "max" = "y",
+  align: "bottom" | "flush" | "center" = "bottom",
+  rotX = 0
+) {
+  const gltf = useGLTF(`/models/${file}`);
+  return useMemo(() => {
+    const inner = (gltf.scene as THREE.Object3D).clone(true);
+    // some FBX-derived glb's land on their side — straighten before measuring
+    const obj = new THREE.Group();
+    obj.add(inner);
+    obj.rotation.x = rotX;
+    // Bake any rigged (skinned) meshes down to static geometry in their bind
+    // pose. Skinned meshes don't survive cloning + re-scaling reliably; the
+    // rest-pose geometry already shows the full model, so we just freeze it.
+    // Also drop cameras/lights/bones that ship in exported scenes and would
+    // otherwise blow up the bounding box.
+    const swaps: [THREE.Object3D, THREE.Mesh][] = [];
+    const junk: THREE.Object3D[] = [];
+    obj.traverse((child) => {
+      if ((child as any).isSkinnedMesh) {
+        const sm = child as THREE.SkinnedMesh;
+        const m = new THREE.Mesh(sm.geometry, sm.material);
+        m.position.copy(sm.position);
+        m.quaternion.copy(sm.quaternion);
+        m.scale.copy(sm.scale);
+        m.castShadow = align !== "flush";
+        m.receiveShadow = true;
+        swaps.push([sm, m]);
+      } else if (child instanceof THREE.Mesh) {
+        child.castShadow = align !== "flush";
+        child.receiveShadow = true;
+      } else if ((child as any).isCamera || (child as any).isLight || (child as any).isBone) {
+        junk.push(child);
+      }
+    });
+    for (const [old, m] of swaps) { old.parent?.add(m); old.parent?.remove(old); }
+    for (const j of junk) j.parent?.remove(j);
+
+    // measure ONLY the mesh geometry (ignores empties/bones still in the tree)
+    const meshBox = () => {
+      obj.updateWorldMatrix(true, true);
+      const b = new THREE.Box3();
+      obj.traverse((c) => {
+        if (c instanceof THREE.Mesh && c.geometry) {
+          c.geometry.computeBoundingBox();
+          if (c.geometry.boundingBox) {
+            b.union(c.geometry.boundingBox.clone().applyMatrix4(c.matrixWorld));
+          }
+        }
+      });
+      return b;
+    };
+
+    const box = meshBox();
+    const dims = box.getSize(new THREE.Vector3());
+    const dim =
+      by === "xz" ? Math.max(dims.x, dims.z) : by === "max" ? Math.max(dims.x, dims.y, dims.z) : dims.y;
+    obj.scale.setScalar(size / (dim || 1));
+
+    const box2 = meshBox();
+    const center = box2.getCenter(new THREE.Vector3());
+    const yOff = align === "center" ? -center.y : align === "flush" ? -box2.max.y + 0.05 : -box2.min.y;
+    obj.position.set(-center.x, yOff, -center.z);
+
+    const group = new THREE.Group();
+    group.add(obj);
+    return group;
+  }, [gltf, size, by, align, rotX]);
+}
+
+export function GltfModel({
+  file, size, by = "y", align = "bottom", position, rotationY = 0, rotX = 0,
+}: {
+  file: string; size: number; by?: "y" | "xz" | "max"; align?: "bottom" | "flush" | "center";
+  position: [number, number, number]; rotationY?: number; rotX?: number;
+}) {
+  // useGltfModel already returns a fresh (skeleton-safe) clone; render as-is
+  const proto = useGltfModel(file, size, by, align, rotX);
+  return <primitive object={proto} position={position} rotation={[0, rotationY, 0]} />;
 }
 
 type ModelProps = {

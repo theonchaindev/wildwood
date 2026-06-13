@@ -256,8 +256,24 @@ for (let i = 0; i < 7; i++) {
 }
 
 // a ruined castle landmark across the river in the Outlands
-export const CASTLE_POS: [number, number, number] = [74, 0, -16];
-COLLIDERS.push({ x: CASTLE_POS[0], z: CASTLE_POS[2], r: 7 });
+export const CASTLE_POS: [number, number, number] = [72, 0, -22];
+COLLIDERS.push({ x: CASTLE_POS[0], z: CASTLE_POS[2], r: 15 });
+
+// an old windmill landmark on the far south-west meadow (well clear of the castle)
+export const WINDMILL_POS: [number, number, number] = [-40, 0, 52];
+COLLIDERS.push({ x: WINDMILL_POS[0], z: WINDMILL_POS[2], r: 4 });
+
+// trees/rocks were scattered before these landmarks existed — clear any that
+// landed on top of them so the castle and windmill stand in the open
+for (const [cx, cz, cr] of [
+  [CASTLE_POS[0], CASTLE_POS[2], 17],
+  [WINDMILL_POS[0], WINDMILL_POS[2], 15],
+] as const) {
+  for (let i = TREES.length - 1; i >= 0; i--)
+    if (Math.hypot(TREES[i].pos[0] - cx, TREES[i].pos[2] - cz) < cr) TREES.splice(i, 1);
+  for (let i = ROCKS.length - 1; i >= 0; i--)
+    if (Math.hypot(ROCKS[i].pos[0] - cx, ROCKS[i].pos[2] - cz) < cr) ROCKS.splice(i, 1);
+}
 
 // mossy mountains ringing the edge of the bigger map
 const MOUNTAINS: [number, number][] = [
@@ -489,27 +505,36 @@ export function resolveHomeMovement(
 // ---- the Old Mine: a dark cave instance, entered in Darkwood ----
 
 export const CAVE_ENTRANCE_POS: [number, number, number] = [-38, 0, -38];
-export const CAVE_HW = 36;
-export const CAVE_HD = 26;
+// the mine is a sprawling cavern, as large as the surface world itself
+export const CAVE_HW = 88;
+export const CAVE_HD = 88;
 
 // the mine has three depths going north (deeper = more danger, better ore):
-//   shallow (entrance, z>10) · middle (z -6..10) · deep (z < -6, the diamond seam)
+//   the mouth (south, near the exit) · the galleries · the deep (diamond seam)
 export const CAVE_DEPTHS = [
-  { name: "Mine Mouth", zMax: 26, zMin: 12 },
-  { name: "The Galleries", zMax: 12, zMin: -8 },
-  { name: "The Deep", zMax: -8, zMin: -26 },
+  { name: "Mine Mouth", zMax: 88, zMin: 38 },
+  { name: "The Galleries", zMax: 38, zMin: -28 },
+  { name: "The Deep", zMax: -28, zMin: -88 },
 ];
 
-// spots where mobs lurk (deeper chambers hold more)
+// spots where mobs lurk, spread across the whole cavern (the deep holds more)
 export const CAVE_MOB_SPOTS: { x: number; z: number; kind: "zombie" | "skeleton" }[] = [
-  { x: -10, z: 6, kind: "zombie" },
-  { x: 12, z: 4, kind: "skeleton" },
-  { x: 0, z: -2, kind: "zombie" },
-  { x: -18, z: -12, kind: "skeleton" },
-  { x: 16, z: -14, kind: "skeleton" },
-  { x: -4, z: -18, kind: "zombie" },
-  { x: 8, z: -20, kind: "skeleton" },
-  { x: -24, z: -2, kind: "zombie" },
+  { x: -16, z: 40, kind: "zombie" },
+  { x: 22, z: 34, kind: "skeleton" },
+  { x: -40, z: 18, kind: "zombie" },
+  { x: 38, z: 10, kind: "skeleton" },
+  { x: 0, z: 4, kind: "zombie" },
+  { x: -58, z: -6, kind: "skeleton" },
+  { x: 54, z: -14, kind: "zombie" },
+  { x: -28, z: -24, kind: "skeleton" },
+  { x: 20, z: -30, kind: "zombie" },
+  { x: -6, z: -40, kind: "skeleton" },
+  { x: 44, z: -46, kind: "skeleton" },
+  { x: -48, z: -52, kind: "zombie" },
+  { x: 10, z: -58, kind: "skeleton" },
+  { x: -22, z: -68, kind: "skeleton" },
+  { x: 30, z: -72, kind: "zombie" },
+  { x: -2, z: -80, kind: "skeleton" },
 ];
 
 export type CaveOre = {
@@ -549,12 +574,12 @@ export const STALAGMITES: { x: number; z: number; h: number; r: number }[] = [];
       placed++;
     }
   };
-  // stone everywhere, coal through the galleries, diamonds only in the deep
-  place("stone", 16, [0.8, 1.3], -CAVE_HD + 2, CAVE_HD - 2);
-  place("coal", 22, [0.9, 1.4], -CAVE_HD + 2, 12);
-  place("diamond", 5, [0.7, 0.9], -CAVE_HD + 2, -8);
+  // stone everywhere, coal through the galleries, diamonds only in the deepest seam
+  place("stone", 70, [0.8, 1.3], -CAVE_HD + 3, CAVE_HD - 3);
+  place("coal", 80, [0.9, 1.4], -CAVE_HD + 3, 38);
+  place("diamond", 4, [0.7, 0.9], -CAVE_HD + 3, -55); // much rarer — far in the deep
 
-  for (let i = 0; i < 28; i++) {
+  for (let i = 0; i < 120; i++) {
     for (let tries = 0; tries < 60; tries++) {
       const x = cRand(-CAVE_HW + 1.5, CAVE_HW - 1.5);
       const z = cRand(-CAVE_HD + 1.5, CAVE_HD - 1.5);

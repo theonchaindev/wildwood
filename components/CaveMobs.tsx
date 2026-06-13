@@ -178,6 +178,7 @@ export default function CaveMobs() {
   useFrame((_, rawDt) => {
     const dt = Math.min(rawDt, 0.05);
     const state = useGame.getState();
+    if (state.location !== "cave") return; // mobs only act underground
     let removed = false;
     for (let i = zombies.length - 1; i >= 0; i--) {
       const z = zombies[i];

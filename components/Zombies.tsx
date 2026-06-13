@@ -201,6 +201,8 @@ export default function Zombies() {
     const dt = Math.min(rawDt, 0.05);
     const state = useGame.getState();
     if (!state.started && !state.spectator) return;
+    // only the surface has a day/night horde — never run while underground etc.
+    if (state.location !== "forest") return;
     const night = daylight() < NIGHT_THRESHOLD;
 
     const blood = isBloodMoonNight();

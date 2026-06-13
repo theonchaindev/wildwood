@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { sfx } from "./sound";
-import { teleport, live, isBloodMoonNight, isNight, isRaining, clock, DAY_LENGTH_S, tour } from "./runtime";
+import { teleport, live, isBloodMoonNight, isNight, isRaining, clock, DAY_LENGTH_S, tour, zombies } from "./runtime";
 import {
   CAMPFIRE_POS, ShopId, HOME_TIERS, HOME_PORTAL_POS, HOME_CABIN_POS,
   CAVE_ENTRANCE_POS, CAVE_HD,
@@ -1723,6 +1723,7 @@ export const useGame = create<GameState>()(
       enterCave: () => {
         const s = get();
         if (s.location !== "forest") return;
+        zombies.length = 0; // leave surface mobs behind
         set({
           location: "cave",
           zone: "⛏️ The Old Mine",
@@ -1743,6 +1744,7 @@ export const useGame = create<GameState>()(
       exitCave: () => {
         const s = get();
         if (s.location !== "cave") return;
+        zombies.length = 0; // leave the mine's mobs underground
         set({ location: "forest", zone: "Darkwood", mineTargetId: null });
         teleport.x = CAVE_ENTRANCE_POS[0];
         teleport.z = CAVE_ENTRANCE_POS[2] + 2.2;

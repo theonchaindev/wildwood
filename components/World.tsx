@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useFrame, ThreeEvent } from "@react-three/fiber";
+import { useFrame, useLoader, ThreeEvent } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { Model, useCompositeModel } from "@/lib/assets";
 import {
   DECOR, COLLECTIBLES, RIVER_X, RIVER_WIDTH, riverCenterX, CAMPFIRE_POS, BUILDINGS,
   HOME_PORTAL_POS, HOME_TIERS, CAVE_ENTRANCE_POS, NOTICE_BOARD_POS,
-  GLADE_RADIUS, LAKE_POS, LAKE_R, CASTLE_POS,
+  GLADE_RADIUS, LAKE_POS, LAKE_R, CASTLE_POS, WINDMILL_POS,
 } from "@/lib/world";
 import { useGame, collectibleRespawnMs } from "@/lib/store";
 import { moveTarget, daylight, lastWater } from "@/lib/runtime";
@@ -77,6 +77,38 @@ function River() {
   );
 }
 
+// the open sea surrounding the island, textured from the Sea Pack and gently scrolling
+function Sea() {
+  const tex = useLoader(THREE.TextureLoader, "/models/sea/atlas.png");
+  useMemo(() => {
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(12, 12);
+  }, [tex]);
+  useFrame(({ clock }) => {
+    tex.offset.x = clock.elapsedTime * 0.008;
+    tex.offset.y = clock.elapsedTime * 0.005;
+  });
+  return (
+    <group>
+      {/* the open sea, stretching to the horizon */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.18, 0]}>
+        <planeGeometry args={[1400, 1400]} />
+        <meshStandardMaterial map={tex} color="#4f9fcf" roughness={0.35} metalness={0.05} />
+      </mesh>
+      {/* turquoise shallows lapping the shore */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.08, 0]}>
+        <planeGeometry args={[248, 248]} />
+        <meshStandardMaterial color="#7fc4e0" roughness={0.4} transparent opacity={0.85} />
+      </mesh>
+      {/* sandy beach framing the island */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.03, 0]}>
+        <planeGeometry args={[224, 224]} />
+        <meshStandardMaterial color="#dcc890" roughness={1} />
+      </mesh>
+    </group>
+  );
+}
+
 function Ground() {
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
@@ -101,8 +133,10 @@ function Ground() {
   };
   return (
     <group>
+      <Sea />
+      {/* the grassy island */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow onClick={handleClick}>
-        <planeGeometry args={[230, 230]} />
+        <planeGeometry args={[196, 196]} />
         <meshStandardMaterial color="#5d7e3b" roughness={1} />
       </mesh>
       {/* glade clearing — slightly lighter grass */}
@@ -447,7 +481,11 @@ export default function World() {
       <GhostPlayers />
       <group position={CASTLE_POS}>
         <ModelCastle />
-        <WorldLabel text="🏰 The Ruined Castle" y={16} />
+        <WorldLabel text="🏰 The Ruined Castle" y={34} />
+      </group>
+      <group position={WINDMILL_POS}>
+        <ModelWindmill />
+        <WorldLabel text="🌾 The Old Windmill" y={15} />
       </group>
       <HomePortal />
       <CaveEntrance />
@@ -467,7 +505,65 @@ export default function World() {
 }
 
 function ModelCastle() {
-  return <Model file="castle/CastleRuins" size={26} by="xz" tex="/models/castle/atlas.png" position={[0, 0, 0]} rotationY={-0.6} />;
+  return <Model file="castle/CastleRuins" size={62} by="xz" tex="/models/castle/atlas.png" position={[0, 0, 0]} rotationY={-0.6} />;
+}
+
+function ModelWindmill() {
+  const sails = useRef<THREE.Group>(null);
+  useFrame((_, dt) => {
+    if (sails.current) sails.current.rotation.z += dt * 0.55;
+  });
+  const blade = (i: number) => (
+    <group key={i} rotation={[0, 0, (i * Math.PI) / 2]}>
+      {/* spar */}
+      <mesh position={[0, 2.4, 0]} castShadow>
+        <boxGeometry args={[0.22, 4.8, 0.12]} />
+        <meshStandardMaterial color="#6b4f2e" roughness={1} />
+      </mesh>
+      {/* sail cloth */}
+      <mesh position={[0.5, 2.5, 0.06]} castShadow>
+        <boxGeometry args={[0.9, 4.2, 0.05]} />
+        <meshStandardMaterial color="#e9e3d2" roughness={0.9} />
+      </mesh>
+    </group>
+  );
+  return (
+    <group>
+      {/* tapered stone tower */}
+      <mesh position={[0, 4, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[2, 2.9, 8, 12]} />
+        <meshStandardMaterial color="#cbb9a0" roughness={1} />
+      </mesh>
+      {/* base trim */}
+      <mesh position={[0, 0.5, 0]} castShadow>
+        <cylinderGeometry args={[3.1, 3.3, 1, 12]} />
+        <meshStandardMaterial color="#8a7a62" roughness={1} />
+      </mesh>
+      {/* door */}
+      <mesh position={[0, 1.7, 2.55]} castShadow>
+        <boxGeometry args={[1.1, 2.2, 0.3]} />
+        <meshStandardMaterial color="#5b4226" roughness={1} />
+      </mesh>
+      {/* window */}
+      <mesh position={[0, 5.4, 2.1]}>
+        <boxGeometry args={[0.7, 0.7, 0.2]} />
+        <meshStandardMaterial color="#3a2f22" roughness={1} />
+      </mesh>
+      {/* conical cap */}
+      <mesh position={[0, 9, 0]} castShadow>
+        <coneGeometry args={[2.5, 2.6, 12]} />
+        <meshStandardMaterial color="#8c3b2e" roughness={0.95} />
+      </mesh>
+      {/* sail hub + blades, mounted on the front, slowly turning */}
+      <group position={[0, 7.6, 2.5]}>
+        <mesh castShadow rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.4, 0.4, 0.6, 8]} />
+          <meshStandardMaterial color="#4e3820" roughness={1} />
+        </mesh>
+        <group ref={sails}>{[0, 1, 2, 3].map(blade)}</group>
+      </group>
+    </group>
+  );
 }
 
 function NoticeBoard() {
