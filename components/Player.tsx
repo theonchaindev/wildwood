@@ -9,7 +9,7 @@ import { useModel } from "@/lib/assets";
 import { live, moveTarget, chop, mine, fishing, teleport, zombies, animals, daylight, isRaining, tour } from "@/lib/runtime";
 import { sfx } from "@/lib/sound";
 import {
-  COLLECTIBLES, CAMPFIRE_POS, BUILDINGS, GLADE_RADIUS, RIVER_X, RIVER_WIDTH,
+  COLLECTIBLES, CAMPFIRE_POS, BUILDINGS, GLADE_RADIUS, RIVER_X, RIVER_WIDTH, riverCenterX,
   TREES, ROCKS, HOME_PORTAL_POS, HOME_CHEST_POS, HOME_FURNACE_POS,
   HOME_EXTEND_POS, HOME_CABIN_POS, HOME_WELL_POS, HOME_POND_POS, POND_R,
   ORCHARD_SPOTS, HIVE_SPOTS, PEN_SPOTS, pensAllowed, HOME_TIERS, homeTierDef,
@@ -86,7 +86,7 @@ function BoatMesh() {
   useFrame(() => {
     if (!ref.current) return;
     // only show the boat when you're actually over water
-    const onRiver = Math.abs(live.x - RIVER_X) < RIVER_WIDTH / 2 + 0.6;
+    const onRiver = Math.abs(live.x - riverCenterX(live.z)) < RIVER_WIDTH / 2 + 0.6;
     const onLake = Math.hypot(live.x - LAKE_POS[0], live.z - LAKE_POS[2]) < LAKE_R + 0.6;
     ref.current.visible = onRiver || onLake;
   });
@@ -767,7 +767,7 @@ export default function Player() {
     }
     state.setNearInteract(nearest);
 
-    const distRiver = Math.abs(px - RIVER_X);
+    const distRiver = Math.abs(px - riverCenterX(pz));
     const atRiver = distRiver > RIVER_WIDTH / 2 - 1 && distRiver < RIVER_WIDTH / 2 + 3.5;
     const distLake = Math.hypot(px - LAKE_POS[0], pz - LAKE_POS[2]);
     const atLake = distLake > LAKE_R - 1 && distLake < LAKE_R + 3.5;
@@ -788,7 +788,7 @@ export default function Player() {
     if (active?.id === "leave-glade" && Math.hypot(px, pz) > GLADE_RADIUS + 3) {
       state.questEvent("leave-glade");
     }
-    if (active?.id === "cross-bridge" && px > RIVER_X + 5) {
+    if (active?.id === "cross-bridge" && px > riverCenterX(pz) + 5) {
       state.questEvent("cross-bridge");
     }
     if (active?.id === "return-camp" && distCamp < 4) {

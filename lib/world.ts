@@ -42,9 +42,15 @@ function mulberry32(seed: number) {
 const rng = mulberry32(1337);
 const rand = (min: number, max: number) => min + rng() * (max - min);
 
-// the river runs north-south at x ~ 38
+// the river runs north-south, meandering around x ~ 38
 export const RIVER_X = 38;
 export const RIVER_WIDTH = 8;
+// the river snakes: two sine waves give it a natural, irregular bend.
+// at z = 0 (the bridge) both terms vanish, so the centre is exactly RIVER_X
+// and the Old Bridge always lines up with the water.
+export function riverCenterX(z: number): number {
+  return RIVER_X + 9 * Math.sin(z * 0.045) + 3.5 * Math.sin(z * 0.115 + 0.6) - 3.5 * Math.sin(0.6);
+}
 export const GLADE_RADIUS = 20;
 export const MAP_BOUND = 95; // playable half-extent
 export const CAMPFIRE_POS: [number, number, number] = [2, 0, 0];
@@ -103,7 +109,7 @@ function blocked(x: number, z: number) {
   // keep clear: glade centre, the east path corridor, the river banks, the lake
   if (Math.hypot(x, z) < GLADE_RADIUS + 2) return true;
   if (Math.abs(z - BRIDGE_Z) < 5 && x > 0 && x < RIVER_X + 16) return true;
-  if (Math.abs(x - RIVER_X) < RIVER_WIDTH / 2 + 2) return true;
+  if (Math.abs(x - riverCenterX(z)) < RIVER_WIDTH / 2 + 2) return true;
   if (Math.hypot(x - LAKE_POS[0], z - LAKE_POS[2]) < LAKE_R + 3) return true;
   return false;
 }
@@ -148,6 +154,7 @@ for (let i = 0; i < 26; i++) {
   const x = rand(RIVER_X + 6, 90);
   const z = rand(-50, 50);
   if (Math.abs(z - BRIDGE_Z) < 4) continue;
+  if (x < riverCenterX(z) + RIVER_WIDTH / 2 + 2) continue;
   addTree(x, z, rand(4.5, 7));
 }
 
@@ -175,7 +182,7 @@ for (let i = 0; i < 48; i++) {
 for (let i = 0; i < 130; i++) {
   const x = rand(-85, 85);
   const z = rand(-85, 85);
-  if (Math.abs(x - RIVER_X) < RIVER_WIDTH / 2 + 1) continue;
+  if (Math.abs(x - riverCenterX(z)) < RIVER_WIDTH / 2 + 1) continue;
   DECOR.push({
     file: GRASS[Math.floor(rng() * GRASS.length)],
     size: rand(0.35, 0.7),
@@ -188,7 +195,7 @@ for (let i = 0; i < 130; i++) {
 for (let i = 0; i < 14; i++) {
   const x = rand(-40, 40);
   const z = rand(-40, 40);
-  if (Math.abs(x - RIVER_X) < RIVER_WIDTH / 2 + 1) continue;
+  if (Math.abs(x - riverCenterX(z)) < RIVER_WIDTH / 2 + 1) continue;
   DECOR.push({
     file: PEBBLES[Math.floor(rng() * PEBBLES.length)],
     size: rand(0.3, 0.6),
@@ -247,6 +254,10 @@ for (let i = 0; i < 7; i++) {
   DECOR.push({ file: "PP_Rock_Moss_Grown_11", size: rand(2.6, 3.4), pos: [rx, 0, rz], rot: rand(0, 6.28) });
   COLLIDERS.push({ x: rx, z: rz, r: 1.3 });
 }
+
+// a ruined castle landmark across the river in the Outlands
+export const CASTLE_POS: [number, number, number] = [74, 0, -16];
+COLLIDERS.push({ x: CASTLE_POS[0], z: CASTLE_POS[2], r: 7 });
 
 // mossy mountains ringing the edge of the bigger map
 const MOUNTAINS: [number, number][] = [
@@ -785,19 +796,21 @@ export function resolveMovement(
       nx *= s;
       nz *= s;
     }
-    // river — only crossable on the bridge deck (or in a boat)
-    const inBand = !boat && Math.abs(nx - RIVER_X) < RIVER_BAND;
+    // river — only crossable on the bridge deck (or in a boat).
+    // the channel meanders, so test against the centre at this z.
+    const rcN = riverCenterX(nz);
+    const inBand = !boat && Math.abs(nx - rcN) < RIVER_BAND;
     if (inBand) {
       const onBridgeZ = Math.abs(nz - BRIDGE_Z) <= BRIDGE_HALF_WIDTH;
       if (!onBridgeZ) {
         const wasOnBridge =
-          Math.abs(px - RIVER_X) < RIVER_BAND && Math.abs(pz - BRIDGE_Z) <= BRIDGE_HALF_WIDTH;
+          Math.abs(px - riverCenterX(pz)) < RIVER_BAND && Math.abs(pz - BRIDGE_Z) <= BRIDGE_HALF_WIDTH;
         if (wasOnBridge) {
           // walking on the deck: keep them on it
           nz = BRIDGE_Z + Math.sign(nz - BRIDGE_Z) * BRIDGE_HALF_WIDTH;
         } else {
           // wading in from the bank: push back out
-          nx = RIVER_X + Math.sign(nx - RIVER_X || 1) * RIVER_BAND;
+          nx = rcN + Math.sign(nx - rcN || 1) * RIVER_BAND;
         }
       }
     }
@@ -836,8 +849,9 @@ export function resolveMovement(
 // ---- zones (for the location readout) ----
 
 export function zoneAt(x: number, z: number): string {
-  if (Math.abs(x - RIVER_X) < RIVER_WIDTH / 2 + 3) return "The Rush";
-  if (x > RIVER_X + RIVER_WIDTH / 2) return "The Outlands";
+  const rc = riverCenterX(z);
+  if (Math.abs(x - rc) < RIVER_WIDTH / 2 + 3) return "The Rush";
+  if (x > rc + RIVER_WIDTH / 2) return "The Outlands";
   if (Math.hypot(x, z) < GLADE_RADIUS + 2) return "The Hollow";
   if (z < -28 && x < 24) return "Sporewood";
   if (z > 28) return "The Bloom";

@@ -2070,3 +2070,13 @@ body {
 .tour-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(60,76,50,0.25); }
 .tour-dot.on { background: var(--green); transform: scale(1.3); }
 .tour-buttons { display: flex; justify-content: center; gap: 8px; }
+
+.wallet-balance {
+  margin-top: 8px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--green-dark);
+  background: rgba(110, 200, 90, 0.12);
+  border-radius: 8px;
+  padding: 6px 10px;
+}

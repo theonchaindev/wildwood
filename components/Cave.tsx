@@ -11,12 +11,15 @@ import { useGame } from "@/lib/store";
 import { live, moveTarget, mine } from "@/lib/runtime";
 import { CAVE_ORES, CAVE_HW, CAVE_HD, STALAGMITES, ORE_RESPAWN_MS, CaveOre } from "@/lib/world";
 import { HoverRing } from "./Trees";
+import { Model } from "@/lib/assets";
 import CaveMobs from "./CaveMobs";
 
-const ORE_COLORS: Record<CaveOre["kind"], { rock: string; fleck: string; emissive: string }> = {
-  stone: { rock: "#6e675e", fleck: "#8d857a", emissive: "#000000" },
-  coal: { rock: "#544e46", fleck: "#1c1a17", emissive: "#000000" },
-  diamond: { rock: "#5a5e66", fleck: "#9fe8f0", emissive: "#5fd8e8" },
+const MINING_ATLAS = "/models/mining/atlas.png";
+// each ore kind renders a Mining Pack model, scaled to roughly its node height
+const ORE_MODEL: Record<CaveOre["kind"], { file: string; scale: number; rotY: number }> = {
+  stone: { file: "mining/Stone", scale: 1.5, rotY: 0.5 },
+  coal: { file: "mining/Coal", scale: 1.7, rotY: 2.1 },
+  diamond: { file: "mining/Crystal", scale: 1.9, rotY: -0.7 },
 };
 
 function OreNode({ ore }: { ore: CaveOre }) {
@@ -24,7 +27,7 @@ function OreNode({ ore }: { ore: CaveOre }) {
   const isTarget = useGame((s) => s.mineTargetId === ore.id);
   const [hovered, setHovered] = useState(false);
   const pivot = useRef<THREE.Group>(null);
-  const c = ORE_COLORS[ore.kind];
+  const m = ORE_MODEL[ore.kind];
 
   useFrame(({ clock }) => {
     const g = pivot.current;
@@ -56,14 +59,6 @@ function OreNode({ ore }: { ore: CaveOre }) {
     moveTarget.active = true;
   };
 
-  // a few mineral flecks dotted on the rock
-  const flecks: [number, number, number][] = [
-    [ore.size * 0.3, ore.size * 0.45, ore.size * 0.32],
-    [-ore.size * 0.32, ore.size * 0.3, ore.size * 0.28],
-    [ore.size * 0.05, ore.size * 0.62, -ore.size * 0.25],
-    [-ore.size * 0.15, ore.size * 0.25, -ore.size * 0.35],
-  ];
-
   return (
     <group position={ore.pos}>
       <group ref={pivot}>
@@ -80,21 +75,15 @@ function OreNode({ ore }: { ore: CaveOre }) {
             setHovered(false);
           }}
         >
-          <mesh position={[0, ore.size * 0.4, 0]} castShadow>
-            <dodecahedronGeometry args={[ore.size * 0.55, 0]} />
-            <meshStandardMaterial color={c.rock} roughness={1} />
-          </mesh>
-          {flecks.map((p, i) => (
-            <mesh key={i} position={p}>
-              <octahedronGeometry args={[ore.size * (ore.kind === "diamond" ? 0.13 : 0.11), 0]} />
-              <meshStandardMaterial
-                color={c.fleck}
-                roughness={ore.kind === "diamond" ? 0.15 : 0.8}
-                emissive={c.emissive}
-                emissiveIntensity={ore.kind === "diamond" ? 0.8 : 0}
-              />
-            </mesh>
-          ))}
+          <Model
+            file={m.file}
+            size={ore.size * m.scale}
+            by="y"
+            align="bottom"
+            tex={MINING_ATLAS}
+            rotationY={m.rotY}
+            position={[0, 0, 0]}
+          />
           {ore.kind === "diamond" && (
             <pointLight position={[0, ore.size * 0.7, 0]} color="#7fe8f5" intensity={0.7} distance={4.5} decay={2} />
           )}

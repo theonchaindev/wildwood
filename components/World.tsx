@@ -6,9 +6,9 @@ import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { Model, useCompositeModel } from "@/lib/assets";
 import {
-  DECOR, COLLECTIBLES, RIVER_X, RIVER_WIDTH, CAMPFIRE_POS, BUILDINGS,
+  DECOR, COLLECTIBLES, RIVER_X, RIVER_WIDTH, riverCenterX, CAMPFIRE_POS, BUILDINGS,
   HOME_PORTAL_POS, HOME_TIERS, CAVE_ENTRANCE_POS, NOTICE_BOARD_POS,
-  GLADE_RADIUS, LAKE_POS, LAKE_R,
+  GLADE_RADIUS, LAKE_POS, LAKE_R, CASTLE_POS,
 } from "@/lib/world";
 import { useGame, collectibleRespawnMs } from "@/lib/store";
 import { moveTarget, daylight, lastWater } from "@/lib/runtime";
@@ -18,6 +18,64 @@ import Zombies from "./Zombies";
 import Animals from "./Animals";
 import Dog from "./Dog";
 import GhostPlayers from "./GhostPlayers";
+
+// a flat ribbon in the XZ plane that follows the meandering river centre
+function riverRibbon(halfWidth: number, y: number, z0 = -116, z1 = 116, step = 3) {
+  const geo = new THREE.BufferGeometry();
+  const pos: number[] = [];
+  const uv: number[] = [];
+  const idx: number[] = [];
+  let row = 0;
+  for (let z = z0; z <= z1 + 0.001; z += step) {
+    const cx = riverCenterX(z);
+    pos.push(cx - halfWidth, y, z, cx + halfWidth, y, z);
+    const v = (z - z0) / (z1 - z0);
+    uv.push(0, v, 1, v);
+    if (z + step <= z1 + 0.001) {
+      const a = row * 2;
+      idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+    }
+    row++;
+  }
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  const norm: number[] = [];
+  for (let i = 0; i < pos.length / 3; i++) norm.push(0, 1, 0);
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(norm, 3));
+  geo.setIndex(idx);
+  return geo;
+}
+
+function River() {
+  const water = useMemo(() => riverRibbon(RIVER_WIDTH / 2, 0.015), []);
+  const bank = useMemo(() => riverRibbon(RIVER_WIDTH / 2 + 0.9, 0.01), []);
+  const drink = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    const s = useGame.getState();
+    if (!s.nearWater) {
+      s.addToast("Get closer to the water 💧");
+      return;
+    }
+    if (Date.now() - lastWater.at < 2000) return;
+    lastWater.at = Date.now();
+    s.collectWater();
+  };
+  return (
+    <group>
+      <mesh geometry={bank}>
+        <meshStandardMaterial color="#8a7a55" roughness={1} />
+      </mesh>
+      <mesh
+        geometry={water}
+        onClick={drink}
+        onPointerOver={() => { document.body.style.cursor = "pointer"; }}
+        onPointerOut={() => { document.body.style.cursor = ""; }}
+      >
+        <meshStandardMaterial color="#3d7ba6" roughness={0.3} />
+      </mesh>
+    </group>
+  );
+}
 
 function Ground() {
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
@@ -52,28 +110,8 @@ function Ground() {
         <circleGeometry args={[GLADE_RADIUS + 1, 44]} />
         <meshStandardMaterial color="#6f924a" roughness={1} />
       </mesh>
-      {/* river — click near the bank to collect water */}
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[RIVER_X, 0.015, 0]}
-        onClick={drink}
-        onPointerOver={() => { document.body.style.cursor = "pointer"; }}
-        onPointerOut={() => { document.body.style.cursor = ""; }}
-      >
-        <planeGeometry args={[RIVER_WIDTH, 230]} />
-        <meshStandardMaterial color="#3d7ba6" roughness={0.3} />
-      </mesh>
-      {/* river banks */}
-      {[-1, 1].map((side) => (
-        <mesh
-          key={side}
-          rotation={[-Math.PI / 2, 0, 0]}
-          position={[RIVER_X + side * (RIVER_WIDTH / 2 + 0.5), 0.01, 0]}
-        >
-          <planeGeometry args={[1.2, 230]} />
-          <meshStandardMaterial color="#8a7a55" roughness={1} />
-        </mesh>
-      ))}
+      {/* the winding river — click near the bank to collect water */}
+      <River />
       {/* the fishing lake */}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
@@ -407,6 +445,10 @@ export default function World() {
       <Animals />
       <Dog />
       <GhostPlayers />
+      <group position={CASTLE_POS}>
+        <ModelCastle />
+        <WorldLabel text="🏰 The Ruined Castle" y={16} />
+      </group>
       <HomePortal />
       <CaveEntrance />
       <NoticeBoard />
@@ -422,6 +464,10 @@ export default function World() {
       <Collectibles />
     </group>
   );
+}
+
+function ModelCastle() {
+  return <Model file="castle/CastleRuins" size={26} by="xz" tex="/models/castle/atlas.png" position={[0, 0, 0]} rotationY={-0.6} />;
 }
 
 function NoticeBoard() {

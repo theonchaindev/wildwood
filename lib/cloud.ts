@@ -303,10 +303,18 @@ export type EstateRow = { name: string; homeTier: number; houseLevel: number };
 
 export async function fetchLeaderboard() {
   return api<{
-    players: { name: string; level: number; acorns: number }[];
+    players: { name: string; level: number; wood: number }[];
     estates: EstateRow[];
     online: number;
+    tokenLive: boolean;
   }>("/api/leaderboard");
+}
+
+/** On-chain $WOOD balance of a wallet (0 until the mint is live). */
+export async function fetchWalletWood(wallet: string) {
+  return api<{ wood: number; mint: string | null; live: boolean }>(
+    `/api/token/balance?wallet=${encodeURIComponent(wallet)}`
+  );
 }
 
 // ---- guestbook ----

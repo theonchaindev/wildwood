@@ -6,7 +6,7 @@ import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { useGame } from "@/lib/store";
 import { live, daylight, zombies, zombieSeq, Zombie, ZombieType, isBloodMoonNight, isBossNight } from "@/lib/runtime";
-import { resolveMovement, GLADE_RADIUS, RIVER_X } from "@/lib/world";
+import { resolveMovement, GLADE_RADIUS, riverCenterX } from "@/lib/world";
 import { sfx } from "@/lib/sound";
 import HitPop from "./HitPop";
 import { HoverRing } from "./Trees";
@@ -43,7 +43,7 @@ function spawnZombie(blood: boolean, forceType?: ZombieType): Zombie | null {
     const z = live.z + Math.sin(a) * d;
     if (Math.abs(x) > 64 || Math.abs(z) > 64) continue;
     if (Math.hypot(x, z) < GLADE_RADIUS + 3) continue; // the fence keeps camp safe
-    if (Math.abs(x - RIVER_X) < 6) continue;
+    if (Math.abs(x - riverCenterX(z)) < 6) continue;
     const type = forceType ?? rollType(blood);
     const def = ZOMBIE_TYPES[type];
     return {

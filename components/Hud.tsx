@@ -16,12 +16,12 @@ import {
   secondsToNight, secondsToDawn,
 } from "@/lib/runtime";
 import {
-  TREES, COLLECTIBLES, RIVER_X, RIVER_WIDTH, CAMPFIRE_POS, BUILDINGS,
+  TREES, COLLECTIBLES, RIVER_X, RIVER_WIDTH, riverCenterX, CAMPFIRE_POS, BUILDINGS,
   HOME_PORTAL_POS, HOME_TIERS, TOUR_STOPS,
 } from "@/lib/world";
 import {
   fetchOffers, postOffer, acceptPlayerOffer, cancelPlayerOffer, fetchVisit,
-  cashOut, fetchLeaderboard, explorerTxUrl, PlayerOffer,
+  cashOut, fetchLeaderboard, fetchWalletWood, explorerTxUrl, PlayerOffer,
   fetchGifts, sendGift, claimGift, Gift as CloudGift,
   fetchGuestbook, signGuestbook, GuestbookEntry,
 } from "@/lib/cloud";
@@ -115,8 +115,17 @@ function Minimap() {
         ctx.fillRect(0, 0, S, S);
 
         ctx.fillStyle = "#4d86b3";
-        const [rx] = toPx(RIVER_X - RIVER_WIDTH / 2, 0);
-        ctx.fillRect(rx, 0, RIVER_WIDTH * scale, S);
+        ctx.beginPath();
+        for (let wz = -80; wz <= 80; wz += 4) {
+          const [lx, lz] = toPx(riverCenterX(wz) - RIVER_WIDTH / 2, wz);
+          if (wz === -80) ctx.moveTo(lx, lz); else ctx.lineTo(lx, lz);
+        }
+        for (let wz = 80; wz >= -80; wz -= 4) {
+          const [rx2, rz2] = toPx(riverCenterX(wz) + RIVER_WIDTH / 2, wz);
+          ctx.lineTo(rx2, rz2);
+        }
+        ctx.closePath();
+        ctx.fill();
 
         ctx.fillStyle = "#5d7a45";
         const [gx, gz] = toPx(0, 0);
@@ -546,11 +555,18 @@ function PlayerOffers() {
   const [visitName, setVisitName] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [lastTx, setLastTx] = useState<string | null>(null);
+  const [walletWood, setWalletWood] = useState<number | null>(null);
 
   const refresh = () => {
     fetchOffers().then(setOffers).catch(() => setOffers([]));
   };
   useEffect(refresh, []);
+
+  const wallet = s.account?.wallet;
+  const loadWallet = () => {
+    if (wallet) fetchWalletWood(wallet).then((d) => setWalletWood(d.wood)).catch(() => {});
+  };
+  useEffect(loadWallet, [wallet]);
 
   if (!s.account) {
     return (
@@ -645,6 +661,9 @@ function PlayerOffers() {
             <b>{s.account.wallet.slice(0, 4)}…{s.account.wallet.slice(-4)}</b>
             {" "}· devnet beta — switch Phantom to devnet to see your tokens
           </div>
+          <div className="wallet-balance">
+            👛 In your wallet: <b>{walletWood === null ? "…" : walletWood.toLocaleString()} $WOOD</b>
+          </div>
           <div className="offer-form" style={{ marginTop: 8 }}>
             {[100, 1000, 5000].map((n) => (
               <button
@@ -653,11 +672,11 @@ function PlayerOffers() {
                 disabled={s.acorns < n}
                 onClick={() =>
                   cashOut(n)
-                    .then((d) => d.txSig && setLastTx(d.txSig))
+                    .then((d) => { if (d.txSig) setLastTx(d.txSig); setTimeout(loadWallet, 2500); })
                     .catch((e) => setErr(e.message))
                 }
               >
-                {n} 🪵 → {n} 🪵
+                {n} 🪵 → {n} $WOOD
               </button>
             ))}
           </div>
@@ -1314,7 +1333,7 @@ function BuildModal({ onClose }: { onClose: () => void }) {
 
 function LeaderboardModal({ onClose }: { onClose: () => void }) {
   const myName = useGame((s) => s.name);
-  const [data, setData] = useState<{ players: { name: string; level: number; acorns: number }[]; online: number } | null>(null);
+  const [data, setData] = useState<Awaited<ReturnType<typeof fetchLeaderboard>> | null>(null);
   const [err, setErr] = useState(false);
   useEffect(() => {
     fetchLeaderboard().then(setData).catch(() => setErr(true));
@@ -1333,7 +1352,7 @@ function LeaderboardModal({ onClose }: { onClose: () => void }) {
           <div key={p.name} className={`lb-line ${p.name === myName ? "me" : ""}`}>
             <span className="lb-rank">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`}</span>
             <span className="lb-name">{p.name}</span>
-            <span className="lb-stats">Lv {p.level} · {p.acorns} 🪵</span>
+            <span className="lb-stats">Lv {p.level} · {p.wood.toLocaleString()} $WOOD</span>
           </div>
         ))}
         <button className="btn block" onClick={onClose}>Close</button>
@@ -1401,7 +1420,7 @@ function LeaderboardDock() {
             >
               <span className="lb-rank">{medal(i)}</span>
               <span className="lb-name">{p.name}</span>
-              <span className="lb-stats">Lv {p.level} · {p.acorns} 🪵</span>
+              <span className="lb-stats">Lv {p.level} · {p.wood.toLocaleString()} $WOOD</span>
             </div>
           ))}
         </>
