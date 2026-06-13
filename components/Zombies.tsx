@@ -9,6 +9,10 @@ import { live, daylight, zombies, zombieSeq, Zombie, ZombieType, isBloodMoonNigh
 import { resolveMovement, GLADE_RADIUS, RIVER_X } from "@/lib/world";
 import { sfx } from "@/lib/sound";
 import HitPop from "./HitPop";
+import { HoverRing } from "./Trees";
+
+// you must be reasonably close to lock onto a zombie — no sniping from afar
+const ENGAGE_RANGE = 11;
 
 const NIGHT_THRESHOLD = 0.22;
 const ATTACK_RANGE = 1.5;
@@ -89,25 +93,41 @@ function ZombieMesh({ z }: { z: Zombie }) {
     }
   });
 
+  const [hovered, setHovered] = useState(false);
+
   const click = (e: any) => {
     e.stopPropagation();
     if (z.state === "dying") return;
+    const dist = Math.hypot(live.x - z.x, live.z - z.z);
+    if (dist > ENGAGE_RANGE) {
+      useGame.getState().addToast("Too far — get closer to attack ⚔️");
+      return;
+    }
     useGame.getState().setAttackTarget(z.id);
   };
 
   return (
     <group ref={ref}>
+      {hovered && z.state !== "dying" && (
+        <HoverRing r={(0.9 + (def.scale - 1) * 0.5)} color="#ff5040" />
+      )}
       <group
         scale={def.scale}
         onClick={click}
         onPointerOver={(e) => {
           e.stopPropagation();
-          if (z.state !== "dying") document.body.style.cursor = "crosshair";
+          if (z.state !== "dying") { document.body.style.cursor = "crosshair"; setHovered(true); }
         }}
         onPointerOut={() => {
           document.body.style.cursor = "";
+          setHovered(false);
         }}
       >
+        {/* invisible bigger hitbox — easier to click than the thin body */}
+        <mesh position={[0, 0.9, 0]} visible={false}>
+          <boxGeometry args={[1.1, 1.9, 1.1]} />
+          <meshBasicMaterial />
+        </mesh>
         {/* legs */}
         <mesh position={[-0.11, 0.28, 0]} castShadow>
           <boxGeometry args={[0.17, 0.56, 0.17]} />

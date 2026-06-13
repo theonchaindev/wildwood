@@ -10,7 +10,7 @@ import { useGame, TREE_RESPAWN_MS } from "@/lib/store";
 import { chop, moveTarget } from "@/lib/runtime";
 
 /** A pulsing golden ring at the base of anything harvestable under the cursor. */
-export function HoverRing({ r }: { r: number }) {
+export function HoverRing({ r, color = "#ffe27a", y = 0.06 }: { r: number; color?: string; y?: number }) {
   const ref = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
     if (ref.current) {
@@ -21,9 +21,9 @@ export function HoverRing({ r }: { r: number }) {
     }
   });
   return (
-    <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]}>
+    <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]}>
       <ringGeometry args={[r * 0.78, r, 28]} />
-      <meshBasicMaterial color="#ffe27a" transparent opacity={0.6} depthWrite={false} />
+      <meshBasicMaterial color={color} transparent opacity={0.6} depthWrite={false} />
     </mesh>
   );
 }

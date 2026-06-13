@@ -9,6 +9,7 @@ import { live, animals, Animal } from "@/lib/runtime";
 import { resolveMovement, ANIMAL_SPAWNS } from "@/lib/world";
 import { sfx } from "@/lib/sound";
 import HitPop from "./HitPop";
+import { HoverRing } from "./Trees";
 
 const RESPAWN_MS = 120_000;
 const BOAR_DMG = 6;
@@ -206,6 +207,7 @@ function DeerMesh() {
 function AnimalMesh({ a }: { a: Animal }) {
   const ref = useRef<THREE.Group>(null);
   const barRef = useRef<HTMLDivElement>(null);
+  const [hovered, setHovered] = useState(false);
   const myHit = useGame((s) => (s.lastHit?.key === `a${a.id}` ? s.lastHit : null));
 
   useFrame(({ clock }) => {
@@ -226,21 +228,36 @@ function AnimalMesh({ a }: { a: Animal }) {
 
   if (a.state === "dead") return null;
 
+  const small = a.kind === "chicken" || a.kind === "rabbit";
+
   return (
     <group ref={ref}>
+      {hovered && <HoverRing r={small ? 0.7 : 1.1} color="#ffd24a" />}
       <group
         onClick={(e) => {
           e.stopPropagation();
+          const dist = Math.hypot(live.x - a.x, live.z - a.z);
+          if (dist > 11) {
+            useGame.getState().addToast("Too far — get closer to hunt 🏹");
+            return;
+          }
           useGame.getState().setAnimalTarget(a.id);
         }}
         onPointerOver={(e) => {
           e.stopPropagation();
           document.body.style.cursor = "crosshair";
+          setHovered(true);
         }}
         onPointerOut={() => {
           document.body.style.cursor = "";
+          setHovered(false);
         }}
       >
+        {/* invisible bigger hitbox for easier clicking */}
+        <mesh position={[0, small ? 0.35 : 0.5, 0]} visible={false}>
+          <boxGeometry args={small ? [0.7, 0.7, 0.8] : [1, 1, 1.2]} />
+          <meshBasicMaterial />
+        </mesh>
         {a.kind === "chicken" ? <ChickenMesh /> : a.kind === "rabbit" ? <RabbitMesh /> : a.kind === "deer" ? <DeerMesh /> : <BoarMesh />}
       </group>
       {a.hp < a.maxHp && (

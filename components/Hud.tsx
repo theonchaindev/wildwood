@@ -17,7 +17,7 @@ import {
 } from "@/lib/runtime";
 import {
   TREES, COLLECTIBLES, RIVER_X, RIVER_WIDTH, CAMPFIRE_POS, BUILDINGS,
-  HOME_PORTAL_POS, HOME_TIERS,
+  HOME_PORTAL_POS, HOME_TIERS, TOUR_STOPS,
 } from "@/lib/world";
 import {
   fetchOffers, postOffer, acceptPlayerOffer, cancelPlayerOffer, fetchVisit,
@@ -207,6 +207,7 @@ function ClockPill() {
     const iv = setInterval(() => {
       tick((n) => n + 1);
       useGame.getState().ensureDaily(); // roll the daily tasks at each new game day
+      useGame.getState().catchUpQuests(); // complete any quest whose goal is already met
     }, 1000);
     return () => clearInterval(iv);
   }, []);
@@ -290,14 +291,22 @@ function TraderShop() {
       <div className="shop-section">Tools</div>
       {(Object.keys(AXES) as AxeTier[]).map((tier) => {
         const def = AXES[tier];
-        const owned = s.axe === tier || (s.axe === "golden" && tier === "rusty");
+        const owned = s.ownedAxes.includes(tier);
         return (
           <ShopRow
             key={tier}
             icon={tier === "golden" ? "✨🪓" : "🪓"}
             name={def.label}
             blurb={def.blurb}
-            right={owned ? <span className="shop-owned">Owned</span> : <BuyBtn cost={def.cost} onClick={() => s.buyAxe(tier)} />}
+            right={
+              s.axe === tier ? (
+                <span className="shop-owned">Equipped</span>
+              ) : owned ? (
+                <button className="btn small" onClick={() => s.equipAxe(tier)}>Equip</button>
+              ) : (
+                <BuyBtn cost={def.cost} onClick={() => s.buyAxe(tier)} />
+              )
+            }
           />
         );
       })}
@@ -378,28 +387,44 @@ function ArmouryShop() {
       {wOrder.map((tier) => {
         const def = WEAPONS[tier];
         const c = COMBAT[tier];
-        const owned = s.weapon === "diamond" || (s.weapon && wOrder.indexOf(s.weapon) >= wOrder.indexOf(tier));
+        const owned = s.ownedWeapons.includes(tier);
         return (
           <ShopRow
             key={tier}
             icon={def.icon}
             name={def.label}
             blurb={<>{def.blurb}<br /><b>{c.dmg} dmg</b> · {c.swing}s swing · {c.reach}m reach{c.crit > 0 ? ` · ${Math.round(c.crit * 100)}% crit` : ""}</>}
-            right={owned ? <span className="shop-owned">{s.weapon === tier ? "Equipped" : "Owned"}</span> : <BuyBtn cost={def.cost} onClick={() => s.buyWeapon(tier)} />}
+            right={
+              s.weapon === tier ? (
+                <span className="shop-owned">Equipped</span>
+              ) : owned ? (
+                <button className="btn small" onClick={() => s.equipWeapon(tier)}>Equip</button>
+              ) : (
+                <BuyBtn cost={def.cost} onClick={() => s.buyWeapon(tier)} />
+              )
+            }
           />
         );
       })}
       <div className="shop-section">Armour</div>
       {aOrder.map((tier) => {
         const def = ARMOR[tier];
-        const owned = s.armor && aOrder.indexOf(s.armor) >= aOrder.indexOf(tier);
+        const owned = s.ownedArmor.includes(tier);
         return (
           <ShopRow
             key={tier}
             icon={def.icon}
             name={def.label}
             blurb={def.blurb}
-            right={owned ? <span className="shop-owned">{s.armor === tier ? "Equipped" : "Owned"}</span> : <BuyBtn cost={def.cost} onClick={() => s.buyArmor(tier)} />}
+            right={
+              s.armor === tier ? (
+                <span className="shop-owned">Equipped</span>
+              ) : owned ? (
+                <button className="btn small" onClick={() => s.equipArmor(tier)}>Equip</button>
+              ) : (
+                <BuyBtn cost={def.cost} onClick={() => s.buyArmor(tier)} />
+              )
+            }
           />
         );
       })}
@@ -1556,6 +1581,36 @@ function NoticeModal() {
   );
 }
 
+function TourOverlay() {
+  const step = useGame((s) => s.tourStep);
+  if (step < 0 || step >= TOUR_STOPS.length) return null;
+  const stop = TOUR_STOPS[step];
+  const s = useGame.getState();
+  return (
+    <div className="tour-overlay">
+      <div className="tour-card">
+        <div className="tour-title">{stop.title}</div>
+        <div className="tour-text">{stop.text}</div>
+        <div className="tour-dots">
+          {TOUR_STOPS.map((_, i) => (
+            <span key={i} className={`tour-dot ${i === step ? "on" : ""}`} />
+          ))}
+        </div>
+        <div className="tour-buttons">
+          {step < TOUR_STOPS.length - 1 ? (
+            <>
+              <button className="btn small ghost" onClick={() => s.endTour()}>Skip</button>
+              <button className="btn small" onClick={() => s.setTourStep(step + 1)}>Next →</button>
+            </>
+          ) : (
+            <button className="btn small" onClick={() => s.endTour()}>Let&apos;s play ▶</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TripOverlay() {
   const [, tick] = useState(0);
   const tripUntil = useGame((s) => s.tripUntil);
@@ -1576,6 +1631,70 @@ function TripOverlay() {
   );
 }
 
+function EquipChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button className={`equip-chip ${active ? "active" : ""}`} onClick={onClick}>
+      {label}
+    </button>
+  );
+}
+
+function EquipmentPanel() {
+  const s = useGame();
+  return (
+    <div className="equip-panel">
+      <div className="equip-row">
+        <span className="equip-label">⚔️ Weapon</span>
+        <div className="equip-chips">
+          <EquipChip label="Fists" active={!s.weapon} onClick={() => s.equipWeapon(null)} />
+          {s.ownedWeapons.map((w) => (
+            <EquipChip key={w} label={`${WEAPONS[w].icon} ${WEAPONS[w].label}`} active={s.weapon === w} onClick={() => s.equipWeapon(w)} />
+          ))}
+        </div>
+      </div>
+      <div className="equip-row">
+        <span className="equip-label">🪓 Axe</span>
+        <div className="equip-chips">
+          <EquipChip label="None" active={!s.axe} onClick={() => s.equipAxe(null)} />
+          {s.ownedAxes.map((a) => (
+            <EquipChip key={a} label={AXES[a].label} active={s.axe === a} onClick={() => s.equipAxe(a)} />
+          ))}
+        </div>
+      </div>
+      <div className="equip-row">
+        <span className="equip-label">🛡️ Armour</span>
+        <div className="equip-chips">
+          <EquipChip label="None" active={!s.armor} onClick={() => s.equipArmor(null)} />
+          {s.ownedArmor.map((a) => (
+            <EquipChip key={a} label={`${ARMOR[a].icon} ${ARMOR[a].label}`} active={s.armor === a} onClick={() => s.equipArmor(a)} />
+          ))}
+        </div>
+      </div>
+      {s.ownedHats.length > 0 && (
+        <div className="equip-row">
+          <span className="equip-label">🎩 Hat</span>
+          <div className="equip-chips">
+            <EquipChip label="None" active={!s.hat} onClick={() => s.buyHat("none")} />
+            {s.ownedHats.map((h) => (
+              <EquipChip key={h} label={`${HATS[h].icon} ${HATS[h].label}`} active={s.hat === h} onClick={() => s.buyHat(h)} />
+            ))}
+          </div>
+        </div>
+      )}
+      {s.ownedShirts.length > 1 && (
+        <div className="equip-row">
+          <span className="equip-label">👕 Shirt</span>
+          <div className="equip-chips">
+            {s.ownedShirts.map((sh) => (
+              <EquipChip key={sh} label={SHIRTS[sh].label} active={s.shirt === sh} onClick={() => s.buyShirt(sh)} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InventoryModal() {
   const s = useGame();
   const entries = Object.entries(s.inventory);
@@ -1587,6 +1706,9 @@ function InventoryModal() {
           <span className="modal-title">🎒 Your Pack</span>
           <span className="modal-acorns">{s.packCount()}/{PACK_CAP} · 🌰 {s.acorns}</span>
         </div>
+        <div className="shop-section">Equipment — click to equip or unequip</div>
+        <EquipmentPanel />
+        <div className="shop-section">Backpack</div>
         {entries.length === 0 && (
           <div className="shop-empty">Empty! Forage, chop, fish and hunt to fill it.</div>
         )}
@@ -2119,6 +2241,7 @@ export default function Hud() {
       {s.banner && <div className="banner">{s.banner}</div>}
 
       <TripOverlay />
+      <TourOverlay />
 
       {/* hurt flash */}
       {Date.now() - s.hurtAt < 600 && <div className="hurt-flash" key={s.hurtAt} />}

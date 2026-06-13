@@ -11,8 +11,8 @@ import Player from "./Player";
 import Hud from "./Hud";
 import Login from "./Login";
 import { useGame } from "@/lib/store";
-import { clock, daylight, live, moveTarget, zombies, teleport, isBloodMoonNight, DAY_LENGTH_S, weather, isRaining, seasonFor } from "@/lib/runtime";
-import { TREES, ROCKS } from "@/lib/world";
+import { clock, daylight, live, moveTarget, zombies, teleport, isBloodMoonNight, DAY_LENGTH_S, weather, isRaining, seasonFor, tour } from "@/lib/runtime";
+import { TREES, ROCKS, TOUR_STOPS } from "@/lib/world";
 import { ambience } from "@/lib/ambience";
 import { startMultiplayer, ghosts } from "@/lib/multiplayer";
 import * as cloud from "@/lib/cloud";
@@ -162,6 +162,36 @@ function Rain() {
   );
 }
 
+const TOUR_OFFSET = new THREE.Vector3(13, 15, 13);
+const TOUR_SECS = 3.6;
+
+function TourCamera() {
+  const { camera } = useThree();
+  const step = useGame((s) => s.tourStep);
+  const elapsed = useRef(0);
+  const lastStep = useRef(-1);
+
+  useFrame((_, dt) => {
+    if (step < 0 || step >= TOUR_STOPS.length) return;
+    if (step !== lastStep.current) {
+      lastStep.current = step;
+      elapsed.current = 0;
+    }
+    const stop = TOUR_STOPS[step];
+    const focus = new THREE.Vector3(stop.focus[0], 0.8, stop.focus[1]);
+    const want = focus.clone().add(TOUR_OFFSET);
+    // first stop snaps near, the rest glide
+    camera.position.lerp(want, Math.min(1, dt * (step === 0 ? 6 : 2.2)));
+    camera.up.set(0, 1, 0);
+    camera.lookAt(focus);
+    elapsed.current += dt;
+    if (elapsed.current >= TOUR_SECS) {
+      useGame.getState().setTourStep(step + 1);
+    }
+  });
+  return null;
+}
+
 function SpectatorOverlay() {
   const setSpectator = useGame((s) => s.setSpectator);
   useEffect(() => {
@@ -187,6 +217,14 @@ export default function Game() {
   useEffect(() => {
     if (started || spectator) ambience.start();
     if (started) startMultiplayer();
+    // first time in: roll the welcome camera tour
+    if (started) {
+      let done = false;
+      try { done = localStorage.getItem("ww-tour-done") === "1"; } catch {}
+      if (!done && useGame.getState().location === "forest") {
+        setTimeout(() => useGame.getState().startTour(), 600);
+      }
+    }
   }, [started, spectator]);
   useEffect(() => {
     // dev/test hooks for scripted playtesting
@@ -216,6 +254,7 @@ export default function Game() {
           {location === "forest" ? <World /> : location === "interior" ? <Interior /> : location === "cave" ? <Cave /> : <Homestead />}
           <Player />
           <Rain />
+          <TourCamera />
         </Suspense>
       </Canvas>
       {started ? <Hud /> : spectator ? <SpectatorOverlay /> : <Login />}

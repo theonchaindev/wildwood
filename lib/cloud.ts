@@ -52,6 +52,9 @@ export function saveData() {
     weapon: s.weapon,
     armor: s.armor,
     shirt: s.shirt,
+    ownedAxes: s.ownedAxes,
+    ownedWeapons: s.ownedWeapons,
+    ownedArmor: s.ownedArmor,
     ownedShirts: s.ownedShirts,
     hat: s.hat,
     ownedHats: s.ownedHats,
@@ -104,7 +107,12 @@ function applyAuth(data: AuthResponse) {
       s.addToast("💾 Kept your newer local progress — syncing it to the cloud");
       setTimeout(pushSave, 1500);
     } else {
-      useGame.setState({ ...data.save, name: data.name });
+      const save = { ...data.save };
+      // back-fill owned-gear lists from older cloud saves
+      if (!save.ownedWeapons) save.ownedWeapons = save.weapon ? [save.weapon] : [];
+      if (!save.ownedAxes) save.ownedAxes = save.axe ? [save.axe] : [];
+      if (!save.ownedArmor) save.ownedArmor = save.armor ? [save.armor] : [];
+      useGame.setState({ ...save, name: data.name });
     }
   } else {
     useGame.setState({ name: data.name });

@@ -6,7 +6,7 @@ import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { useGame, collectibleRespawnMs, Interact, WeaponTier } from "@/lib/store";
 import { useModel } from "@/lib/assets";
-import { live, moveTarget, chop, mine, fishing, teleport, zombies, animals, daylight, isRaining } from "@/lib/runtime";
+import { live, moveTarget, chop, mine, fishing, teleport, zombies, animals, daylight, isRaining, tour } from "@/lib/runtime";
 import { sfx } from "@/lib/sound";
 import {
   COLLECTIBLES, CAMPFIRE_POS, BUILDINGS, GLADE_RADIUS, RIVER_X, RIVER_WIDTH,
@@ -510,22 +510,39 @@ export default function Player() {
     const speed = (tired ? 3.2 : state.mounted ? 11 : sprinting ? 9.5 : 6.5) * (weedHigh ? 0.82 : 1);
 
     if (moving) {
-      const nx = g.position.x + dir.x * speed * dt;
-      const nz = g.position.z + dir.z * speed * dt;
+      const step = speed * dt;
       const homeTierHere =
         state.location === "visit" ? state.visitData?.homeTier ?? 1 : state.homeTier;
       const homeHouseHere =
         state.location === "visit" ? state.visitData?.houseLevel ?? 1 : state.houseLevel;
-      const [rx, rz] = atCave
-        ? resolveCaveMovement(g.position.x, g.position.z, nx, nz, state.minedAt)
-        : atInterior
-        ? resolveInteriorMovement(g.position.x, g.position.z, nx, nz, homeHouseHere)
-        : atHome
-        ? resolveHomeMovement(g.position.x, g.position.z, nx, nz, homeTierHere, homeHouseHere)
-        : resolveMovement(g.position.x, g.position.z, nx, nz, state.choppedAt, state.minedAt);
-      g.position.x = rx;
-      g.position.z = rz;
-      faceToward(dir.x, dir.z, 12);
+      const px0 = g.position.x;
+      const pz0 = g.position.z;
+      const resolveAt = (nx: number, nz: number): [number, number] =>
+        atCave
+          ? resolveCaveMovement(px0, pz0, nx, nz, state.minedAt)
+          : atInterior
+          ? resolveInteriorMovement(px0, pz0, nx, nz, homeHouseHere)
+          : atHome
+          ? resolveHomeMovement(px0, pz0, nx, nz, homeTierHere, homeHouseHere)
+          : resolveMovement(px0, pz0, nx, nz, state.choppedAt, state.minedAt);
+
+      // click-to-move steers around obstacles: try the straight line first,
+      // and if it's blocked fan out to either side and take the clearest angle
+      const baseAng = Math.atan2(dir.x, dir.z);
+      const offsets = moveTarget.active && !keyboardMove
+        ? [0, 0.45, -0.45, 0.9, -0.9, 1.4, -1.4]
+        : [0];
+      let bx = px0, bz = pz0, bestProg = -Infinity, bAng = baseAng;
+      for (const off of offsets) {
+        const a = baseAng + off;
+        const [rx, rz] = resolveAt(px0 + Math.sin(a) * step, pz0 + Math.cos(a) * step);
+        const prog = (rx - px0) * dir.x + (rz - pz0) * dir.z; // progress toward the goal
+        if (prog > bestProg) { bestProg = prog; bx = rx; bz = rz; bAng = a; }
+        if (off === 0 && prog > step * 0.7) break; // straight path clear — take it
+      }
+      g.position.x = bx;
+      g.position.z = bz;
+      faceToward(Math.sin(bAng), Math.cos(bAng), 12);
       walkPhase.current += dt * (sprinting ? 14 : 10);
     }
 
@@ -558,6 +575,8 @@ export default function Player() {
     motion.moving = moving;
 
     // --- camera follow (pulled in close indoors so the room fills the screen) ---
+    // …unless the welcome tour is driving the camera
+    if (tour.active) return;
     const desired = g.position.clone().add(atInterior ? INTERIOR_CAM_OFFSET : CAM_OFFSET);
     camera.position.lerp(desired, Math.min(1, dt * 4));
 

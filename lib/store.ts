@@ -3,11 +3,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { sfx } from "./sound";
-import { teleport, live, isBloodMoonNight, isNight, isRaining, clock, DAY_LENGTH_S } from "./runtime";
+import { teleport, live, isBloodMoonNight, isNight, isRaining, clock, DAY_LENGTH_S, tour } from "./runtime";
 import {
   CAMPFIRE_POS, ShopId, HOME_TIERS, HOME_PORTAL_POS, HOME_CABIN_POS,
   CAVE_ENTRANCE_POS, CAVE_HD,
-  homeGateZ, homeTierDef, interiorDims,
+  homeGateZ, homeTierDef, interiorDims, TOUR_STOPS,
 } from "./world";
 
 export type Interact =
@@ -568,9 +568,12 @@ type GameState = {
   level: number;
   acorns: number;
   axe: AxeTier | null;
+  ownedAxes: AxeTier[];
   rod: boolean;
   weapon: WeaponTier | null;
+  ownedWeapons: WeaponTier[];
   armor: ArmorTier | null;
+  ownedArmor: ArmorTier[];
   shirt: string;
   ownedShirts: string[];
   hat: string | null;
@@ -653,6 +656,7 @@ type GameState = {
   showJournal: boolean;
   showDecorShop: boolean;
   showInventory: boolean;
+  tourStep: number;
   showNotice: boolean;
 
   xpToLevel: () => number;
@@ -696,6 +700,9 @@ type GameState = {
   toggleDecorShop: () => void;
   toggleInventory: () => void;
   toggleNotice: () => void;
+  startTour: () => void;
+  setTourStep: (n: number) => void;
+  endTour: () => void;
   animalKilled: (kind: "chicken" | "boar" | "rabbit" | "deer") => void;
   hurt: (dmg: number, canInfect?: boolean) => void;
   buyHomestead: () => void;
@@ -737,6 +744,9 @@ type GameState = {
   catchFish: () => void;
   collectWater: () => void;
   buyAxe: (tier: AxeTier) => void;
+  equipWeapon: (tier: WeaponTier | null) => void;
+  equipAxe: (tier: AxeTier | null) => void;
+  equipArmor: (tier: ArmorTier | null) => void;
   buyRod: () => void;
   buyWeapon: (tier: WeaponTier) => void;
   buyArmor: (tier: ArmorTier) => void;
@@ -747,6 +757,7 @@ type GameState = {
   acceptOffer: (offer: Offer) => void;
   sellItem: (label: string, qty: number) => void;
   questEvent: (questId: string) => void;
+  catchUpQuests: () => void;
   setZone: (zone: string) => void;
   setNearInteract: (i: Interact | null) => void;
   setNearWater: (near: boolean) => void;
@@ -787,9 +798,12 @@ export const useGame = create<GameState>()(
       level: 1,
       acorns: 1000, // generous starting purse for testing the economy
       axe: null,
+      ownedAxes: [],
       rod: false,
       weapon: null,
+      ownedWeapons: [],
       armor: null,
+      ownedArmor: [],
       shirt: "green",
       ownedShirts: ["green"],
       hat: null,
@@ -862,6 +876,7 @@ export const useGame = create<GameState>()(
       showJournal: false,
       showDecorShop: false,
       showInventory: false,
+      tourStep: -1,
       showNotice: false,
 
       xpToLevel: () => get().level * 100,
@@ -1019,6 +1034,20 @@ export const useGame = create<GameState>()(
         sfx.ui();
         set((s) => ({ showNotice: !s.showNotice, showInventory: false, showSkills: false, showJournal: false, showQuests: false, showHelp: false, openShop: null, openPanel: null, homeOffer: null }));
       },
+
+      startTour: () => {
+        tour.active = true;
+        set({ tourStep: 0, openShop: null, openPanel: null, showInventory: false, showNotice: false });
+      },
+      setTourStep: (n) => {
+        if (n >= TOUR_STOPS.length) { get().endTour(); return; }
+        set({ tourStep: n });
+      },
+      endTour: () => {
+        tour.active = false;
+        set({ tourStep: -1 });
+        try { localStorage.setItem("ww-tour-done", "1"); } catch {}
+      },
       registerHit: (key, amount, crit) => {
         set((s) => ({
           lastHit: { id: (s.lastHit?.id ?? 0) + 1, key, amount, crit, at: Date.now() },
@@ -1044,6 +1073,7 @@ export const useGame = create<GameState>()(
       start: (name) => {
         sfx.unlock();
         set({ name: name.trim() || "Wanderer", started: true });
+        setTimeout(() => get().catchUpQuests(), 100);
       },
 
       setAppearance: (a) => set({ appearance: a }),
@@ -1655,7 +1685,10 @@ export const useGame = create<GameState>()(
         }
         set({ inventory: inv });
         if (recipe.weapon) {
-          set({ weapon: recipe.weapon });
+          set({
+            weapon: recipe.weapon,
+            ownedWeapons: Array.from(new Set([...get().ownedWeapons, recipe.weapon])),
+          });
           get().setBanner(`💠 You forged the ${WEAPONS[recipe.weapon].label}!`);
           sfx.levelUp();
         } else if (recipe.output) {
@@ -1944,12 +1977,39 @@ export const useGame = create<GameState>()(
       buyAxe: (tier) => {
         const s = get();
         const def = AXES[tier];
-        if (s.axe === tier || (s.axe === "golden" && tier === "rusty")) return;
+        if (s.ownedAxes.includes(tier)) {
+          set({ axe: tier });
+          sfx.ui();
+          s.addToast(`Equipped the ${def.label}`);
+          return;
+        }
         if (!spend(s, def.cost)) return;
-        set({ acorns: s.acorns - def.cost, axe: tier });
+        set({ acorns: s.acorns - def.cost, axe: tier, ownedAxes: [...s.ownedAxes, tier] });
         sfx.buy();
         s.addToast(`Bought the ${def.label}!`);
         get().questEvent("buy-axe");
+      },
+
+      equipWeapon: (tier) => {
+        const s = get();
+        if (tier && !s.ownedWeapons.includes(tier)) return;
+        set({ weapon: tier });
+        sfx.ui();
+        s.addToast(tier ? `Equipped ${WEAPONS[tier].label}` : "Weapon stowed — bare fists");
+      },
+      equipAxe: (tier) => {
+        const s = get();
+        if (tier && !s.ownedAxes.includes(tier)) return;
+        set({ axe: tier });
+        sfx.ui();
+        s.addToast(tier ? `Equipped ${AXES[tier].label}` : "Axe stowed");
+      },
+      equipArmor: (tier) => {
+        const s = get();
+        if (tier && !s.ownedArmor.includes(tier)) return;
+        set({ armor: tier });
+        sfx.ui();
+        s.addToast(tier ? `Equipped ${ARMOR[tier].label}` : "Armour removed");
       },
 
       buyRod: () => {
@@ -1963,25 +2023,33 @@ export const useGame = create<GameState>()(
 
       buyWeapon: (tier) => {
         const s = get();
-        if (s.weapon === "diamond") return; // nothing The Forge sells beats it
-        const order: WeaponTier[] = ["club", "spear", "sword", "waraxe", "warhammer"];
-        if (s.weapon && order.indexOf(s.weapon) >= order.indexOf(tier)) return;
         const def = WEAPONS[tier];
+        // already own it? just equip
+        if (s.ownedWeapons.includes(tier)) {
+          set({ weapon: tier });
+          sfx.ui();
+          s.addToast(`Equipped the ${def.label}`);
+          return;
+        }
         if (!spend(s, def.cost)) return;
-        set({ acorns: s.acorns - def.cost, weapon: tier });
+        set({ acorns: s.acorns - def.cost, weapon: tier, ownedWeapons: [...s.ownedWeapons, tier] });
         sfx.buy();
-        s.addToast(`Equipped the ${def.label}! (${def.dmg} dmg)`);
+        s.addToast(`Bought & equipped the ${def.label}! (${def.dmg} dmg)`);
       },
 
       buyArmor: (tier) => {
         const s = get();
-        const order: ArmorTier[] = ["leather", "iron"];
-        if (s.armor && order.indexOf(s.armor) >= order.indexOf(tier)) return;
         const def = ARMOR[tier];
+        if (s.ownedArmor.includes(tier)) {
+          set({ armor: tier });
+          sfx.ui();
+          s.addToast(`Equipped the ${def.label}`);
+          return;
+        }
         if (!spend(s, def.cost)) return;
-        set({ acorns: s.acorns - def.cost, armor: tier });
+        set({ acorns: s.acorns - def.cost, armor: tier, ownedArmor: [...s.ownedArmor, tier] });
         sfx.buy();
-        s.addToast(`Equipped the ${def.label}!`);
+        s.addToast(`Bought & equipped the ${def.label}!`);
       },
 
       buyShirt: (key) => {
@@ -2148,6 +2216,45 @@ export const useGame = create<GameState>()(
         get().bumpStat("acornsEarned", price * n);
       },
 
+      // auto-complete the active quest (and any after it) if the player has
+      // already met its condition — fixes e.g. buying land before the quest
+      catchUpQuests: () => {
+        const satisfied = (q: Quest): boolean => {
+          const st = get();
+          const stat = (k: string) => st.stats[k] ?? 0;
+          switch (q.id) {
+            case "timber": return stat("treesChopped") >= q.goal;
+            case "buy-axe": return !!st.axe;
+            case "go-fish": return stat("fishCaught") >= q.goal;
+            case "night-watch": return stat("zombiesKilled") >= q.goal;
+            case "buy-plot": return st.homeTier >= 1;
+            case "harvest": return stat("cropsHarvested") >= q.goal;
+            case "cook": return stat("mealsCooked") >= q.goal;
+            default: return false;
+          }
+        };
+        let changed = false;
+        for (let guard = 0; guard < 20; guard++) {
+          const quests = get().quests;
+          const ai = quests.findIndex((q) => !q.done);
+          if (ai === -1) break;
+          const q = quests[ai];
+          if (!satisfied(q)) break;
+          set({
+            quests: quests.map((x, i) => (i === ai ? { ...x, progress: x.goal, done: true } : x)),
+            acorns: get().acorns + q.acorns,
+          });
+          get().setBanner(`Quest complete — ${q.title}`);
+          get().addToast(`Reward: +${q.xp} XP${q.acorns > 0 ? ` · +${q.acorns} 🌰` : ""}`);
+          get().addXp(q.xp);
+          changed = true;
+        }
+        if (changed) {
+          const next = get().quests.find((q) => !q.done);
+          if (next) setTimeout(() => get().addToast(`New quest: ${next.title}`), 1200);
+        }
+      },
+
       questEvent: (questId) => {
         const s = get();
         const idx = s.quests.findIndex((q) => q.id === questId);
@@ -2303,6 +2410,9 @@ export const useGame = create<GameState>()(
         weapon: s.weapon,
         armor: s.armor,
         shirt: s.shirt,
+        ownedAxes: s.ownedAxes,
+        ownedWeapons: s.ownedWeapons,
+        ownedArmor: s.ownedArmor,
         ownedShirts: s.ownedShirts,
         hat: s.hat,
         ownedHats: s.ownedHats,
@@ -2335,7 +2445,12 @@ export const useGame = create<GameState>()(
         dailyClaimed: s.dailyClaimed,
       }),
       onRehydrateStorage: () => (state) => {
-        if (state) sfx.muted = state.muted;
+        if (!state) return;
+        sfx.muted = state.muted;
+        // back-fill owned-gear lists for saves from before they existed
+        if (!state.ownedWeapons) state.ownedWeapons = state.weapon ? [state.weapon] : [];
+        if (!state.ownedAxes) state.ownedAxes = state.axe ? [state.axe] : [];
+        if (!state.ownedArmor) state.ownedArmor = state.armor ? [state.armor] : [];
       },
     }
   )

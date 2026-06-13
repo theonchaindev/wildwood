@@ -11,7 +11,7 @@ import {
 } from "@/lib/world";
 import { useGame, collectibleRespawnMs } from "@/lib/store";
 import { moveTarget, daylight, lastWater } from "@/lib/runtime";
-import Trees from "./Trees";
+import Trees, { HoverRing } from "./Trees";
 import Rocks from "./Rocks";
 import Zombies from "./Zombies";
 import Animals from "./Animals";
@@ -155,13 +155,15 @@ function Building({ id, label, pos }: { id: string; label: string; pos: [number,
   const wood = "#7a5a33";
   const woodDark = "#5e4426";
   const awning = AWNING_COLORS[id] ?? "#b8543f";
+  const [hovered, setHovered] = useState(false);
   return (
     <group
       position={pos}
       onClick={(e) => { e.stopPropagation(); open(); }}
-      onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; }}
-      onPointerOut={() => { document.body.style.cursor = ""; }}
+      onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; setHovered(true); }}
+      onPointerOut={() => { document.body.style.cursor = ""; setHovered(false); }}
     >
+      {hovered && <HoverRing r={2.4} color="#ffe27a" y={0.08} />}
       {/* posts */}
       {[[-1.4, -0.8], [1.4, -0.8], [-1.4, 0.9], [1.4, 0.9]].map(([x, z], i) => (
         <mesh key={i} position={[x, 1.1, z]} castShadow>

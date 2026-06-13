@@ -48,6 +48,21 @@ export const RIVER_WIDTH = 7;
 export const GLADE_RADIUS = 14;
 export const CAMPFIRE_POS: [number, number, number] = [3, 0, -2];
 export const NOTICE_BOARD_POS: [number, number, number] = [-1.5, 0, -4.5];
+
+// the welcome tour: the camera glides to each landmark with a caption
+export type TourStop = { focus: [number, number]; title: string; text: string };
+export const TOUR_STOPS: TourStop[] = [
+  { focus: [3, -2], title: "Welcome to Wildwood", text: "A living forest you can farm, fight and earn in. Here's the lay of the land…" },
+  { focus: [-5, 4], title: "🛖 The Den", text: "General store — axes, a fishing rod, pickaxe, seeds, even pets. Your first stop." },
+  { focus: [-9, -5], title: "⚔️ The Forge", text: "Weapons & armour to fight the dead after dark. Bigger blades, tougher nights." },
+  { focus: [3, 9], title: "🧵 Threads", text: "Outfits and hats — make your survivor your own." },
+  { focus: [9, 3], title: "🏥 The Remedy", text: "Bandages, medkits and antidotes. Zombie scratches and raw meat can infect you." },
+  { focus: [-2, -9], title: "⚖️ The Vault", text: "Trade with other survivors, send gifts, and convert acorns into $ACORN coin." },
+  { focus: [-1.5, -4.5], title: "📌 Notice Board", text: "The coin contract and a live tally of everything paid out to players." },
+  { focus: [-14.5, 0], title: "🏡 Your Haven", text: "Buy your own private land through this gate — farm, ranch, build and decorate." },
+  { focus: [-22, -16], title: "⛏️ The Old Mine", text: "West through Darkwood: coal to fuel your furnace and rare diamonds to forge." },
+  { focus: [3, -2], title: "Off you go!", text: "Night falls every 20 minutes — gather by day, survive by night. Good luck out there." },
+];
 export const BRIDGE_Z = 0;
 
 export type ShopId = "trader" | "armoury" | "tailor" | "medbay" | "exchange";
