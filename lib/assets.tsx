@@ -40,20 +40,27 @@ export function useModel(
   size: number,
   by: "y" | "xz" | "max" = "y",
   align: "bottom" | "flush" | "center" = "bottom",
-  tex?: string
+  tex?: string,
+  drop?: string[]
 ) {
   const fbx = useLoader(FBXLoader, `/models/${file}.fbx`);
   const material = useAtlasMaterial(tex);
+  const dropKey = (drop ?? []).join(",");
 
   return useMemo(() => {
     const obj = fbx.clone(true);
+    // remove unwanted sub-meshes by name (e.g. a model's own ground/grass plane)
+    const remove: THREE.Object3D[] = [];
     obj.traverse((child) => {
       if (child instanceof THREE.Mesh) {
+        const n = child.name.toLowerCase();
+        if (drop && drop.some((d) => n.includes(d))) { remove.push(child); return; }
         child.material = material;
         child.castShadow = align !== "flush";
         child.receiveShadow = true;
       }
     });
+    for (const r of remove) r.parent?.remove(r);
     const box = new THREE.Box3().setFromObject(obj);
     const dims = box.getSize(new THREE.Vector3());
     const dim =
@@ -69,7 +76,7 @@ export function useModel(
     const group = new THREE.Group();
     group.add(obj);
     return group;
-  }, [fbx, material, size, by, align]);
+  }, [fbx, material, size, by, align, dropKey]);
 }
 
 /**
@@ -208,11 +215,12 @@ type ModelProps = {
   position: [number, number, number];
   rotationY?: number;
   tex?: string;
+  drop?: string[];
 };
 
 /** One placed instance of a normalized model (geometry/material shared via clone). */
-export function Model({ file, size, by = "y", align = "bottom", position, rotationY = 0, tex }: ModelProps) {
-  const proto = useModel(file, size, by, align, tex);
+export function Model({ file, size, by = "y", align = "bottom", position, rotationY = 0, tex, drop }: ModelProps) {
+  const proto = useModel(file, size, by, align, tex, drop);
   const instance = useMemo(() => proto.clone(true), [proto]);
   return (
     <primitive

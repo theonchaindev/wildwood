@@ -505,7 +505,18 @@ export default function World() {
 }
 
 function ModelCastle() {
-  return <Model file="castle/CastleRuins" size={62} by="xz" tex="/models/castle/atlas.png" position={[0, 0, 0]} rotationY={-0.6} />;
+  // drop the model's own grass/dirt landscape so it sits straight on our grass
+  return (
+    <Model
+      file="castle/CastleRuins"
+      size={48}
+      by="xz"
+      tex="/models/castle/atlas.png"
+      drop={["plano", "base", "grass", "ground", "terrain", "rock_path", "forest", "tree", "flower", "pumpkin", "debris", "vase", "moss"]}
+      position={[0, 0, 0]}
+      rotationY={-0.6}
+    />
+  );
 }
 
 function ModelWindmill() {
