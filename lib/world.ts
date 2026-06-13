@@ -62,7 +62,7 @@ export const TOUR_STOPS: TourStop[] = [
   { focus: [-14, -8], title: "⚔️ The Forge", text: "Weapons & armour to fight the dead after dark. Bigger blades, tougher nights." },
   { focus: [6, 15], title: "🧵 Threads", text: "Outfits and hats — make your survivor your own." },
   { focus: [15, 7], title: "🏥 The Remedy", text: "Bandages, medkits and antidotes. Zombie scratches and raw meat can infect you." },
-  { focus: [-4, -15], title: "⚖️ The Vault", text: "Trade with other survivors, send gifts, and convert acorns into $WOOD coin." },
+  { focus: [-4, -15], title: "⚖️ The Vault", text: "Trade with other survivors, send gifts, and convert Wood into $WOOD coin." },
   { focus: [-3, -6], title: "📌 Notice Board", text: "The coin contract and a live tally of everything paid out to players." },
   { focus: [-22, 0], title: "🏡 Your Base", text: "Buy your own private land through the west gate — farm, ranch, build and decorate." },
   { focus: [-38, -38], title: "⛏️ The Old Mine", text: "Northwest through Darkwood: a deep cave of coal, diamonds — and things that bite back." },

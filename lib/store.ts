@@ -443,7 +443,7 @@ export const HOUSE_LEVELS = [
   { name: "Timber Cottage", icon: "🏠", acorns: 400, wood: 20, stone: 0, perk: "Sleep through the night — rest at your door after dusk" },
   { name: "Stone Farmhouse", icon: "🏡", acorns: 900, wood: 30, stone: 20, perk: "Crops grow 20% faster" },
   { name: "Hunter's Lodge", icon: "🏕️", acorns: 1600, wood: 50, stone: 35, perk: "Pens, hives & orchard produce 20% faster" },
-  { name: "Wildwood Manor", icon: "🏰", acorns: 3000, wood: 80, stone: 60, perk: `Earn 150 🌰 rent — collect at your door every day` },
+  { name: "Wildwood Manor", icon: "🏰", acorns: 3000, wood: 80, stone: 60, perk: `Earn 150 🪵 rent — collect at your door every day` },
 ];
 
 export const RENT_AMOUNT = 150;
@@ -834,7 +834,7 @@ type GameState = {
 
 function spend(s: { acorns: number; addToast: (t: string) => void }, cost: number): boolean {
   if (s.acorns < cost) {
-    s.addToast("Not enough acorns!");
+    s.addToast("Not enough Wood!");
     sfx.error();
     return false;
   }
@@ -968,7 +968,7 @@ export const useGame = create<GameState>()(
               acorns: get().acorns + a.acorns,
             });
             get().setBanner(`${a.icon} Achievement — ${a.title}!`);
-            get().addToast(`📖 ${a.desc} · +${a.acorns} 🌰 · +${a.xp} XP`);
+            get().addToast(`📖 ${a.desc} · +${a.acorns} 🪵 · +${a.xp} XP`);
             sfx.questDone();
             get().addXp(a.xp);
           }
@@ -993,7 +993,7 @@ export const useGame = create<GameState>()(
         if ((s.stats[q.stat] ?? 0) - (s.dailyBase[q.stat] ?? 0) < q.goal) return;
         set({ dailyClaimed: [...s.dailyClaimed, id], acorns: s.acorns + q.acorns });
         sfx.coin();
-        s.addToast(`📋 ${q.label} — +${q.acorns} 🌰 · +${q.xp} XP`);
+        s.addToast(`📋 ${q.label} — +${q.acorns} 🪵 · +${q.xp} XP`);
         s.addXp(q.xp);
       },
 
@@ -1071,7 +1071,7 @@ export const useGame = create<GameState>()(
           interiorDecor: s.interiorDecor.filter((d) => d.id !== id),
           acorns: s.acorns + refund,
         });
-        s.addToast(`Removed ${DECOR_ITEMS[piece.key]?.label ?? "furnishing"} · +${refund} 🌰 back`);
+        s.addToast(`Removed ${DECOR_ITEMS[piece.key]?.label ?? "furnishing"} · +${refund} 🪵 back`);
         sfx.ui();
       },
 
@@ -1309,7 +1309,7 @@ export const useGame = create<GameState>()(
           s.gainItem("Purple Mushroom", 2);
           set({ acorns: get().acorns + loot, attackTargetId: null });
           s.setBanner("👹 THE BUTCHER HAS FALLEN!");
-          s.addToast(`+${loot} 🌰 · +150 XP · 🧰 Medkit · 🍄 ×2`);
+          s.addToast(`+${loot} 🪵 · +150 XP · 🧰 Medkit · 🍄 ×2`);
           sfx.questDone();
           s.addXp(150);
           get().bumpStat("bossKills");
@@ -1324,7 +1324,7 @@ export const useGame = create<GameState>()(
           if (Math.random() < 0.35) s.gainItem("Coal", 1);
           if (Math.random() < 0.04) s.gainItem("Diamond", 1);
           set({ acorns: get().acorns + loot, attackTargetId: null });
-          s.addToast(`💀 Slain! +20 XP · +${loot} 🌰 · 🦴 Bones`);
+          s.addToast(`💀 Slain! +20 XP · +${loot} 🪵 · 🦴 Bones`);
           sfx.coin();
           s.addXp(20);
           get().bumpStat("zombiesKilled");
@@ -1335,7 +1335,7 @@ export const useGame = create<GameState>()(
         const extra = Math.random() < 0.06 ? "Magic Shroom" : Math.random() < 0.25 ? "Purple Mushroom" : null;
         if (extra) s.gainItem(extra, 1);
         set({ acorns: get().acorns + loot, attackTargetId: null });
-        s.addToast(`${blood ? "🔴 " : ""}Zombie slain! +25 XP · +${loot} 🌰${extra ? ` · +1 ${extra}` : ""}`);
+        s.addToast(`${blood ? "🔴 " : ""}Zombie slain! +25 XP · +${loot} 🪵${extra ? ` · +1 ${extra}` : ""}`);
         sfx.coin();
         s.addXp(25);
         get().bumpStat("zombiesKilled");
@@ -1557,7 +1557,7 @@ export const useGame = create<GameState>()(
         }
         set({ acorns: s.acorns + RENT_AMOUNT, lastRentAt: Date.now() });
         sfx.coin();
-        s.addToast(`💰 Collected ${RENT_AMOUNT} 🌰 rent from your tenants`);
+        s.addToast(`💰 Collected ${RENT_AMOUNT} 🪵 rent from your tenants`);
       },
 
       plantOrchardTree: (idx) => {
@@ -1687,7 +1687,7 @@ export const useGame = create<GameState>()(
           return;
         }
         if (s.acorns < def.acorns) {
-          s.addToast(`Needs ${def.acorns} acorns 🌰`);
+          s.addToast(`Needs ${def.acorns} Wood 🪵`);
           sfx.error();
           return;
         }
@@ -2097,8 +2097,8 @@ export const useGame = create<GameState>()(
           s.setBanner("You blacked out… you wake by the campfire, pack empty");
           s.addToast(
             lootCount > 0
-              ? `💀 Lost all your loot (${lootCount} items)${lost > 0 ? ` · ${lost} 🌰` : ""} — chest items are safe`
-              : `💀 ${lost > 0 ? `Lost ${lost} 🌰 in the dark` : "At least your pack was already empty"}`
+              ? `💀 Lost all your loot (${lootCount} items)${lost > 0 ? ` · ${lost} 🪵` : ""} — chest items are safe`
+              : `💀 ${lost > 0 ? `Lost ${lost} 🪵 in the dark` : "At least your pack was already empty"}`
           );
         } else {
           set({ hp, hurtAt: Date.now() });
@@ -2343,7 +2343,7 @@ export const useGame = create<GameState>()(
             acorns: s.acorns + offer.price,
             acceptedOffers: [...s.acceptedOffers, offer.id],
           });
-          s.addToast(`Traded ${offer.qty} ${offer.item} to ${offer.npc} for ${offer.price} 🌰`);
+          s.addToast(`Traded ${offer.qty} ${offer.item} to ${offer.npc} for ${offer.price} 🪵`);
           sfx.coin();
           get().bumpStat("acornsEarned", offer.price);
         } else {
@@ -2370,7 +2370,7 @@ export const useGame = create<GameState>()(
         else inv[label] = have - n;
         set({ inventory: inv, acorns: s.acorns + price * n });
         sfx.coin();
-        s.addToast(`Sold ${n} ${label} for ${price * n} acorns`);
+        s.addToast(`Sold ${n} ${label} for ${price * n} Wood`);
         get().bumpStat("acornsEarned", price * n);
       },
 
@@ -2403,7 +2403,7 @@ export const useGame = create<GameState>()(
             acorns: get().acorns + q.acorns,
           });
           get().setBanner(`Quest complete — ${q.title}`);
-          get().addToast(`Reward: +${q.xp} XP${q.acorns > 0 ? ` · +${q.acorns} 🌰` : ""}`);
+          get().addToast(`Reward: +${q.xp} XP${q.acorns > 0 ? ` · +${q.acorns} 🪵` : ""}`);
           get().addXp(q.xp);
           changed = true;
         }
@@ -2430,7 +2430,7 @@ export const useGame = create<GameState>()(
           set({ acorns: get().acorns + quest.acorns });
           s.setBanner(`Quest complete — ${quest.title}`);
           sfx.questDone();
-          s.addToast(`Reward: +${quest.xp} XP${quest.acorns > 0 ? ` · +${quest.acorns} 🌰` : ""}`);
+          s.addToast(`Reward: +${quest.xp} XP${quest.acorns > 0 ? ` · +${quest.acorns} 🪵` : ""}`);
           s.addXp(quest.xp);
           const next = quests.find((q) => !q.done);
           if (next) {

@@ -569,7 +569,7 @@ function HomePortal() {
         <meshBasicMaterial color="#9bd06a" transparent opacity={0.25} side={2} />
       </mesh>
       <WorldLabel
-        text={homeTier > 0 ? "🏡 My Base" : `🪧 Land for Sale — ${HOME_TIERS[0].price} 🌰`}
+        text={homeTier > 0 ? "🏡 My Base" : `🪧 Land for Sale — ${HOME_TIERS[0].price} 🪵`}
         y={3.3}
       />
     </group>

@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   }
   const { acorns } = await req.json().catch(() => ({}));
   if (!Number.isInteger(acorns) || acorns < MIN_CASHOUT) {
-    return NextResponse.json({ error: `Minimum conversion is ${MIN_CASHOUT} acorns` }, { status: 400 });
+    return NextResponse.json({ error: `Minimum conversion is ${MIN_CASHOUT} Wood` }, { status: 400 });
   }
   // guard rails: flagged accounts and burst withdrawals wait for review
   if (user.flagged >= 3) {
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     where: { userId: user.id, createdAt: { gt: new Date(Date.now() - 24 * 3600_000) }, status: { not: "failed" } },
   });
   if ((dayTotal._sum.acorns ?? 0) + acorns > 5000) {
-    return NextResponse.json({ error: "Daily conversion cap is 5,000 acorns" }, { status: 429 });
+    return NextResponse.json({ error: "Daily conversion cap is 5,000 Wood" }, { status: 429 });
   }
   const rawAmount = acorns * 10 ** TOKEN_DECIMALS; // 1:1, in token base units
 

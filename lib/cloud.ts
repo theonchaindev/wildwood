@@ -121,7 +121,7 @@ function applyAuth(data: AuthResponse) {
       migrateWoodToTimber(save);
       const baseWiped = applyBaseReset(save); // one-time base wipe for this epoch
       if (baseWiped) {
-        setTimeout(() => useGame.getState().setBanner("🏡 Bases have been reset — rebuild yours! (acorns refunded)"), 1500);
+        setTimeout(() => useGame.getState().setBanner("🏡 Bases have been reset — rebuild yours! (Wood refunded)"), 1500);
       }
       // existing base owners keep their built stations/soil
       if (save.homeTier >= 1 && save.baseChest === undefined) {
@@ -141,7 +141,7 @@ function applyAuth(data: AuthResponse) {
   useGame.setState({ account: { name: data.name } });
   if (data.pendingAcorns > 0) {
     useGame.setState({ acorns: useGame.getState().acorns + data.pendingAcorns });
-    s.addToast(`💰 Your offers sold while you were away: +${data.pendingAcorns} 🌰`);
+    s.addToast(`💰 Your offers sold while you were away: +${data.pendingAcorns} 🪵`);
   }
 }
 
@@ -232,7 +232,7 @@ export async function postOffer(item: string, qty: number, price: number) {
   useGame.setState({ inventory: inv });
   try {
     await api("/api/offers", { method: "POST", body: JSON.stringify({ item, qty, price }) });
-    s.addToast(`📋 Posted: ${qty} ${item} for ${price} 🌰`);
+    s.addToast(`📋 Posted: ${qty} ${item} for ${price} 🪵`);
     pushSave();
   } catch (e) {
     useGame.getState().gainItem(item, qty); // refund

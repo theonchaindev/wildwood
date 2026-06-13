@@ -209,7 +209,7 @@ export default function Zombies() {
     if (night && !wasNight.current) {
       if (isBossNight()) {
         state.setBanner("👹 THE BUTCHER WALKS TONIGHT");
-        state.addToast("Fell him for a fortune in acorns…");
+        state.addToast("Fell him for a fortune in Wood…");
         const boss = spawnZombie(blood, "boss");
         if (boss) zombies.push(boss);
       } else if (blood) {

@@ -122,7 +122,7 @@ function FarmTile({ idx, readOnly }: { idx: number; readOnly?: boolean }) {
           <meshStandardMaterial color="#6f8a48" roughness={1} transparent opacity={0.6} />
         </mesh>
         <Html position={[0, 0.6, 0]} center distanceFactor={30} zIndexRange={[9, 0]}>
-          <div className="world-label small">🟫 Till soil · {TILL_COST.acorns}🌰</div>
+          <div className="world-label small">🟫 Till soil · {TILL_COST.acorns}🪵</div>
         </Html>
       </group>
     );
@@ -509,7 +509,7 @@ function OrchardSpot({ idx, readOnly }: { idx: number; readOnly?: boolean }) {
       </mesh>
       {!tree ? (
         <Html position={[0, 1.2, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
-          <div className="world-label small">🌳 Plant apple tree · {ORCHARD_COST.acorns} 🌰 + {ORCHARD_COST.wood} 🌲</div>
+          <div className="world-label small">🌳 Plant apple tree · {ORCHARD_COST.acorns} 🪵 + {ORCHARD_COST.wood} 🌲</div>
         </Html>
       ) : (
         <>
@@ -582,7 +582,7 @@ function HiveSpot({ idx, readOnly }: { idx: number; readOnly?: boolean }) {
             <meshStandardMaterial color="#75582f" roughness={1} />
           </mesh>
           <Html position={[0, 1.1, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
-            <div className="world-label small">🐝 Build beehive · {HIVE_COST.acorns} 🌰 + {HIVE_COST.wood} 🌲</div>
+            <div className="world-label small">🐝 Build beehive · {HIVE_COST.acorns} 🪵 + {HIVE_COST.wood} 🌲</div>
           </Html>
         </>
       ) : (
@@ -1087,7 +1087,7 @@ function ExtendSign() {
         <meshStandardMaterial color="#a8854a" roughness={1} />
       </mesh>
       <Html position={[0, 1.9, 0]} center distanceFactor={30} zIndexRange={[10, 0]}>
-        <div className="world-label">📐 {next.name} — {next.price} 🌰</div>
+        <div className="world-label">📐 {next.name} — {next.price} 🪵</div>
       </Html>
     </group>
   );
@@ -1188,7 +1188,7 @@ export default function Homestead() {
       {houseLevel >= 1 || visiting ? (
         <House level={visiting ? houseLevel : Math.max(1, houseLevel)} visiting={visiting} />
       ) : (
-        <BuildSite pos={HOME_CABIN_POS} label={`Build a Log Cabin · ${HOUSE_LEVELS[0].acorns}🌰 + ${HOUSE_LEVELS[0].wood}🌲`} onBuild={() => useGame.getState().houseStation()} />
+        <BuildSite pos={HOME_CABIN_POS} label={`Build a Log Cabin · ${HOUSE_LEVELS[0].acorns}🪵 + ${HOUSE_LEVELS[0].wood}🌲`} onBuild={() => useGame.getState().houseStation()} />
       )}
       {!visiting && (baseChest
         ? <Chest />
