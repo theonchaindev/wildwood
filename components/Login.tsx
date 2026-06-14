@@ -216,7 +216,7 @@ export default function Login() {
 
   return (
     <div className="intro-overlay">
-      <div className="intro-panel">
+      <div className={`intro-panel ${mode === "customize" ? "compact" : ""}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/wildwood-logo.png" alt="WILDWOOD" className="intro-logo" />
         <p className="intro-tagline">
@@ -366,9 +366,11 @@ export default function Login() {
           </>
         )}
       </div>
-      <div className="intro-footer">
-        the forest behind this card is live — night falls every 20 minutes
-      </div>
+      {mode !== "customize" && (
+        <div className="intro-footer">
+          the forest behind this card is live — night falls every 20 minutes
+        </div>
+      )}
     </div>
   );
 }
