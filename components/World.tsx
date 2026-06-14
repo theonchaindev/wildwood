@@ -11,7 +11,7 @@ import {
   GLADE_RADIUS, LAKE_POS, LAKE_R, CASTLE_POS, WINDMILL_POS,
 } from "@/lib/world";
 import { useGame, collectibleRespawnMs } from "@/lib/store";
-import { moveTarget, daylight, lastWater } from "@/lib/runtime";
+import { moveTarget, daylight, lastWater, live } from "@/lib/runtime";
 import Trees, { HoverRing } from "./Trees";
 import Rocks from "./Rocks";
 import Zombies from "./Zombies";
@@ -109,7 +109,71 @@ function Sea() {
   );
 }
 
+// a pulsing green ring marking where you clicked to walk; it flashes and
+// fades out as you close the distance, then vanishes on arrival
+function MoveMarker() {
+  const ref = useRef<THREE.Group>(null);
+  const ringMat = useRef<THREE.MeshBasicMaterial>(null);
+  const dotMat = useRef<THREE.MeshBasicMaterial>(null);
+  useFrame(({ clock }) => {
+    const g = ref.current;
+    if (!g) return;
+    if (!moveTarget.active) { g.visible = false; return; }
+    g.visible = true;
+    g.position.set(moveTarget.x, 0.06, moveTarget.z);
+    const dist = Math.hypot(live.x - moveTarget.x, live.z - moveTarget.z);
+    const far = Math.max(0, Math.min(1, (dist - 1.2) / 7)); // ~1 far, 0 when close
+    const pulse = 0.5 + 0.5 * Math.sin(clock.elapsedTime * 6);
+    const s = 0.75 + pulse * 0.4;
+    g.scale.set(s, 1, s);
+    if (ringMat.current) ringMat.current.opacity = (0.3 + 0.5 * pulse) * far;
+    if (dotMat.current) dotMat.current.opacity = 0.5 * far;
+  });
+  return (
+    <group ref={ref} visible={false}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.55, 0.82, 36]} />
+        <meshBasicMaterial ref={ringMat} color="#73ee5a" transparent opacity={0} depthWrite={false} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
+        <circleGeometry args={[0.18, 20]} />
+        <meshBasicMaterial ref={dotMat} color="#9bf587" transparent opacity={0} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+// a procedural grass texture: mottled patches + fine speckle so the ground
+// reads with depth and detail instead of a flat fill
+function makeGroundTexture() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "#5d7e3b";
+  ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 1000; i++) {
+    const x = Math.random() * 256, y = Math.random() * 256, r = 2 + Math.random() * 8;
+    const light = Math.random() < 0.5;
+    ctx.fillStyle = light
+      ? `rgba(124,152,82,${0.1 + Math.random() * 0.22})`
+      : `rgba(68,96,42,${0.14 + Math.random() * 0.26})`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  for (let i = 0; i < 2600; i++) {
+    ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.06})`;
+    ctx.fillRect(Math.random() * 256, Math.random() * 256, 1, 1);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(26, 26);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 function Ground() {
+  const groundTex = useMemo(makeGroundTexture, []);
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     useGame.getState().setChopTarget(null);
@@ -137,7 +201,7 @@ function Ground() {
       {/* the grassy island */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow onClick={handleClick}>
         <planeGeometry args={[196, 196]} />
-        <meshStandardMaterial color="#5d7e3b" roughness={1} />
+        <meshStandardMaterial map={groundTex} roughness={1} />
       </mesh>
       {/* glade clearing — slightly lighter grass */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]} receiveShadow>
@@ -455,6 +519,7 @@ export default function World() {
   return (
     <group>
       <Ground />
+      <MoveMarker />
       {DECOR.map((d, i) => (
         <Model
           key={i}

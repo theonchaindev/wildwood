@@ -23,6 +23,7 @@ const SKY_BLOOD = new THREE.Color("#2a0d10");
 const SKY_INTERIOR = new THREE.Color("#221a10");
 const SKY_CAVE = new THREE.Color("#0b0a0c");
 const SKY_RAIN = new THREE.Color("#5e7261");
+const SKY_FLASH = new THREE.Color("#dfe8ff"); // lightning
 
 // each season nudges the sunlight: warm gold autumns, pale blue winters
 const SEASON_TINT: Record<string, THREE.Color> = {
@@ -48,18 +49,35 @@ function DayNight() {
     clock.timeOfDay = (clock.timeOfDay + dt / DAY_LENGTH_S) % 1;
     if (clock.timeOfDay < prev) clock.day += 1;
 
-    // weather state machine: stretches of clear sky broken by rain showers
+    // weather state machine: clear spells broken by rain, the odd thunderstorm
+    // and rolling fog banks
     if (Date.now() > weather.until) {
-      if (weather.kind === "rain" || Math.random() < 0.65) {
+      const wet = weather.kind === "rain" || weather.kind === "storm";
+      if (wet || Math.random() < 0.6) {
         weather.kind = "clear";
-        weather.until = Date.now() + (200 + Math.random() * 200) * 1000;
+        weather.until = Date.now() + (180 + Math.random() * 200) * 1000;
       } else {
-        weather.kind = "rain";
-        weather.until = Date.now() + (90 + Math.random() * 110) * 1000;
-        useGame.getState().addToast("🌧 Rain! Crops drink it up, fish are biting");
+        const r = Math.random();
+        if (r < 0.22) {
+          weather.kind = "storm";
+          weather.until = Date.now() + (70 + Math.random() * 80) * 1000;
+          useGame.getState().addToast("⛈️ A storm rolls in — the dead stir, and the cold bites");
+        } else if (r < 0.45) {
+          weather.kind = "fog";
+          weather.until = Date.now() + (80 + Math.random() * 90) * 1000;
+          useGame.getState().addToast("🌫️ Fog descends — hard to see what's coming");
+        } else {
+          weather.kind = "rain";
+          weather.until = Date.now() + (90 + Math.random() * 110) * 1000;
+          useGame.getState().addToast("🌧 Rain! Crops drink it up, fish are biting");
+        }
       }
     }
     const raining = isRaining();
+    const storm = weather.kind === "storm";
+    // lightning: random bright flashes during a storm, fading over ~0.35s
+    if (storm && Math.random() < dt * 0.5) weather.flash = 1;
+    weather.flash = Math.max(0, weather.flash - dt * 3);
 
     const d = daylight();
     if (isBloodMoonNight()) {
@@ -69,7 +87,9 @@ function DayNight() {
       sky.current.copy(SKY_NIGHT).lerp(SKY_DAY, d);
       sun.current.copy(SUN_NIGHT).lerp(SUN_DAY, d);
     }
-    if (raining) sky.current.lerp(SKY_RAIN, 0.55 * d);
+    if (raining) sky.current.lerp(SKY_RAIN, (storm ? 0.8 : 0.55) * d);
+    if (storm) sky.current.multiplyScalar(0.72); // brooding dark sky
+    if (weather.flash > 0) sky.current.lerp(SKY_FLASH, weather.flash * 0.8);
     sun.current.multiply(SEASON_TINT[seasonFor(clock.day).name]);
     // indoors (and underground) the world falls away into darkness
     const loc = useGame.getState().location;
@@ -78,13 +98,23 @@ function DayNight() {
 
     if (scene.background instanceof THREE.Color) scene.background.copy(sky.current);
     else scene.background = sky.current.clone();
-    if (scene.fog) scene.fog.color.copy(sky.current);
+    // pull the fog in during fog/storm for atmosphere (and reduced visibility)
+    if (scene.fog instanceof THREE.Fog && loc === "forest") {
+      const targetFar = weather.kind === "fog" ? 58 : storm ? 86 : 132;
+      const targetNear = weather.kind === "fog" ? 14 : storm ? 34 : 60;
+      scene.fog.far += (targetFar - scene.fog.far) * Math.min(1, dt * 1.5);
+      scene.fog.near += (targetNear - scene.fog.near) * Math.min(1, dt * 1.5);
+      scene.fog.color.copy(sky.current);
+    } else if (scene.fog) {
+      scene.fog.color.copy(sky.current);
+    }
 
     if (dirRef.current) {
-      dirRef.current.intensity = (0.12 + 1.4 * d) * (raining ? 0.55 : 1);
+      dirRef.current.intensity =
+        (0.12 + 1.4 * d) * (storm ? 0.38 : raining ? 0.55 : 1) + weather.flash * 1.6;
       dirRef.current.color.copy(sun.current);
     }
-    if (ambRef.current) ambRef.current.intensity = 0.22 + 0.42 * d;
+    if (ambRef.current) ambRef.current.intensity = 0.22 + 0.42 * d + weather.flash * 0.6;
     if (hemiRef.current) hemiRef.current.intensity = 0.08 + 0.34 * d;
   });
 
@@ -133,10 +163,13 @@ function Rain() {
     const raining = isRaining() && useGame.getState().location !== "interior";
     pts.visible = raining;
     if (!raining) return;
+    const storm = weather.kind === "storm";
+    const fall = storm ? 40 : 26;
+    const wind = storm ? 11 : 3; // storms drive the rain sideways
     const p = positions.current!;
     for (let i = 0; i < RAIN_COUNT; i++) {
-      p[i * 3 + 1] -= dt * 26;
-      p[i * 3] -= dt * 3; // a touch of wind
+      p[i * 3 + 1] -= dt * fall;
+      p[i * 3] -= dt * wind;
       if (p[i * 3 + 1] < 0) {
         p[i * 3] = (Math.random() - 0.5) * RAIN_BOX;
         p[i * 3 + 1] = RAIN_H;

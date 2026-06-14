@@ -5,7 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { useGame } from "@/lib/store";
-import { live, daylight, zombies, zombieSeq, Zombie, ZombieType, isBloodMoonNight, isBossNight } from "@/lib/runtime";
+import { live, daylight, zombies, zombieSeq, Zombie, ZombieType, isBloodMoonNight, isBossNight, isStorm } from "@/lib/runtime";
 import { resolveMovement, GLADE_RADIUS, riverCenterX } from "@/lib/world";
 import { sfx } from "@/lib/sound";
 import HitPop from "./HitPop";
@@ -20,13 +20,13 @@ const ATTACK_RANGE = 1.5;
 export const ZOMBIE_TYPES: Record<ZombieType, {
   hp: number; dmg: number; speed: number; chase: number; scale: number; skin: string; shirt: string;
 }> = {
-  walker: { hp: 30, dmg: 8, speed: 2.9, chase: 13, scale: 1, skin: "#7fa05a", shirt: "#4a4452" },
-  runner: { hp: 18, dmg: 6, speed: 4.8, chase: 18, scale: 0.85, skin: "#9ab05a", shirt: "#5a3a3a" },
-  brute: { hp: 70, dmg: 16, speed: 1.7, chase: 13, scale: 1.4, skin: "#5a7a45", shirt: "#33333b" },
+  walker: { hp: 34, dmg: 12, speed: 3.0, chase: 14, scale: 1, skin: "#7fa05a", shirt: "#4a4452" },
+  runner: { hp: 20, dmg: 9, speed: 5.0, chase: 19, scale: 0.85, skin: "#9ab05a", shirt: "#5a3a3a" },
+  brute: { hp: 80, dmg: 22, speed: 1.8, chase: 14, scale: 1.4, skin: "#5a7a45", shirt: "#33333b" },
   // the Butcher — one rises every 10th night
-  boss: { hp: 400, dmg: 30, speed: 2.0, chase: 30, scale: 2.3, skin: "#3d5232", shirt: "#1c1018" },
+  boss: { hp: 440, dmg: 38, speed: 2.1, chase: 30, scale: 2.3, skin: "#3d5232", shirt: "#1c1018" },
   // mine-dwelling skeleton — quick and brittle
-  skeleton: { hp: 24, dmg: 10, speed: 3.4, chase: 16, scale: 1, skin: "#e8e6dc", shirt: "#cfc8b4" },
+  skeleton: { hp: 26, dmg: 14, speed: 3.5, chase: 16, scale: 1, skin: "#e8e6dc", shirt: "#cfc8b4" },
 };
 
 function rollType(blood: boolean): ZombieType {
@@ -233,13 +233,15 @@ export default function Zombies() {
     }
     wasNight.current = night;
 
-    // spawning — the blood moon brings a horde
+    // spawning — the blood moon brings a horde, storms swell the ranks
     if (night) {
       spawnCd.current -= dt;
-      const maxZombies = blood ? 14 : 7;
+      const storm = isStorm();
+      const maxZombies = (blood ? 20 : 11) + (storm ? 4 : 0);
       const alive = zombies.filter((z) => z.state !== "dying").length;
       if (spawnCd.current <= 0 && alive < maxZombies) {
-        spawnCd.current = blood ? 1.2 + Math.random() * 1.5 : 2.5 + Math.random() * 3;
+        const rate = storm ? 0.6 : 1;
+        spawnCd.current = (blood ? 0.9 + Math.random() * 1.2 : 1.9 + Math.random() * 2.4) * rate;
         const z = spawnZombie(blood);
         if (z) {
           zombies.push(z);

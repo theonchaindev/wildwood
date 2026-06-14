@@ -12,7 +12,7 @@ import {
 } from "@/lib/store";
 import {
   live, clock, timePhase, zombies, animals, isNight, isBloodMoonNight,
-  isBossNight, isRaining, seasonFor, fishing,
+  isBossNight, isRaining, isStorm, isFoggy, seasonFor, fishing,
   secondsToNight, secondsToDawn,
 } from "@/lib/runtime";
 import {
@@ -228,11 +228,14 @@ function ClockPill() {
   const bloodComing = !night && clock.day % 5 === 0;
   const season = seasonFor(clock.day);
   const icon = blood ? "🔴" : night ? "🌙" : phase === "Dusk" || phase === "Dawn" ? "🌅" : "☀️";
+  const chilled = useGame((s) => s.chilled);
+  const wx = isStorm() ? " · ⛈️ Storm" : isFoggy() ? " · 🌫️ Fog" : isRaining() ? " · 🌧 Rain" : "";
   return (
     <>
       <div className="pill">
-        {icon} Day {clock.day} · {phase} · {season.icon} {season.name}{isRaining() ? " · 🌧" : ""}
+        {icon} Day {clock.day} · {phase} · {season.icon} {season.name}{wx}
       </div>
+      {chilled && <div className="pill danger">🥶 Freezing — find warmth (a fire or indoors)</div>}
       {boss && night ? (
         <div className="pill danger">👹 THE BUTCHER WALKS! Dawn in {fmtTime(secondsToDawn())}</div>
       ) : blood ? (
@@ -1987,12 +1990,13 @@ function HelpModal() {
           <span className="modal-title">How to play</span>
         </div>
         <div className="help-grid">
-          <span>🚶</span><span><b>WASD / arrows</b> or click the ground to move · <b>Shift</b> sprints</span>
-          <span>🪓</span><span><b>Click a tree</b> to chop it — slow by hand, buy an axe at The Den</span>
+          <span>🚶</span><span><b>WASD / arrows</b> or click the ground to move · <b>Shift</b> sprints · a green ring marks where you're headed</span>
+          <span>🪓</span><span>Press <b>E</b> (or click) to chop the nearest tree / mine the nearest rock — buy an axe &amp; pickaxe at The Den</span>
           <span>🍄</span><span>Walk over mushrooms &amp; flowers to collect them</span>
           <span>🎣</span><span>Buy a rod, stand by the river, press <b>F</b> — and <b>F</b> again on the bite!</span>
           <span>💧</span><span>Click the river up close to collect water</span>
-          <span>🧟</span><span>Zombies rise at night (see the timer) — click one to attack. Buy weapons &amp; armour at The Forge</span>
+          <span>🧟</span><span>Zombies rise at night — press <b>Q</b> (or click) to attack the nearest one. Buy weapons &amp; armour at The Forge</span>
+          <span>⛈️</span><span>Watch the weather: <b>storms</b> bring more zombies and bitter cold — <b>warm up by a fire</b> or you'll freeze</span>
           <span>☣️</span><span>Scratches can infect you — antidotes at The Remedy; click meds in the hotbar to use</span>
           <span>⚖️</span><span>The Vault posts daily offers from other survivors at premium prices</span>
           <span>🧵</span><span>Threads sells shirts &amp; hats to customise your look</span>

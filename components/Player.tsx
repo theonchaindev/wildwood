@@ -33,6 +33,57 @@ const TREE_MAP = new Map(TREES.map((t) => [t.id, t]));
 const ROCK_MAP = new Map(ROCKS.map((r) => [r.id, r]));
 const ORE_MAP = new Map(CAVE_ORES.map((o) => [o.id, { id: o.id, pos: o.pos, r: o.r }]));
 
+// E with nothing to interact with → auto-target the nearest gatherable and
+// walk to it (so you don't have to click moving trees/ore nodes)
+function gatherNearest() {
+  const s = useGame.getState();
+  const loc = s.location;
+  if (loc === "interior" || loc === "visit") return;
+  let bestId: string | null = null;
+  let bestKind: "chop" | "mine" = "chop";
+  let bestD = Infinity;
+  const consider = (id: string, pos: [number, number, number], kind: "chop" | "mine") => {
+    const d = Math.hypot(pos[0] - live.x, pos[2] - live.z);
+    if (d < bestD) { bestD = d; bestId = id; bestKind = kind; }
+  };
+  if (loc === "cave") {
+    for (const o of CAVE_ORES) if (!s.minedAt[o.id]) consider(o.id, o.pos, "mine");
+  } else {
+    for (const t of TREES) if (!s.choppedAt[t.id]) consider(t.id, t.pos, "chop");
+    for (const r of ROCKS) if (!s.minedAt[r.id]) consider(r.id, r.pos, "mine");
+  }
+  if (bestId === null || bestD > 26) {
+    s.addToast(loc === "cave" ? "No ore nearby ⛏️" : "Nothing to gather nearby 🌲");
+    return;
+  }
+  if (bestKind === "chop") s.setChopTarget(bestId);
+  else s.setMineTarget(bestId);
+}
+
+// Q → auto-target the nearest enemy (zombie, else huntable animal) and close in
+function attackNearest() {
+  const s = useGame.getState();
+  const canFight = s.location === "forest" || s.location === "cave";
+  if (!canFight) { s.addToast("Nothing to fight here ⚔️"); return; }
+  let bestZ: (typeof zombies)[number] | null = null;
+  let bestZD = Infinity;
+  for (const z of zombies) {
+    if (z.state === "dying") continue;
+    const d = Math.hypot(z.x - live.x, z.z - live.z);
+    if (d < bestZD) { bestZD = d; bestZ = z; }
+  }
+  if (bestZ && bestZD <= 28) { s.setAttackTarget(bestZ.id); return; }
+  let bestA: (typeof animals)[number] | null = null;
+  let bestAD = Infinity;
+  for (const a of animals) {
+    if (a.state === "dead") continue;
+    const d = Math.hypot(a.x - live.x, a.z - live.z);
+    if (d < bestAD) { bestAD = d; bestA = a; }
+  }
+  if (bestA && bestAD <= 24) s.setAnimalTarget(bestA.id);
+  else s.addToast("No enemies nearby");
+}
+
 function HeldTorch() {
   const lightRef = useRef<THREE.PointLight>(null);
   const flameRef = useRef<THREE.Mesh>(null);
@@ -249,7 +300,14 @@ export default function Player() {
           else if (i.kind === "cave") s.enterCave();
           else if (i.kind === "caveexit") s.exitCave();
           else if (i.kind === "bench") s.station("bench");
+        } else {
+          // nothing to interact with — go gather the nearest tree/ore
+          gatherNearest();
         }
+      }
+      if (k === "q") {
+        const s = useGame.getState();
+        if (!s.openShop && !s.openPanel && !s.homeOffer) attackNearest();
       }
       if (k === "i" || k === "b") {
         useGame.getState().toggleInventory();

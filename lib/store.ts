@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { sfx } from "./sound";
-import { teleport, live, isBloodMoonNight, isNight, isRaining, clock, DAY_LENGTH_S, tour, zombies } from "./runtime";
+import { teleport, live, isBloodMoonNight, isNight, isRaining, clock, DAY_LENGTH_S, tour, zombies, coldLevel } from "./runtime";
 import {
   CAMPFIRE_POS, ShopId, HOME_TIERS, HOME_PORTAL_POS, HOME_CABIN_POS,
   CAVE_ENTRANCE_POS, CAVE_HD,
@@ -630,6 +630,7 @@ type GameState = {
   ownedHats: string[];
   appearance: Appearance;
   infected: boolean;
+  chilled: boolean; // freezing from storms / winter nights (transient, not saved)
   inventory: Record<string, number>;
 
   collected: Record<string, number>;
@@ -870,6 +871,7 @@ export const useGame = create<GameState>()(
       ownedHats: [],
       appearance: DEFAULT_APPEARANCE,
       infected: false,
+      chilled: false,
       inventory: {},
 
       collected: {},
@@ -2502,6 +2504,23 @@ export const useGame = create<GameState>()(
         if (s.infected) {
           hp -= dt * 0.8;
         }
+
+        // the cold: storms and winter nights sap your warmth when you're out
+        // in the open. Huddle by a fire (or head indoors) to thaw out.
+        const cold = coldLevel();
+        const exposed = s.location === "forest" && !nearCamp;
+        const chilled = cold > 0.45 && exposed;
+        if (chilled) {
+          energy = Math.max(0, energy - dt * (1 + cold * 2.4));
+          if (energy < 1) hp -= dt * (0.5 + cold * 1.3);
+        } else if (nearCamp && s.chilled && !starving) {
+          energy = Math.min(s.maxEnergy, energy + dt * 3); // warming up by the fire
+        }
+        if (chilled && !s.chilled) {
+          s.addToast("🥶 You're freezing — warm up by a fire or get inside");
+          sfx.error();
+        }
+
         if (hp <= 0) {
           set({ energy, hunger });
           get().hurt(2); // triggers the blackout flow
@@ -2510,9 +2529,10 @@ export const useGame = create<GameState>()(
         if (
           Math.abs(energy - s.energy) > 0.01 ||
           Math.abs(hp - s.hp) > 0.01 ||
-          Math.abs(hunger - s.hunger) > 0.01
+          Math.abs(hunger - s.hunger) > 0.01 ||
+          chilled !== s.chilled
         ) {
-          set({ energy, hp, hunger });
+          set({ energy, hp, hunger, chilled });
         }
       },
 

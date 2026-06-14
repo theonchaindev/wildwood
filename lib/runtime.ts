@@ -64,10 +64,32 @@ export function isBossNight() {
 
 // ---- weather ----
 
-export const weather = { kind: "clear" as "clear" | "rain", until: 0 };
+export type WeatherKind = "clear" | "rain" | "storm" | "fog";
+export const weather = { kind: "clear" as WeatherKind, until: 0, flash: 0 };
 
 export function isRaining() {
-  return weather.kind === "rain";
+  return weather.kind === "rain" || weather.kind === "storm";
+}
+export function isStorm() {
+  return weather.kind === "storm";
+}
+export function isFoggy() {
+  return weather.kind === "fog";
+}
+
+// 0 = balmy, 1 = bitter. Storms chill you; rain less so; winter nights bite,
+// summer days never. Drives the "Freezing" status and energy drain.
+export function coldLevel() {
+  let c = 0;
+  if (weather.kind === "storm") c += 0.7;
+  else if (weather.kind === "rain") c += 0.3;
+  else if (weather.kind === "fog") c += 0.15;
+  const season = seasonFor(clock.day).name;
+  if (season === "Winter") c += 0.45;
+  else if (season === "Autumn") c += 0.15;
+  else if (season === "Summer") c -= 0.25;
+  if (isNight()) c += 0.25; // it's colder after dark
+  return Math.max(0, Math.min(1, c));
 }
 
 // ---- seasons: one week of game days each ----
