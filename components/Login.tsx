@@ -269,7 +269,7 @@ export default function Login() {
                 rel="noreferrer"
                 onClick={(e) => { if (!mint) e.preventDefault(); }}
               >
-                🪵 {mint ? "$WOOD ↗" : "$WOOD — CA soon"}
+                🍃 {mint ? "$WILD ↗" : "$WILD — CA soon"}
               </a>
               <a href="https://x.com/wildwoodgame" target="_blank" rel="noreferrer">
                 𝕏 Follow ↗

@@ -28,7 +28,7 @@ import {
 import { ghosts } from "@/lib/multiplayer";
 
 const ITEM_ICONS: Record<string, string> = {
-  Timber: "🌲",
+  Wood: "🪵",
   "Orange Mushroom": "🍄",
   "Purple Mushroom": "🍄‍🟫",
   Sunflower: "🌻",
@@ -290,7 +290,7 @@ function BuyBtn({ cost, disabled, onClick }: { cost: number; disabled?: boolean;
   const acorns = useGame((s) => s.acorns);
   return (
     <button className="btn small" disabled={disabled || acorns < cost} onClick={onClick}>
-      🪵 {cost}
+      🍃 {cost}
     </button>
   );
 }
@@ -362,10 +362,10 @@ function TraderShop() {
       <ShopRow
         icon="⛵"
         name="Boat"
-        blurb={<>Cross the river &amp; lake anywhere · {BOAT_COST.wood} 🌲 + {BOAT_COST.acorns} 🪵</>}
+        blurb={<>Cross the river &amp; lake anywhere · {BOAT_COST.wood} 🪵 + {BOAT_COST.acorns} 🍃</>}
         right={s.boat ? <span className="shop-owned">Moored</span> : (
-          <button className="btn small" disabled={s.acorns < BOAT_COST.acorns || (s.inventory.Timber ?? 0) < BOAT_COST.wood} onClick={s.buyBoat}>
-            🌲 {BOAT_COST.wood} + 🪵 {BOAT_COST.acorns}
+          <button className="btn small" disabled={s.acorns < BOAT_COST.acorns || (s.inventory.Wood ?? 0) < BOAT_COST.wood} onClick={s.buyBoat}>
+            🪵 {BOAT_COST.wood} + 🍃 {BOAT_COST.acorns}
           </button>
         )}
       />
@@ -386,7 +386,7 @@ function TraderShop() {
           key={label}
           icon={ITEM_ICONS[label] ?? "📦"}
           name={<>{label} <span className="shop-count">×{n}</span></>}
-          blurb={<>🪵 {SELL_PRICES[label]} each</>}
+          blurb={<>🍃 {SELL_PRICES[label]} each</>}
           right={
             <div className="shop-actions">
               <button className="btn small ghost" onClick={() => s.sellItem(label, 1)}>Sell 1</button>
@@ -471,13 +471,13 @@ function TailorShop() {
             key={key}
             icon="👕"
             name={<><span className="swatch" style={{ background: def.color }} /> {def.label}</>}
-            blurb={owned ? "In your wardrobe" : <>🪵 {def.cost}</>}
+            blurb={owned ? "In your wardrobe" : <>🍃 {def.cost}</>}
             right={
               wearing ? (
                 <span className="shop-owned">Wearing</span>
               ) : (
                 <button className="btn small" onClick={() => s.buyShirt(key)}>
-                  {owned ? "Wear" : `🪵 ${def.cost}`}
+                  {owned ? "Wear" : `🍃 ${def.cost}`}
                 </button>
               )
             }
@@ -503,13 +503,13 @@ function TailorShop() {
             key={key}
             icon={def.icon}
             name={def.label}
-            blurb={owned ? "In your wardrobe" : <>🪵 {def.cost}</>}
+            blurb={owned ? "In your wardrobe" : <>🍃 {def.cost}</>}
             right={
               wearing ? (
                 <span className="shop-owned">Wearing</span>
               ) : (
                 <button className="btn small" onClick={() => s.buyHat(key)}>
-                  {owned ? "Wear" : `🪵 ${def.cost}`}
+                  {owned ? "Wear" : `🍃 ${def.cost}`}
                 </button>
               )
             }
@@ -605,7 +605,7 @@ function PlayerOffers() {
           key={o.id}
           icon={ITEM_ICONS[o.item] ?? "📦"}
           name={<><b>{o.sellerName}</b> sells {o.qty} {o.item}</>}
-          blurb={<>for <b>{o.price} 🪵</b></>}
+          blurb={<>for <b>{o.price} 🍃</b></>}
           right={
             o.mine ? (
               <button
@@ -644,7 +644,7 @@ function PlayerOffers() {
           className="offer-input num" type="number" min={1}
           value={postPrice} onChange={(e) => setPostPrice(Number(e.target.value))}
         />
-        <span className="offer-x">🪵</span>
+        <span className="offer-x">🍃</span>
         <button
           className="btn small"
           disabled={!postItem || postQty < 1}
@@ -656,16 +656,16 @@ function PlayerOffers() {
 
       <GiftsSection />
 
-      <div className="shop-section">🪵 Convert to $WOOD — straight to your wallet</div>
+      <div className="shop-section">🍃 Convert to $WILD — straight to your wallet</div>
       {s.account.wallet ? (
         <>
           <div className="shop-note" style={{ marginTop: 0 }}>
-            1 🪵 = 1 $WOOD, minted on Solana to{" "}
+            1 🍃 = 1 $WILD, minted on Solana to{" "}
             <b>{s.account.wallet.slice(0, 4)}…{s.account.wallet.slice(-4)}</b>
             {" "}· devnet beta — switch Phantom to devnet to see your tokens
           </div>
           <div className="wallet-balance">
-            👛 In your wallet: <b>{walletWood === null ? "…" : walletWood.toLocaleString()} $WOOD</b>
+            👛 In your wallet: <b>{walletWood === null ? "…" : walletWood.toLocaleString()} $WILD</b>
           </div>
           <div className="offer-form" style={{ marginTop: 8 }}>
             {[100, 1000, 5000].map((n) => (
@@ -679,7 +679,7 @@ function PlayerOffers() {
                     .catch((e) => setErr(e.message))
                 }
               >
-                {n} 🪵 → {n} $WOOD
+                {n} 🍃 → {n} $WILD
               </button>
             ))}
           </div>
@@ -694,7 +694,7 @@ function PlayerOffers() {
         </>
       ) : (
         <div className="shop-note" style={{ marginTop: 0 }}>
-          Sign in with Phantom on the intro screen to convert Wood into $WOOD.
+          Sign in with Phantom on the intro screen to convert WILD into $WILD.
         </div>
       )}
 
@@ -733,7 +733,7 @@ function GiftsSection() {
       if (g.acorns > 0) useGame.setState({ acorns: useGame.getState().acorns + g.acorns });
       if (g.item && g.qty > 0) s.gainItem(g.item, g.qty);
       s.addToast(
-        `🎁 From ${g.fromName}: ${[g.acorns > 0 ? `${g.acorns} 🪵` : "", g.item ? `${g.qty} ${g.item}` : ""].filter(Boolean).join(" + ")}`
+        `🎁 From ${g.fromName}: ${[g.acorns > 0 ? `${g.acorns} 🍃` : "", g.item ? `${g.qty} ${g.item}` : ""].filter(Boolean).join(" + ")}`
       );
       refresh();
     } catch (e: any) {
@@ -746,7 +746,7 @@ function GiftsSection() {
     const payload: { acorns?: number; item?: string; qty?: number } = {};
     if (tip > 0) {
       if (s.acorns < tip) {
-        setErr("Not enough Wood for that tip");
+        setErr("Not enough WILD for that tip");
         return;
       }
       payload.acorns = tip;
@@ -792,7 +792,7 @@ function GiftsSection() {
           key={g.id}
           icon="🎁"
           name={<>From <b>{g.fromName}</b></>}
-          blurb={[g.acorns > 0 ? `${g.acorns} 🪵` : "", g.item ? `${g.qty} ${g.item}` : ""].filter(Boolean).join(" + ")}
+          blurb={[g.acorns > 0 ? `${g.acorns} 🍃` : "", g.item ? `${g.qty} ${g.item}` : ""].filter(Boolean).join(" + ")}
           right={<button className="btn small" onClick={() => claim(g)}>Open</button>}
         />
       ))}
@@ -802,7 +802,7 @@ function GiftsSection() {
           value={to} onChange={(e) => setTo(e.target.value)}
         />
         <input
-          className="offer-input num" type="number" min={0} placeholder="🪵"
+          className="offer-input num" type="number" min={0} placeholder="🍃"
           value={tip || ""} onChange={(e) => setTip(Math.max(0, Number(e.target.value)))}
         />
         <select className="offer-input" value={giftItem} onChange={(e) => setGiftItem(e.target.value)}>
@@ -845,8 +845,8 @@ function ExchangeShop() {
             }
             blurb={
               o.type === "buy"
-                ? <>pays <b>{o.price} 🪵</b> {have < o.qty ? `· you have ${have}` : ""}</>
-                : <>for <b>{o.price} 🪵</b></>
+                ? <>pays <b>{o.price} 🍃</b> {have < o.qty ? `· you have ${have}` : ""}</>
+                : <>for <b>{o.price} 🍃</b></>
             }
             right={
               accepted ? (
@@ -877,7 +877,7 @@ function ShopModal() {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <span className="modal-title">{BUILDING_LABELS[shop]}</span>
-          <span className="modal-acorns">🪵 {s.acorns}</span>
+          <span className="modal-acorns">🍃 {s.acorns}</span>
         </div>
         {shop === "trader" && <TraderShop />}
         {shop === "armoury" && <ArmouryShop />}
@@ -938,17 +938,17 @@ function ChestModal() {
 
 function FurnaceModal() {
   const s = useGame();
-  const wood = s.inventory.Timber ?? 0;
+  const wood = s.inventory.Wood ?? 0;
   const cookable = Object.keys(RECIPES).filter((raw) => (s.inventory[raw] ?? 0) > 0);
   return (
     <div className="modal-backdrop" onClick={() => s.setOpenPanel(null)}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <span className="modal-title">🔥 Furnace</span>
-          <span className="modal-acorns">🌲 {wood}</span>
+          <span className="modal-acorns">🪵 {wood}</span>
         </div>
         <div className="shop-note" style={{ marginTop: 0 }}>
-          Each cook burns 1 Coal (or 1 Timber). Cooked food heals more — and won&apos;t infect you.
+          Each cook burns 1 Coal (or 1 Wood). Cooked food heals more — and won&apos;t infect you.
         </div>
         <div className="shop-section">Cook</div>
         {cookable.length === 0 && (
@@ -965,7 +965,7 @@ function FurnaceModal() {
               blurb={<>+{food.hp} HP · +{food.energy} ⚡ when eaten</>}
               right={
                 <button className="btn small" disabled={wood < 1} onClick={() => s.cookItem(raw)}>
-                  Cook 🌲1
+                  Cook 🪵1
                 </button>
               }
             />
@@ -991,7 +991,7 @@ function HomeOfferModal() {
       ["🌱", `${tier.tiles} farm tiles — plant seeds, harvest crops`],
       ["🐔", "1 animal pen — produce while you adventure"],
       ["📦", `Chest holds ${tier.chestCap} items`],
-      ["🔥", "Furnace — cook meat & fish (1 Coal or Timber per cook)"],
+      ["🔥", "Furnace — cook meat & fish (1 Coal or Wood per cook)"],
       ["🛖", "A cabin to call home — and no zombies, ever"],
     );
   } else if (current) {
@@ -1011,7 +1011,7 @@ function HomeOfferModal() {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <span className="modal-title">{buying ? "🪧 Your own Base" : `📐 ${tier.name}`}</span>
-          <span className="modal-acorns">🪵 {s.acorns}</span>
+          <span className="modal-acorns">🍃 {s.acorns}</span>
         </div>
         <div className="plot-pitch">
           {buying ? (
@@ -1044,10 +1044,10 @@ function HomeOfferModal() {
         )}
         <button
           className="btn block"
-          disabled={buying ? s.acorns < tier.price || (s.inventory.Timber ?? 0) < BASE_LAND_WOOD : s.acorns < tier.price}
+          disabled={buying ? s.acorns < tier.price || (s.inventory.Wood ?? 0) < BASE_LAND_WOOD : s.acorns < tier.price}
           onClick={() => (buying ? s.buyHomestead() : s.extendHomestead())}
         >
-          {buying ? `Clear the land — ${tier.price} 🪵 + ${BASE_LAND_WOOD} 🌲` : `Extend for ${tier.price} 🪵`}
+          {buying ? `Clear the land — ${tier.price} 🍃 + ${BASE_LAND_WOOD} 🪵` : `Extend for ${tier.price} 🍃`}
         </button>
         <button className="btn block ghost" onClick={() => s.setHomeOffer(null)}>Not now</button>
       </div>
@@ -1121,7 +1121,7 @@ function HouseModal() {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <span className="modal-title">{cur.icon} {cur.name}</span>
-          <span className="modal-acorns">🪵 {s.acorns} · 🌲 {s.inventory.Timber ?? 0} · 🪨 {s.inventory.Stone ?? 0}</span>
+          <span className="modal-acorns">🍃 {s.acorns} · 🪵 {s.inventory.Wood ?? 0} · 🪨 {s.inventory.Stone ?? 0}</span>
         </div>
         <div className="plot-pitch">
           Home on the {tier?.name ?? "Base"} · house {lv} of {HOUSE_LEVELS.length}
@@ -1147,12 +1147,12 @@ function HouseModal() {
                   className="btn small"
                   disabled={
                     s.acorns < next.acorns ||
-                    (s.inventory.Timber ?? 0) < next.wood ||
+                    (s.inventory.Wood ?? 0) < next.wood ||
                     (s.inventory.Stone ?? 0) < next.stone
                   }
                   onClick={() => s.upgradeHouse()}
                 >
-                  🪵 {next.acorns}{next.wood ? ` + 🌲 ${next.wood}` : ""}{next.stone ? ` + 🪨 ${next.stone}` : ""}
+                  🍃 {next.acorns}{next.wood ? ` + 🪵 ${next.wood}` : ""}{next.stone ? ` + 🪨 ${next.stone}` : ""}
                 </button>
               }
             />
@@ -1175,7 +1175,7 @@ function HouseModal() {
             {lv >= HOUSE_LEVELS.length && (
               <ShopRow
                 icon="💰"
-                name={s.rentReady() ? `${RENT_AMOUNT} 🪵 rent ready` : `Rent due in ~${rentMins} min`}
+                name={s.rentReady() ? `${RENT_AMOUNT} 🍃 rent ready` : `Rent due in ~${rentMins} min`}
                 blurb="The Manor earns its keep, once every day"
                 right={
                   <button className="btn small" disabled={!s.rentReady()} onClick={() => s.collectRent()}>
@@ -1207,13 +1207,13 @@ function PenModal() {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <span className="modal-title">{pen ? `${PEN_DEFS[pen.animal].icon} ${PEN_DEFS[pen.animal].label}` : "🚧 Empty Pen"}</span>
-          <span className="modal-acorns">🪵 {s.acorns} · 🌲 {s.inventory.Timber ?? 0}</span>
+          <span className="modal-acorns">🍃 {s.acorns} · 🪵 {s.inventory.Wood ?? 0}</span>
         </div>
         {!pen ? (
           <>
             <div className="plot-pitch">
               Choose what lives here — they produce on their own, even while
-              you&apos;re off adventuring. Fencing costs {PEN_BUILD_COST.acorns} 🪵 + {PEN_BUILD_COST.wood} 🌲.
+              you&apos;re off adventuring. Fencing costs {PEN_BUILD_COST.acorns} 🍃 + {PEN_BUILD_COST.wood} 🪵.
             </div>
             <div className="shop-section">Pick your animal</div>
             {(Object.keys(PEN_DEFS) as PenAnimal[]).map((kind) => {
@@ -1228,10 +1228,10 @@ function PenModal() {
                   right={
                     <button
                       className="btn small"
-                      disabled={s.acorns < total || (s.inventory.Timber ?? 0) < PEN_BUILD_COST.wood}
+                      disabled={s.acorns < total || (s.inventory.Wood ?? 0) < PEN_BUILD_COST.wood}
                       onClick={() => s.buildPen(idx, kind)}
                     >
-                      🪵 {total}
+                      🍃 {total}
                     </button>
                   }
                 />
@@ -1285,16 +1285,16 @@ function BuildModal({ onClose }: { onClose: () => void }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <span className="modal-title">🔨 Build</span>
-          <span className="modal-acorns">🌲 {s.inventory.Timber ?? 0} · 🪵 {s.acorns}</span>
+          <span className="modal-acorns">🪵 {s.inventory.Wood ?? 0} · 🍃 {s.acorns}</span>
         </div>
         <div className="shop-note" style={{ marginTop: 0 }}>
           Pick something, then click the ground on your land to place it. Esc to stop.
         </div>
         {Object.entries(BUILDABLES).map(([key, def]) => {
           const costs = [
-            def.wood > 0 ? `${def.wood} 🌲` : "",
+            def.wood > 0 ? `${def.wood} 🪵` : "",
             def.stone > 0 ? `${def.stone} 🪨` : "",
-            def.acorns > 0 ? `${def.acorns} 🪵` : "",
+            def.acorns > 0 ? `${def.acorns} 🍃` : "",
           ].filter(Boolean).join(" + ");
           return (
             <ShopRow
@@ -1306,7 +1306,7 @@ function BuildModal({ onClose }: { onClose: () => void }) {
                 <button
                   className="btn small"
                   disabled={
-                    (s.inventory.Timber ?? 0) < def.wood ||
+                    (s.inventory.Wood ?? 0) < def.wood ||
                     (s.inventory.Stone ?? 0) < def.stone ||
                     s.acorns < def.acorns
                   }
@@ -1355,7 +1355,7 @@ function LeaderboardModal({ onClose }: { onClose: () => void }) {
           <div key={p.name} className={`lb-line ${p.name === myName ? "me" : ""}`}>
             <span className="lb-rank">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`}</span>
             <span className="lb-name">{p.name}</span>
-            <span className="lb-stats">Lv {p.level} · {p.wood.toLocaleString()} $WOOD</span>
+            <span className="lb-stats">Lv {p.level} · {p.wood.toLocaleString()} $WILD</span>
           </div>
         ))}
         <button className="btn block" onClick={onClose}>Close</button>
@@ -1423,7 +1423,7 @@ function LeaderboardDock() {
             >
               <span className="lb-rank">{medal(i)}</span>
               <span className="lb-name">{p.name}</span>
-              <span className="lb-stats">Lv {p.level} · {p.wood.toLocaleString()} $WOOD</span>
+              <span className="lb-stats">Lv {p.level} · {p.wood.toLocaleString()} $WILD</span>
             </div>
           ))}
         </>
@@ -1492,13 +1492,13 @@ function GuestbookModal({ owner, onClose }: { owner: string; onClose: () => void
   const tipThem = async (n: number) => {
     setErr(null);
     if (s.acorns < n) {
-      setErr("Not enough Wood");
+      setErr("Not enough WILD");
       return;
     }
     try {
       await sendGift(owner, { acorns: n });
       useGame.setState({ acorns: useGame.getState().acorns - n });
-      s.addToast(`🪵 Tipped ${owner} ${n} Wood!`);
+      s.addToast(`🍃 Tipped ${owner} ${n} Wood!`);
     } catch (e: any) {
       setErr(e.message);
     }
@@ -1509,7 +1509,7 @@ function GuestbookModal({ owner, onClose }: { owner: string; onClose: () => void
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <span className="modal-title">🪶 {owner}&apos;s Guestbook</span>
-          <span className="modal-acorns">🪵 {s.acorns}</span>
+          <span className="modal-acorns">🍃 {s.acorns}</span>
         </div>
         {entries === null && <div className="shop-empty">Opening the book…</div>}
         {entries !== null && entries.length === 0 && (
@@ -1541,7 +1541,7 @@ function GuestbookModal({ owner, onClose }: { owner: string; onClose: () => void
               <span className="offer-x">Leave a tip:</span>
               {[25, 100, 500].map((n) => (
                 <button key={n} className="btn small ghost" disabled={s.acorns < n} onClick={() => tipThem(n)}>
-                  🪵 {n}
+                  🍃 {n}
                 </button>
               ))}
             </div>
@@ -1579,7 +1579,7 @@ function NoticeModal() {
         <div className="note-pin">📌</div>
         <div className="note-title">~ WILDWOOD NOTICES ~</div>
 
-        <div className="note-section">🪵 The $WOOD coin</div>
+        <div className="note-section">🍃 The $WILD coin</div>
         {data === null ? (
           <div className="note-line">fetching word from The Vault…</div>
         ) : data.mint ? (
@@ -1593,11 +1593,11 @@ function NoticeModal() {
         ) : (
           <div className="note-line">CA to be posted here once the mint goes live — soon!</div>
         )}
-        <div className="note-line small">1 🪵 = 1 $WOOD · convert at The Vault</div>
+        <div className="note-line small">1 🍃 = 1 $WILD · convert at The Vault</div>
 
         <div className="note-section">💸 Paid out to survivors so far</div>
         <div className="note-big">
-          {data ? data.totalAcorns.toLocaleString() : "…"} $WOOD
+          {data ? data.totalAcorns.toLocaleString() : "…"} $WILD
         </div>
         <div className="note-line small">
           across {data ? data.totalPayouts : "…"} conversion{data?.totalPayouts === 1 ? "" : "s"}
@@ -1607,7 +1607,7 @@ function NoticeModal() {
             <div className="note-section">Latest</div>
             {data.recent.map((r, i) => (
               <div key={i} className="note-line mono">
-                {r.wallet} ← {r.acorns.toLocaleString()} 🪵
+                {r.wallet} ← {r.acorns.toLocaleString()} 🍃
               </div>
             ))}
           </>
@@ -1741,7 +1741,7 @@ function InventoryModal() {
       <div className="modal wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <span className="modal-title">🎒 Your Pack</span>
-          <span className="modal-acorns">{s.packCount()}/{PACK_CAP} · 🪵 {s.acorns}</span>
+          <span className="modal-acorns">{s.packCount()}/{PACK_CAP} · 🍃 {s.acorns}</span>
         </div>
         <div className="shop-section">Equipment — click to equip or unequip</div>
         <EquipmentPanel />
@@ -1774,7 +1774,7 @@ function InventoryModal() {
                     : food
                     ? `${verb}: +${food.hp}❤ +${food.energy}⚡ +${food.hunger}🍗${food.infect ? " ☣️" : ""}`
                     : SELL_PRICES[label]
-                    ? `sells for ${SELL_PRICES[label]} 🪵`
+                    ? `sells for ${SELL_PRICES[label]} 🍃`
                     : "material"}
                 </span>
               </div>
@@ -1856,7 +1856,7 @@ function JournalModal() {
                   <div className="quest-desc">
                     {a.desc} — {progress}/{a.goal}
                   </div>
-                  <div className="quest-reward">+{a.acorns} 🪵 · +{a.xp} XP</div>
+                  <div className="quest-reward">+{a.acorns} 🍃 · +{a.xp} XP</div>
                 </div>
               </div>
             );
@@ -1875,7 +1875,7 @@ function DecorShopModal() {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <span className="modal-title">🛋️ Furnishings</span>
-          <span className="modal-acorns">🪵 {s.acorns} · {s.interiorDecor.length}/{MAX_DECOR}</span>
+          <span className="modal-acorns">🍃 {s.acorns} · {s.interiorDecor.length}/{MAX_DECOR}</span>
         </div>
         <div className="plot-pitch">
           Pick a piece, then click the floor to place it. Visitors will see your taste — or lack of it.
@@ -1889,7 +1889,7 @@ function DecorShopModal() {
               blurb={<>Place anywhere on your floor</>}
               right={
                 <button className="btn small" disabled={s.acorns < def.cost} onClick={() => s.setDecorMode(key)}>
-                  🪵 {def.cost}
+                  🍃 {def.cost}
                 </button>
               }
             />
@@ -1949,7 +1949,7 @@ function QuestsModal() {
               <span className="quest-check">{q.icon}</span>
               <div className="quest-body">
                 <div className="quest-name">{q.label}</div>
-                <div className="quest-reward">+{q.acorns} 🪵 · +{q.xp} XP</div>
+                <div className="quest-reward">+{q.acorns} 🍃 · +{q.xp} XP</div>
               </div>
               {claimed ? (
                 <span className="quest-prog">✅</span>
@@ -1969,7 +1969,7 @@ function QuestsModal() {
               <div className="quest-name">{q.title}</div>
               <div className="quest-desc">{q.desc}</div>
               <div className="quest-reward">
-                Reward: +{q.xp} XP{q.acorns > 0 ? ` · +${q.acorns} 🪵` : ""}
+                Reward: +{q.xp} XP{q.acorns > 0 ? ` · +${q.acorns} 🍃` : ""}
               </div>
             </div>
             <span className="quest-prog">{q.progress}/{q.goal}</span>
@@ -2073,7 +2073,7 @@ export default function Hud() {
             <div className="quest-card-title">{activeQuest.title}</div>
             <div className="quest-card-desc">{activeQuest.desc}</div>
             <div className="quest-card-reward">
-              🎁 +{activeQuest.xp} XP{activeQuest.acorns > 0 ? ` · +${activeQuest.acorns} 🪵` : ""}
+              🎁 +{activeQuest.xp} XP{activeQuest.acorns > 0 ? ` · +${activeQuest.acorns} 🍃` : ""}
             </div>
             <div className="quest-card-track">
               <div
@@ -2106,7 +2106,7 @@ export default function Hud() {
           <Bar value={s.energy} max={s.maxEnergy} color="#f2c14e" icon="⚡" />
           <Bar value={s.hunger} max={s.maxHunger} color={s.hunger <= 25 ? "#c0392b" : "#d98e4a"} icon="🍗" />
         </div>
-        <div className="acorn-pill">🪵 {s.acorns}</div>
+        <div className="acorn-pill">🍃 {s.acorns}</div>
         <div
           className="acorn-pill pack click"
           title="Open your pack (I)"

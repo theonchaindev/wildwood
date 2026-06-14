@@ -22,7 +22,7 @@ export async function GET() {
   }
   const everyone = Array.from(byName.values());
 
-  // look up the connected wallet for each live player, then their on-chain $WOOD
+  // look up the connected wallet for each live player, then their on-chain $WILD
   const names = everyone.map((e) => e.name);
   const accounts = names.length
     ? await prisma.user.findMany({ where: { name: { in: names } }, select: { name: true, wallet: true } })

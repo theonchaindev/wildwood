@@ -112,7 +112,7 @@ export const HAND_YIELD = 2;
 export const ROD_COST = 80;
 
 export const SELL_PRICES: Record<string, number> = {
-  Timber: 4,
+  Wood: 4,
   "Orange Mushroom": 8,
   "Purple Mushroom": 10,
   Sunflower: 6,
@@ -176,7 +176,7 @@ export const SEEDS: Record<string, { cost: number; growMs: number; yieldLabel: s
   "Pumpkin Seeds": { cost: 15, growMs: 120_000, yieldLabel: "Pumpkin", yieldN: 1 },
 };
 
-// what cooking turns things into (each cook burns 1 Coal, or 1 Timber)
+// what cooking turns things into (each cook burns 1 Coal, or 1 Wood)
 export const RECIPES: Record<string, string> = {
   "Raw Chicken": "Cooked Chicken",
   "Raw Pork": "Cooked Pork",
@@ -240,12 +240,12 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
     inputs: { Carrot: 2, Pumpkin: 1, Water: 1 }, output: { label: "Forest Stew", n: 1 },
   },
   {
-    id: "torchpack", icon: "🕯️", label: "Timber bundle ×6", blurb: "Split coal heat into burnable timber",
-    inputs: { Coal: 2, Stone: 1 }, output: { label: "Timber", n: 6 },
+    id: "torchpack", icon: "🕯️", label: "Wood bundle ×6", blurb: "Split coal heat into burnable timber",
+    inputs: { Coal: 2, Stone: 1 }, output: { label: "Wood", n: 6 },
   },
   {
     id: "dsword", icon: "💠", label: "Diamond Sword", blurb: "55 dmg · 25% crits — the deep pays off",
-    inputs: { Diamond: 2, Timber: 5, Coal: 5 }, weapon: "diamond",
+    inputs: { Diamond: 2, Wood: 5, Coal: 5 }, weapon: "diamond",
   },
 ];
 
@@ -277,7 +277,7 @@ export type Achievement = {
 export const ACHIEVEMENTS: Achievement[] = [
   { id: "chop-1", icon: "🪓", title: "Lumberjack", desc: "Chop 10 trees", stat: "treesChopped", goal: 10, acorns: 30, xp: 50 },
   { id: "chop-2", icon: "🪓", title: "Deforester", desc: "Chop 100 trees", stat: "treesChopped", goal: 100, acorns: 150, xp: 150 },
-  { id: "chop-3", icon: "🪓", title: "Timber Tycoon", desc: "Chop 500 trees", stat: "treesChopped", goal: 500, acorns: 600, xp: 400 },
+  { id: "chop-3", icon: "🪓", title: "Wood Tycoon", desc: "Chop 500 trees", stat: "treesChopped", goal: 500, acorns: 600, xp: 400 },
   { id: "mine-1", icon: "⛏️", title: "Rock Bottom", desc: "Mine 10 rocks", stat: "rocksMined", goal: 10, acorns: 30, xp: 50 },
   { id: "mine-2", icon: "⛏️", title: "Quarry Master", desc: "Mine 100 rocks", stat: "rocksMined", goal: 100, acorns: 200, xp: 200 },
   { id: "fish-1", icon: "🎣", title: "First Catch", desc: "Catch 10 fish", stat: "fishCaught", goal: 10, acorns: 30, xp: 50 },
@@ -386,7 +386,7 @@ export const HORSE_COST = 600;
 export const BOAT_COST = { acorns: 180, wood: 35 };
 
 // the cat brings a present once per game day if you remember to pet her
-const CAT_GIFTS = ["Egg", "Apple", "Carrot", "Stone", "Timber", "Carp", "Orange Mushroom"];
+const CAT_GIFTS = ["Egg", "Apple", "Carrot", "Stone", "Wood", "Carp", "Orange Mushroom"];
 
 // ---- the house: five upgrade levels, each with a real perk ----
 
@@ -404,13 +404,13 @@ export const BASE_LAND_WOOD = 30; // clearing the raw plot costs timber too
 export const BASE_RESET_EPOCH = 1;
 export const BASE_RESET_REFUND = 1000;
 
-/** Rename the old "Wood" item to "Timber" in a save's stacks (the $WOOD coin
- *  took the "Wood" name). Idempotent. */
-export function migrateWoodToTimber(save: any) {
+/** Chopping yields "Wood" again (the currency is now WILD), so move any old
+ *  "Timber" stacks in a save back to "Wood". Idempotent. */
+export function migrateTimberToWood(save: any) {
   for (const bag of [save?.inventory, save?.chest]) {
-    if (bag && bag.Wood != null) {
-      bag.Timber = (bag.Timber ?? 0) + bag.Wood;
-      delete bag.Wood;
+    if (bag && bag.Timber != null) {
+      bag.Wood = (bag.Wood ?? 0) + bag.Timber;
+      delete bag.Timber;
     }
   }
 }
@@ -440,10 +440,10 @@ export function applyBaseReset(save: any): boolean {
 export const HOUSE_LEVELS = [
   // the Log Cabin must be built first — expensive, and a lot of timber
   { name: "Log Cabin", icon: "🛖", acorns: 300, wood: 60, stone: 0, perk: "A roof of your own — unlocks sleeping & upgrades" },
-  { name: "Timber Cottage", icon: "🏠", acorns: 400, wood: 20, stone: 0, perk: "Sleep through the night — rest at your door after dusk" },
+  { name: "Wood Cottage", icon: "🏠", acorns: 400, wood: 20, stone: 0, perk: "Sleep through the night — rest at your door after dusk" },
   { name: "Stone Farmhouse", icon: "🏡", acorns: 900, wood: 30, stone: 20, perk: "Crops grow 20% faster" },
   { name: "Hunter's Lodge", icon: "🏕️", acorns: 1600, wood: 50, stone: 35, perk: "Pens, hives & orchard produce 20% faster" },
-  { name: "Wildwood Manor", icon: "🏰", acorns: 3000, wood: 80, stone: 60, perk: `Earn 150 🪵 rent — collect at your door every day` },
+  { name: "Wildwood Manor", icon: "🏰", acorns: 3000, wood: 80, stone: 60, perk: `Earn 150 🍃 rent — collect at your door every day` },
 ];
 
 export const RENT_AMOUNT = 150;
@@ -589,7 +589,7 @@ export function dayOffers(day: number): Offer[] {
 const QUESTS: Quest[] = [
   { id: "leave-glade", title: "Leave the Hollow", desc: "Head out through a gap in the fence into the wild.", goal: 1, progress: 0, done: false, xp: 40, acorns: 10 },
   { id: "forage-mushrooms", title: "Mushroom Hunter", desc: "Collect 5 wild mushrooms from Sporewood, north of the Hollow.", goal: 5, progress: 0, done: false, xp: 80, acorns: 25 },
-  { id: "timber", title: "Timber!", desc: "Chop down 2 trees with your bare hands. Click a tree to start chopping.", goal: 2, progress: 0, done: false, xp: 80, acorns: 20 },
+  { id: "timber", title: "Wood!", desc: "Chop down 2 trees with your bare hands. Click a tree to start chopping.", goal: 2, progress: 0, done: false, xp: 80, acorns: 20 },
   { id: "pick-flowers", title: "Bloom Florist", desc: "Pick 3 flowers from the Bloom in the south.", goal: 3, progress: 0, done: false, xp: 60, acorns: 20 },
   { id: "buy-axe", title: "Tooled Up", desc: "Sell your goods at The Den and buy an axe.", goal: 1, progress: 0, done: false, xp: 100, acorns: 0 },
   { id: "go-fish", title: "Gone Fishing", desc: "Buy a fishing rod, stand by the river and press F. Catch 2 fish.", goal: 2, progress: 0, done: false, xp: 90, acorns: 25 },
@@ -835,7 +835,7 @@ type GameState = {
 
 function spend(s: { acorns: number; addToast: (t: string) => void }, cost: number): boolean {
   if (s.acorns < cost) {
-    s.addToast("Not enough Wood!");
+    s.addToast("Not enough WILD!");
     sfx.error();
     return false;
   }
@@ -970,7 +970,7 @@ export const useGame = create<GameState>()(
               acorns: get().acorns + a.acorns,
             });
             get().setBanner(`${a.icon} Achievement — ${a.title}!`);
-            get().addToast(`📖 ${a.desc} · +${a.acorns} 🪵 · +${a.xp} XP`);
+            get().addToast(`📖 ${a.desc} · +${a.acorns} 🍃 · +${a.xp} XP`);
             sfx.questDone();
             get().addXp(a.xp);
           }
@@ -995,7 +995,7 @@ export const useGame = create<GameState>()(
         if ((s.stats[q.stat] ?? 0) - (s.dailyBase[q.stat] ?? 0) < q.goal) return;
         set({ dailyClaimed: [...s.dailyClaimed, id], acorns: s.acorns + q.acorns });
         sfx.coin();
-        s.addToast(`📋 ${q.label} — +${q.acorns} 🪵 · +${q.xp} XP`);
+        s.addToast(`📋 ${q.label} — +${q.acorns} 🍃 · +${q.xp} XP`);
         s.addXp(q.xp);
       },
 
@@ -1073,7 +1073,7 @@ export const useGame = create<GameState>()(
           interiorDecor: s.interiorDecor.filter((d) => d.id !== id),
           acorns: s.acorns + refund,
         });
-        s.addToast(`Removed ${DECOR_ITEMS[piece.key]?.label ?? "furnishing"} · +${refund} 🪵 back`);
+        s.addToast(`Removed ${DECOR_ITEMS[piece.key]?.label ?? "furnishing"} · +${refund} 🍃 back`);
         sfx.ui();
       },
 
@@ -1281,13 +1281,13 @@ export const useGame = create<GameState>()(
         const s = get();
         if (s.choppedAt[treeId]) return;
         const yieldN = s.axe ? AXES[s.axe].yield : HAND_YIELD;
-        const got = s.gainItem("Timber", yieldN);
+        const got = s.gainItem("Wood", yieldN);
         set({
           choppedAt: { ...get().choppedAt, [treeId]: Date.now() },
           chopTargetId: null,
         });
         sfx.treeFall();
-        if (got > 0) s.addToast(`+${got} Timber · +15 XP`);
+        if (got > 0) s.addToast(`+${got} Wood · +15 XP`);
         s.addXp(15);
         get().bumpStat("treesChopped");
         get().questEvent("timber");
@@ -1311,7 +1311,7 @@ export const useGame = create<GameState>()(
           s.gainItem("Purple Mushroom", 2);
           set({ acorns: get().acorns + loot, attackTargetId: null });
           s.setBanner("👹 THE BUTCHER HAS FALLEN!");
-          s.addToast(`+${loot} 🪵 · +150 XP · 🧰 Medkit · 🍄 ×2`);
+          s.addToast(`+${loot} 🍃 · +150 XP · 🧰 Medkit · 🍄 ×2`);
           sfx.questDone();
           s.addXp(150);
           get().bumpStat("bossKills");
@@ -1326,7 +1326,7 @@ export const useGame = create<GameState>()(
           if (Math.random() < 0.35) s.gainItem("Coal", 1);
           if (Math.random() < 0.04) s.gainItem("Diamond", 1);
           set({ acorns: get().acorns + loot, attackTargetId: null });
-          s.addToast(`💀 Slain! +20 XP · +${loot} 🪵 · 🦴 Bones`);
+          s.addToast(`💀 Slain! +20 XP · +${loot} 🍃 · 🦴 Bones`);
           sfx.coin();
           s.addXp(20);
           get().bumpStat("zombiesKilled");
@@ -1337,7 +1337,7 @@ export const useGame = create<GameState>()(
         const extra = Math.random() < 0.06 ? "Magic Shroom" : Math.random() < 0.25 ? "Purple Mushroom" : null;
         if (extra) s.gainItem(extra, 1);
         set({ acorns: get().acorns + loot, attackTargetId: null });
-        s.addToast(`${blood ? "🔴 " : ""}Zombie slain! +25 XP · +${loot} 🪵${extra ? ` · +1 ${extra}` : ""}`);
+        s.addToast(`${blood ? "🔴 " : ""}Zombie slain! +25 XP · +${loot} 🍃${extra ? ` · +1 ${extra}` : ""}`);
         sfx.coin();
         s.addXp(25);
         get().bumpStat("zombiesKilled");
@@ -1367,15 +1367,15 @@ export const useGame = create<GameState>()(
         const s = get();
         if (s.homeTier > 0) return;
         const tier = HOME_TIERS[0];
-        if ((s.inventory.Timber ?? 0) < BASE_LAND_WOOD) {
-          s.addToast(`Clearing the land needs ${BASE_LAND_WOOD} Timber 🌲`);
+        if ((s.inventory.Wood ?? 0) < BASE_LAND_WOOD) {
+          s.addToast(`Clearing the land needs ${BASE_LAND_WOOD} Wood 🪵`);
           sfx.error();
           return;
         }
         if (!spend(s, tier.price)) return;
         const inv = { ...s.inventory };
-        if (inv.Timber - BASE_LAND_WOOD <= 0) delete inv.Timber;
-        else inv.Timber -= BASE_LAND_WOOD;
+        if (inv.Wood - BASE_LAND_WOOD <= 0) delete inv.Wood;
+        else inv.Wood -= BASE_LAND_WOOD;
         set({ acorns: s.acorns - tier.price, inventory: inv, homeTier: 1, homeOffer: null });
         sfx.buy();
         s.setBanner("🏡 The land is yours — now build it up!");
@@ -1419,15 +1419,15 @@ export const useGame = create<GameState>()(
         if (s.pens[idx] || s.homeTier < 1) return;
         const def = PEN_DEFS[animal];
         const totalAcorns = PEN_BUILD_COST.acorns + def.animalCost;
-        if ((s.inventory.Timber ?? 0) < PEN_BUILD_COST.wood) {
-          s.addToast(`You need ${PEN_BUILD_COST.wood} Timber for the fencing 🌲`);
+        if ((s.inventory.Wood ?? 0) < PEN_BUILD_COST.wood) {
+          s.addToast(`You need ${PEN_BUILD_COST.wood} Wood for the fencing 🪵`);
           sfx.error();
           return;
         }
         if (!spend(s, totalAcorns)) return;
         const inv = { ...s.inventory };
-        if (inv.Timber - PEN_BUILD_COST.wood <= 0) delete inv.Timber;
-        else inv.Timber -= PEN_BUILD_COST.wood;
+        if (inv.Wood - PEN_BUILD_COST.wood <= 0) delete inv.Wood;
+        else inv.Wood -= PEN_BUILD_COST.wood;
         set({
           acorns: s.acorns - totalAcorns,
           inventory: inv,
@@ -1499,8 +1499,8 @@ export const useGame = create<GameState>()(
         const s = get();
         if (s.homeTier < 1 || s.houseLevel >= HOUSE_LEVELS.length) return;
         const next = HOUSE_LEVELS[s.houseLevel];
-        if ((s.inventory.Timber ?? 0) < next.wood) {
-          s.addToast(`Needs ${next.wood} Timber 🌲`);
+        if ((s.inventory.Wood ?? 0) < next.wood) {
+          s.addToast(`Needs ${next.wood} Wood 🪵`);
           sfx.error();
           return;
         }
@@ -1511,7 +1511,7 @@ export const useGame = create<GameState>()(
         }
         if (!spend(s, next.acorns)) return;
         const inv = { ...s.inventory };
-        for (const [mat, cost] of [["Timber", next.wood], ["Stone", next.stone]] as const) {
+        for (const [mat, cost] of [["Wood", next.wood], ["Stone", next.stone]] as const) {
           if (cost > 0) {
             if (inv[mat] - cost <= 0) delete inv[mat];
             else inv[mat] -= cost;
@@ -1527,7 +1527,7 @@ export const useGame = create<GameState>()(
       sleepTillDawn: () => {
         const s = get();
         if (s.houseLevel < 2) {
-          s.addToast("You need a Timber Cottage to sleep the night away 🛏️");
+          s.addToast("You need a Wood Cottage to sleep the night away 🛏️");
           return;
         }
         if (!isNight()) {
@@ -1559,21 +1559,21 @@ export const useGame = create<GameState>()(
         }
         set({ acorns: s.acorns + RENT_AMOUNT, lastRentAt: Date.now() });
         sfx.coin();
-        s.addToast(`💰 Collected ${RENT_AMOUNT} 🪵 rent from your tenants`);
+        s.addToast(`💰 Collected ${RENT_AMOUNT} 🍃 rent from your tenants`);
       },
 
       plantOrchardTree: (idx) => {
         const s = get();
         if (s.orchard[idx] || s.homeTier < 1) return;
-        if ((s.inventory.Timber ?? 0) < ORCHARD_COST.wood) {
-          s.addToast(`You need ${ORCHARD_COST.wood} Timber for the stakes 🌲`);
+        if ((s.inventory.Wood ?? 0) < ORCHARD_COST.wood) {
+          s.addToast(`You need ${ORCHARD_COST.wood} Wood for the stakes 🪵`);
           sfx.error();
           return;
         }
         if (!spend(s, ORCHARD_COST.acorns)) return;
         const inv = { ...s.inventory };
-        if (inv.Timber - ORCHARD_COST.wood <= 0) delete inv.Timber;
-        else inv.Timber -= ORCHARD_COST.wood;
+        if (inv.Wood - ORCHARD_COST.wood <= 0) delete inv.Wood;
+        else inv.Wood -= ORCHARD_COST.wood;
         set({
           acorns: s.acorns - ORCHARD_COST.acorns,
           inventory: inv,
@@ -1615,15 +1615,15 @@ export const useGame = create<GameState>()(
       buildHive: (idx) => {
         const s = get();
         if (s.hives[idx] || s.homeTier < 1) return;
-        if ((s.inventory.Timber ?? 0) < HIVE_COST.wood) {
-          s.addToast(`You need ${HIVE_COST.wood} Timber for the hive box 🌲`);
+        if ((s.inventory.Wood ?? 0) < HIVE_COST.wood) {
+          s.addToast(`You need ${HIVE_COST.wood} Wood for the hive box 🪵`);
           sfx.error();
           return;
         }
         if (!spend(s, HIVE_COST.acorns)) return;
         const inv = { ...s.inventory };
-        if (inv.Timber - HIVE_COST.wood <= 0) delete inv.Timber;
-        else inv.Timber -= HIVE_COST.wood;
+        if (inv.Wood - HIVE_COST.wood <= 0) delete inv.Wood;
+        else inv.Wood -= HIVE_COST.wood;
         set({
           acorns: s.acorns - HIVE_COST.acorns,
           inventory: inv,
@@ -1678,8 +1678,8 @@ export const useGame = create<GameState>()(
           s.addToast("Too close to another structure");
           return;
         }
-        if ((s.inventory.Timber ?? 0) < def.wood) {
-          s.addToast(`Needs ${def.wood} Timber 🌲`);
+        if ((s.inventory.Wood ?? 0) < def.wood) {
+          s.addToast(`Needs ${def.wood} Wood 🪵`);
           sfx.error();
           return;
         }
@@ -1689,12 +1689,12 @@ export const useGame = create<GameState>()(
           return;
         }
         if (s.acorns < def.acorns) {
-          s.addToast(`Needs ${def.acorns} Wood 🪵`);
+          s.addToast(`Needs ${def.acorns} WILD 🍃`);
           sfx.error();
           return;
         }
         const inv = { ...s.inventory };
-        for (const [mat, cost] of [["Timber", def.wood], ["Stone", def.stone]] as const) {
+        for (const [mat, cost] of [["Wood", def.wood], ["Stone", def.stone]] as const) {
           if (cost > 0) {
             if (inv[mat] - cost <= 0) delete inv[mat];
             else inv[mat] -= cost;
@@ -1715,7 +1715,7 @@ export const useGame = create<GameState>()(
         const def = BUILDABLES[st.type];
         const refundWood = Math.floor(def.wood / 2);
         const refundStone = Math.floor(def.stone / 2);
-        if (refundWood > 0) s.gainItem("Timber", refundWood);
+        if (refundWood > 0) s.gainItem("Wood", refundWood);
         if (refundStone > 0) s.gainItem("Stone", refundStone);
         set({ structures: get().structures.filter((x) => x.id !== id) });
         s.addToast(`Removed ${def.label}`);
@@ -1803,15 +1803,15 @@ export const useGame = create<GameState>()(
       buyBoat: () => {
         const s = get();
         if (s.boat) return;
-        if ((s.inventory.Timber ?? 0) < BOAT_COST.wood) {
-          s.addToast(`You need ${BOAT_COST.wood} Timber to build a boat 🌲`);
+        if ((s.inventory.Wood ?? 0) < BOAT_COST.wood) {
+          s.addToast(`You need ${BOAT_COST.wood} Wood to build a boat 🪵`);
           sfx.error();
           return;
         }
         if (!spend(s, BOAT_COST.acorns)) return;
         const inv = { ...s.inventory };
-        if (inv.Timber - BOAT_COST.wood <= 0) delete inv.Timber;
-        else inv.Timber -= BOAT_COST.wood;
+        if (inv.Wood - BOAT_COST.wood <= 0) delete inv.Wood;
+        else inv.Wood -= BOAT_COST.wood;
         set({ acorns: s.acorns - BOAT_COST.acorns, inventory: inv, boat: true });
         sfx.buy();
         s.setBanner("⛵ A boat! Now you can cross the river and lake anywhere");
@@ -1838,10 +1838,10 @@ export const useGame = create<GameState>()(
           return;
         }
         const def = BASE_BUILD[kind];
-        if ((s.inventory.Timber ?? 0) < def.wood) { s.addToast(`Build the ${def.label}: needs ${def.wood} Timber 🌲`); sfx.error(); return; }
+        if ((s.inventory.Wood ?? 0) < def.wood) { s.addToast(`Build the ${def.label}: needs ${def.wood} Wood 🪵`); sfx.error(); return; }
         if ((s.inventory.Stone ?? 0) < def.stone) { s.addToast(`Build the ${def.label}: needs ${def.stone} Stone 🪨`); sfx.error(); return; }
         const inv = { ...s.inventory };
-        for (const [mat, n] of [["Timber", def.wood], ["Stone", def.stone]] as const) {
+        for (const [mat, n] of [["Wood", def.wood], ["Stone", def.stone]] as const) {
           if (n > 0) { if (inv[mat] - n <= 0) delete inv[mat]; else inv[mat] -= n; }
         }
         set({ inventory: inv, [builtKey]: true } as any);
@@ -1857,9 +1857,9 @@ export const useGame = create<GameState>()(
         if (s.houseLevel >= 1) { s.enterHouse(); return; }
         const def = HOUSE_LEVELS[0];
         if (!spend(s, def.acorns)) return;
-        if ((s.inventory.Timber ?? 0) < def.wood) { s.addToast(`The ${def.name} needs ${def.wood} Timber 🌲`); sfx.error(); return; }
+        if ((s.inventory.Wood ?? 0) < def.wood) { s.addToast(`The ${def.name} needs ${def.wood} Wood 🪵`); sfx.error(); return; }
         const inv = { ...s.inventory };
-        if (inv.Timber - def.wood <= 0) delete inv.Timber; else inv.Timber -= def.wood;
+        if (inv.Wood - def.wood <= 0) delete inv.Wood; else inv.Wood -= def.wood;
         set({ acorns: s.acorns - def.acorns, inventory: inv, houseLevel: 1 });
         sfx.levelUp();
         s.setBanner(`${def.icon} You built a ${def.name}!`);
@@ -1869,10 +1869,10 @@ export const useGame = create<GameState>()(
       tillSoil: (key) => {
         const s = get();
         if (s.tilled[key]) return;
-        if ((s.inventory.Timber ?? 0) < TILL_COST.wood) { s.addToast(`Tilling soil needs ${TILL_COST.wood} Timber 🌲`); sfx.error(); return; }
+        if ((s.inventory.Wood ?? 0) < TILL_COST.wood) { s.addToast(`Tilling soil needs ${TILL_COST.wood} Wood 🪵`); sfx.error(); return; }
         if (!spend(s, TILL_COST.acorns)) return;
         const inv = { ...s.inventory };
-        if (TILL_COST.wood > 0) { if (inv.Timber - TILL_COST.wood <= 0) delete inv.Timber; else inv.Timber -= TILL_COST.wood; }
+        if (TILL_COST.wood > 0) { if (inv.Wood - TILL_COST.wood <= 0) delete inv.Wood; else inv.Wood -= TILL_COST.wood; }
         set({ acorns: s.acorns - TILL_COST.acorns, inventory: inv, tilled: { ...s.tilled, [key]: true } });
         sfx.pickup();
         s.addToast("🟫 Soil tilled — plant a seed here");
@@ -2045,9 +2045,9 @@ export const useGame = create<GameState>()(
         if (!cooked) return;
         if ((s.inventory[rawLabel] ?? 0) < 1) return;
         // coal from the mine burns first; wood as a fallback
-        const fuel = (s.inventory.Coal ?? 0) >= 1 ? "Coal" : "Timber";
+        const fuel = (s.inventory.Coal ?? 0) >= 1 ? "Coal" : "Wood";
         if ((s.inventory[fuel] ?? 0) < 1) {
-          s.addToast("You need 1 Coal or 1 Timber for fuel ⚫🌲");
+          s.addToast("You need 1 Coal or 1 Wood for fuel ⚫🪵");
           sfx.error();
           return;
         }
@@ -2101,8 +2101,8 @@ export const useGame = create<GameState>()(
           s.setBanner("You blacked out… you wake by the campfire, pack empty");
           s.addToast(
             lootCount > 0
-              ? `💀 Lost all your loot (${lootCount} items)${lost > 0 ? ` · ${lost} 🪵` : ""} — chest items are safe`
-              : `💀 ${lost > 0 ? `Lost ${lost} 🪵 in the dark` : "At least your pack was already empty"}`
+              ? `💀 Lost all your loot (${lootCount} items)${lost > 0 ? ` · ${lost} 🍃` : ""} — chest items are safe`
+              : `💀 ${lost > 0 ? `Lost ${lost} 🍃 in the dark` : "At least your pack was already empty"}`
           );
         } else {
           set({ hp, hurtAt: Date.now() });
@@ -2347,7 +2347,7 @@ export const useGame = create<GameState>()(
             acorns: s.acorns + offer.price,
             acceptedOffers: [...s.acceptedOffers, offer.id],
           });
-          s.addToast(`Traded ${offer.qty} ${offer.item} to ${offer.npc} for ${offer.price} 🪵`);
+          s.addToast(`Traded ${offer.qty} ${offer.item} to ${offer.npc} for ${offer.price} 🍃`);
           sfx.coin();
           get().bumpStat("acornsEarned", offer.price);
         } else {
@@ -2374,7 +2374,7 @@ export const useGame = create<GameState>()(
         else inv[label] = have - n;
         set({ inventory: inv, acorns: s.acorns + price * n });
         sfx.coin();
-        s.addToast(`Sold ${n} ${label} for ${price * n} Wood`);
+        s.addToast(`Sold ${n} ${label} for ${price * n} WILD`);
         get().bumpStat("acornsEarned", price * n);
       },
 
@@ -2407,7 +2407,7 @@ export const useGame = create<GameState>()(
             acorns: get().acorns + q.acorns,
           });
           get().setBanner(`Quest complete — ${q.title}`);
-          get().addToast(`Reward: +${q.xp} XP${q.acorns > 0 ? ` · +${q.acorns} 🪵` : ""}`);
+          get().addToast(`Reward: +${q.xp} XP${q.acorns > 0 ? ` · +${q.acorns} 🍃` : ""}`);
           get().addXp(q.xp);
           changed = true;
         }
@@ -2434,7 +2434,7 @@ export const useGame = create<GameState>()(
           set({ acorns: get().acorns + quest.acorns });
           s.setBanner(`Quest complete — ${quest.title}`);
           sfx.questDone();
-          s.addToast(`Reward: +${quest.xp} XP${quest.acorns > 0 ? ` · +${quest.acorns} 🪵` : ""}`);
+          s.addToast(`Reward: +${quest.xp} XP${quest.acorns > 0 ? ` · +${quest.acorns} 🍃` : ""}`);
           s.addXp(quest.xp);
           const next = quests.find((q) => !q.done);
           if (next) {
@@ -2639,7 +2639,7 @@ export const useGame = create<GameState>()(
         if (!state.ownedAxes) state.ownedAxes = state.axe ? [state.axe] : [];
         if (!state.ownedArmor) state.ownedArmor = state.armor ? [state.armor] : [];
         // one-time base wipe for this epoch (keeps acorns/level/etc.)
-        migrateWoodToTimber(state);
+        migrateTimberToWood(state);
         const wiped = applyBaseReset(state);
         if (wiped && state.homeTier === 0) state.location = "forest";
         // existing base owners already had everything built — keep it that way

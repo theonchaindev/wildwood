@@ -1,4 +1,4 @@
-// Reads on-chain $WOOD (SPL token) balances. Returns 0 when the mint isn't
+// Reads on-chain $WILD (SPL token) balances. Returns 0 when the mint isn't
 // configured yet or the wallet has no token account. Cached briefly so the
 // leaderboard doesn't hammer the RPC.
 

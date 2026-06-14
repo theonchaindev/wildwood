@@ -2,7 +2,7 @@
 
 // Client helpers for accounts, cloud saves, visiting and player offers.
 
-import { useGame, applyBaseReset, migrateWoodToTimber } from "./store";
+import { useGame, applyBaseReset, migrateTimberToWood } from "./store";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -118,7 +118,7 @@ function applyAuth(data: AuthResponse) {
       if (!save.ownedWeapons) save.ownedWeapons = save.weapon ? [save.weapon] : [];
       if (!save.ownedAxes) save.ownedAxes = save.axe ? [save.axe] : [];
       if (!save.ownedArmor) save.ownedArmor = save.armor ? [save.armor] : [];
-      migrateWoodToTimber(save);
+      migrateTimberToWood(save);
       const baseWiped = applyBaseReset(save); // one-time base wipe for this epoch
       if (baseWiped) {
         setTimeout(() => useGame.getState().setBanner("🏡 Bases have been reset — rebuild yours! (Wood refunded)"), 1500);
@@ -141,7 +141,7 @@ function applyAuth(data: AuthResponse) {
   useGame.setState({ account: { name: data.name } });
   if (data.pendingAcorns > 0) {
     useGame.setState({ acorns: useGame.getState().acorns + data.pendingAcorns });
-    s.addToast(`💰 Your offers sold while you were away: +${data.pendingAcorns} 🪵`);
+    s.addToast(`💰 Your offers sold while you were away: +${data.pendingAcorns} 🍃`);
   }
 }
 
@@ -232,7 +232,7 @@ export async function postOffer(item: string, qty: number, price: number) {
   useGame.setState({ inventory: inv });
   try {
     await api("/api/offers", { method: "POST", body: JSON.stringify({ item, qty, price }) });
-    s.addToast(`📋 Posted: ${qty} ${item} for ${price} 🪵`);
+    s.addToast(`📋 Posted: ${qty} ${item} for ${price} 🍃`);
     pushSave();
   } catch (e) {
     useGame.getState().gainItem(item, qty); // refund
@@ -310,7 +310,7 @@ export async function fetchLeaderboard() {
   }>("/api/leaderboard");
 }
 
-/** On-chain $WOOD balance of a wallet (0 until the mint is live). */
+/** On-chain $WILD balance of a wallet (0 until the mint is live). */
 export async function fetchWalletWood(wallet: string) {
   return api<{ wood: number; mint: string | null; live: boolean }>(
     `/api/token/balance?wallet=${encodeURIComponent(wallet)}`
@@ -372,9 +372,9 @@ export async function cashOut(acorns: number) {
   useGame.setState({ acorns: useGame.getState().acorns - acorns });
   pushSave();
   if (data.status === "paid") {
-    s.addToast(`🪵 ${acorns} $WOOD minted to your wallet — tx ${data.txSig?.slice(0, 8)}…`);
+    s.addToast(`🍃 ${acorns} $WILD minted to your wallet — tx ${data.txSig?.slice(0, 8)}…`);
   } else {
-    s.addToast(`🪵 ${acorns} $WOOD conversion queued (${data.message ?? "pending"})`);
+    s.addToast(`🍃 ${acorns} $WILD conversion queued (${data.message ?? "pending"})`);
   }
   return data;
 }
