@@ -45,11 +45,15 @@ const rand = (min: number, max: number) => min + rng() * (max - min);
 // the river runs north-south, meandering around x ~ 38
 export const RIVER_X = 38;
 export const RIVER_WIDTH = 8;
-// the river snakes: two sine waves give it a natural, irregular bend.
-// at z = 0 (the bridge) both terms vanish, so the centre is exactly RIVER_X
-// and the Old Bridge always lines up with the water.
+// the river snakes: two sine waves give it a natural, irregular bend. The
+// channel is held dead straight (≈ RIVER_X) through the bridge crossing so the
+// Old Bridge spans the water cleanly, then eases into its meander further out.
 export function riverCenterX(z: number): number {
-  return RIVER_X + 9 * Math.sin(z * 0.045) + 3.5 * Math.sin(z * 0.115 + 0.6) - 3.5 * Math.sin(0.6);
+  const meander = 9 * Math.sin(z * 0.045) + 3.5 * Math.sin(z * 0.115 + 0.6) - 3.5 * Math.sin(0.6);
+  // gate: 0 within ±7 of the bridge, ramping to full meander by ±16
+  const gate = Math.min(1, Math.max(0, (Math.abs(z - BRIDGE_Z) - 7) / 9));
+  const eased = gate * gate * (3 - 2 * gate); // smoothstep so the bend looks natural
+  return RIVER_X + meander * eased;
 }
 export const GLADE_RADIUS = 20;
 export const MAP_BOUND = 95; // playable half-extent
@@ -760,8 +764,11 @@ export function pensAllowed(tier: number) {
 // ---- movement / collision ----
 
 const RIVER_BAND = RIVER_WIDTH / 2 + 0.7; // water + muddy bank
-const BRIDGE_HALF_SPAN = 5.5;
-const BRIDGE_HALF_WIDTH = 1.7;
+// the bridge model measures 11 long (x) × 6.3 wide (z); the walkable deck sits
+// between its stone railings, so the collision matches that — not a thin strip
+const BRIDGE_HALF_SPAN = 5.5; // x: bank to bank
+const BRIDGE_HALF_WIDTH = 2.5; // z: inside the railings (deck you can walk on)
+const BRIDGE_WALL = 3.4; // z: outer edge of the solid railings
 const PLAYER_R = 0.35;
 
 /** Height of the bridge deck at a given world position (0 when off the bridge). */
@@ -845,14 +852,14 @@ export function resolveMovement(
     // wing walls flare wider at the ends — cover those too)
     const bdx = Math.abs(nx - RIVER_X);
     const bdz = nz - BRIDGE_Z;
-    if (!boat && bdx < BRIDGE_HALF_SPAN + 1.2 && Math.abs(bdz) > BRIDGE_HALF_WIDTH && Math.abs(bdz) < 3.6) {
+    if (!boat && bdx < BRIDGE_HALF_SPAN + 1.2 && Math.abs(bdz) > BRIDGE_HALF_WIDTH && Math.abs(bdz) < BRIDGE_WALL) {
       const wasInside = Math.abs(px - RIVER_X) < BRIDGE_HALF_SPAN + 1.2 && Math.abs(pz - BRIDGE_Z) <= BRIDGE_HALF_WIDTH;
       if (wasInside) {
         // on the deck: the parapet keeps them on it
         nz = BRIDGE_Z + Math.sign(bdz) * BRIDGE_HALF_WIDTH;
       } else {
         // outside: the stone flank pushes them away
-        nz = BRIDGE_Z + Math.sign(bdz) * 3.6;
+        nz = BRIDGE_Z + Math.sign(bdz) * BRIDGE_WALL;
       }
     }
     // the lake — stand on the shore, can't wade in (unless you have a boat)
